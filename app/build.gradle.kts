@@ -27,8 +27,9 @@ extensions.configure<ApplicationExtension> {
         applicationId = "com.mochyy.mochymusic"
         minSdk = 24
         targetSdk = 36
-        versionCode = 73
-        versionName = "8.2.3 build#1188"
+        // Fork builds need their own version identity: official APKs have a different signer.
+        versionCode = 74
+        versionName = "8.2.3-xbibz.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -148,6 +149,7 @@ extensions.configure<ApplicationExtension> {
         if (hasReleaseSigning) {
             create("release") {
                 storeFile = file("keystore/release.keystore")
+                storeType = "PKCS12"
                 storePassword = System.getenv("STORE_PASSWORD")
                 keyAlias = System.getenv("KEY_ALIAS")
                 keyPassword = System.getenv("KEY_PASSWORD")

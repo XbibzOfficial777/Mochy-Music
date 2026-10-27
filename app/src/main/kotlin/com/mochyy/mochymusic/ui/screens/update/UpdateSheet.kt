@@ -151,7 +151,7 @@ private val StableGreen = Color(0xFF9CF58A)
 private val BetaYellow = Color(0xFFF5E27A)
 
 /** "8.1.0 build#1165" -> "8.1.0", "8.0.2 (1100)" -> "8.0.2" */
-internal fun shortVersion(version: String): String = version.substringBefore(' ')
+internal fun shortVersion(version: String): String = version.substringBefore(' ').substringBefore("-xbibz.")
 
 /** the app version sheet: the app, the version you're on and its channel, what's newer, and what you can do about it */
 @Composable

@@ -57,6 +57,12 @@ jobs:
         run: |
           ./gradlew assembleUniversalGmsDebug --no-configuration-cache --console=plain --warning-mode summary
 
+      - name: Test fork release version parsing
+        run: |
+          ./gradlew :app:testUniversalGmsDebugUnitTest \
+            --tests com.mochyy.mochymusic.core.updater.VersionParsingTest \
+            --no-configuration-cache --console=plain --warning-mode summary
+
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:

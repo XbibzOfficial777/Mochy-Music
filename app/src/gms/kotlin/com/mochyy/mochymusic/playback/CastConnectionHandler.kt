@@ -97,6 +97,7 @@ class CastConnectionHandler(
                                        playerState == MediaStatus.PLAYER_STATE_LOADING
                 _castIsBuffering.value = playerState == MediaStatus.PLAYER_STATE_BUFFERING ||
                                          playerState == MediaStatus.PLAYER_STATE_LOADING
+                if (playerState == MediaStatus.PLAYER_STATE_PLAYING) _connectionError.value = null
                 _castDuration.value = client.streamDuration
 
                 val currentItemId = mediaStatus?.currentItemId ?: -1
@@ -112,6 +113,8 @@ class CastConnectionHandler(
 
         override fun onMediaError(error: com.google.android.gms.cast.MediaError) {
             Timber.e("Cast media error: ${error.reason}")
+            _castIsBuffering.value = false
+            _connectionError.value = "The receiver could not play this song. Try another song or device."
         }
 
         override fun onQueueStatusUpdated() {
@@ -353,9 +356,12 @@ class CastConnectionHandler(
 
         override fun onSessionEnded(session: CastSession, error: Int) {
             Timber.d("Cast session ended: error=$error")
-            connectionTimeoutJob?.cancel()
+            // Transferring to another receiver may end the old session while the new one is
+            // still starting. Keep its spinner and timeout alive until the new result arrives.
+            val transferring = _isConnecting.value
+            if (!transferring) connectionTimeoutJob?.cancel()
             _isCasting.value = false
-            _isConnecting.value = false
+            if (!transferring) _isConnecting.value = false
             _castDeviceName.value = null
             castSession = null
 
@@ -520,6 +526,7 @@ class CastConnectionHandler(
         scope.launch {
             try {
                 currentMediaId = metadata.id
+                _connectionError.value = null
                 _castIsBuffering.value = true
                 lastCastItemId = -1
 
@@ -554,6 +561,7 @@ class CastConnectionHandler(
                 if (currentMediaInfo == null) {
                     Timber.e("Failed to get stream URL for Cast")
                     _castIsBuffering.value = false
+                    _connectionError.value = "This song has no playable Cast stream. Try another song."
                     return@launch
                 }
                 queueItems.add(MediaQueueItem.Builder(currentMediaInfo).build())
@@ -598,6 +606,7 @@ class CastConnectionHandler(
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load media on Cast")
                 _castIsBuffering.value = false
+                _connectionError.value = "Could not load this song on the receiver. Try again."
             } finally {
 
                 delay(1500)

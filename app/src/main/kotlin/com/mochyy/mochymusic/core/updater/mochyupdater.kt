@@ -642,6 +642,30 @@ suspend fun checkForUpdate(
     onSuccess: (tag: String, isAvailable: Boolean, changelog: List<ChangelogSection>, size: String, date: String, description: String?, imageUrl: String?, apkUrl: String?) -> Unit,
     onError: () -> Unit,
 ) {
+    // The legacy update page shares the fork-aware checker; it must not fall back to an
+    // incompatible official or nightly APK when this build is signed with the fork's key.
+    if (isXbibzReleaseBuild) {
+        val result = getLatestRelease(force = true)
+        withContext(Dispatchers.Main) {
+            result.fold(
+                onSuccess = { release ->
+                    if (release != null && isNewerThanInstalled(release.version) && release.apkUrl != null) {
+                        val notes = release.body.lineSequence().filter { it.isNotBlank() }.toList()
+                        onSuccess(
+                            release.tag, true,
+                            listOf(ChangelogSection(context.getString(R.string.changelog), notes)),
+                            String.format("%.1f", release.apkSizeBytes / (1024.0 * 1024.0)),
+                            formatGitHubDate(release.publishedAt), null, null, release.apkUrl,
+                        )
+                    } else {
+                        onSuccess(BuildConfig.VERSION_NAME, false, emptyList(), "", "", null, null, null)
+                    }
+                },
+                onFailure = { onError() },
+            )
+        }
+        return
+    }
     withContext(Dispatchers.IO) {
         try {
             val url = URL("https://api.github.com/repos/realidkroo/Mochy-Music/releases")

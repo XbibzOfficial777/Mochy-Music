@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -88,6 +89,9 @@ fun CastDevicesSection() {
     var ready by remember { mutableStateOf(false) }
     var retry by remember { mutableIntStateOf(0) }
     var connectingId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(isConnecting) {
+        if (!isConnecting) connectingId = null
+    }
     val selector = remember {
         MediaRouteSelector.Builder()
             .addControlCategory(

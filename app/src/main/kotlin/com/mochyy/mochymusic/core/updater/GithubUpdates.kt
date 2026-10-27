@@ -23,8 +23,22 @@ const val ThreadsUrl = "https://www.threads.net/@furfurrfoxx"
 // Dev Spaces hides the Discord row while this is blank
 const val DiscordUrl = ""
 
-private const val ReleasesApi =
-    "https://api.github.com/repos/$GithubOwner/$GithubRepo/releases?per_page=20"
+// The Xbibz APK has its own signing key. It must never offer an upstream APK as an update;
+// keep the upstream owner above for attribution, and use a separate fork release channel here.
+private const val ForkReleaseRepo = "XbibzOfficial777/Mochy-Music"
+internal val isXbibzReleaseBuild: Boolean
+    get() = BuildConfig.APPLICATION_ID == "com.mochyy.mochymusic" &&
+        BuildConfig.ARCHITECTURE == "arm64" && BuildConfig.CAST_AVAILABLE &&
+        BuildConfig.VERSION_NAME.contains("-xbibz.", ignoreCase = true)
+
+private val ReleasesApi: String
+    get() = if (isXbibzReleaseBuild) {
+        "https://api.github.com/repos/$ForkReleaseRepo/releases?per_page=20"
+    } else {
+        "https://api.github.com/repos/$GithubOwner/$GithubRepo/releases?per_page=20"
+    }
+
+private val ForkTagPattern = Regex("""^v\d+\.\d+\.\d+-xbibz\.\d+$""", RegexOption.IGNORE_CASE)
 
 data class GithubRelease(
     val title: String,
@@ -69,7 +83,10 @@ fun parseFullVersion(text: String): FullVersion {
     val patch = semverMatch?.groupValues?.getOrNull(3)?.toIntOrNull() ?: 0
 
     val buildMatch = buildNumRegex.find(text)
-    val buildNumber = buildMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+    // Fork release tags distinguish rebuilds of the same upstream version, e.g. xbibz.1 → .2.
+    val forkBuildMatch = Regex("""-xbibz\.(\d+)""", RegexOption.IGNORE_CASE).find(text)
+    val buildNumber = buildMatch?.groupValues?.get(1)?.toIntOrNull()
+        ?: forkBuildMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
 
     return FullVersion(major, minor, patch, buildNumber)
 }
@@ -147,6 +164,9 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                 if (release.optBoolean("draft", false)) continue
 
                 val tag = release.optString("tag_name").orEmpty()
+                // A fork may later publish test or unrelated artifacts; only stable, matching
+                // fork tags signed by the release workflow are eligible for this build.
+                if (isXbibzReleaseBuild && (release.optBoolean("prerelease", false) || !ForkTagPattern.matches(tag))) continue
                 val title = release.optString("name").orEmpty().ifBlank { tag }
                 val fullVer = parseFullVersion("$title $tag")
 
@@ -177,7 +197,10 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                         val asset = assets.getJSONObject(a)
                         val name = asset.optString("name").orEmpty()
                         if (!name.endsWith(".apk", ignoreCase = true)) continue
+                        if (isXbibzReleaseBuild &&
+                            (!name.contains("arm64", ignoreCase = true) || !name.contains("gms", ignoreCase = true))) continue
                         val url = asset.optString("browser_download_url").orEmpty()
+                        if (url.isBlank()) continue
                         val size = asset.optLong("size", 0L)
 
                         if (appArch.isNotBlank() && appArch != "universal" && name.contains(appArch, ignoreCase = true)) {
@@ -203,6 +226,7 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                     universalUrl != null -> universalSize
                     else -> fallbackSize
                 }
+                if (isXbibzReleaseBuild && apkUrl == null) continue
 
                 add(
                     ParsedRelease(
