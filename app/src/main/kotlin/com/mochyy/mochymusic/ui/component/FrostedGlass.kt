@@ -2,6 +2,7 @@
 
 package com.mochyy.mochymusic.ui.component
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -28,6 +29,15 @@ import androidx.compose.ui.unit.dp
 
 /** How much of the chrome colour covers the blurred app. */
 private const val FrostTintAlpha = 0.78f
+
+/** Liquid glass: far less of it, so the app reads through the glass and the blur does the work. */
+private const val LiquidTintAlpha = 0.46f
+
+/** Liquid glass's rim: lit from the top left, a fainter catch-light bottom right, 1.2dp wide. */
+private val LiquidRimLight = Color.White.copy(alpha = 0.34f)
+private val LiquidRimShade = Color.White.copy(alpha = 0.12f)
+private val LiquidRimFlat = Color.White.copy(alpha = 0.04f)
+private val LiquidRimWidth = 1.2.dp
 
 /** The hairline is 2 real pixels on every screen, not 2dp: any thicker and it reads as a border. */
 private const val ChromeOutlineWidthPx = 2f
@@ -75,7 +85,13 @@ fun FrostedChromeGlass(
     accentWash: (() -> Color)?,
     modifier: Modifier = Modifier,
 ) {
-    val color = if (pureBlack) Color.Black else GlassChromeColor
+    // Do not blur, tint or add grain to OLED black: it really is opaque black.
+    if (pureBlack) {
+        Box(modifier = modifier.background(Color.Black))
+        return
+    }
+    val color = GlassChromeColor
+    val tintAlpha = if (ChromeTheme.liquidGlass) LiquidTintAlpha else FrostTintAlpha
     // the grain only matters on the finer, high quality glass
     val grain = LocalBlurQuality.current == com.mochyy.mochymusic.constants.BlurQuality.HIGH
     Box(
@@ -87,7 +103,7 @@ fun FrostedChromeGlass(
         GlassPillBackground(
             state = state,
             blurRadius = { GlassChromeBlurRadius },
-            tint = color.copy(alpha = FrostTintAlpha),
+            tint = color.copy(alpha = tintAlpha),
             foundationColor = color,
             accentWash = accentWash,
             // Only reaches the margin's outer edge now, too far out to show.
@@ -108,6 +124,10 @@ fun DrawScope.drawChromeOutline(
     cornerRadius: Float,
     alpha: Float = 1f,
 ) {
+    if (ChromeTheme.liquidGlass) {
+        drawLiquidRim(topLeft, size, cornerRadius, alpha)
+        return
+    }
     val half = ChromeOutlineWidthPx / 2f
     drawRoundRect(
         color = ChromeOutlineColor,
@@ -115,6 +135,30 @@ fun DrawScope.drawChromeOutline(
         size = Size(size.width - ChromeOutlineWidthPx, size.height - ChromeOutlineWidthPx),
         cornerRadius = CornerRadius((cornerRadius - half).coerceAtLeast(0f)),
         style = ChromeOutlineStroke,
+        alpha = alpha,
+    )
+}
+
+/** Liquid glass's edge: a rim that catches the light top left and again, fainter, bottom right. */
+private fun DrawScope.drawLiquidRim(topLeft: Offset, size: Size, cornerRadius: Float, alpha: Float) {
+    val width = LiquidRimWidth.toPx()
+    if (size.width <= width || size.height <= width) return
+    val half = width / 2f
+    drawRoundRect(
+        brush = androidx.compose.ui.graphics.Brush.linearGradient(
+            0f to LiquidRimLight,
+            0.35f to LiquidRimFlat,
+            0.7f to LiquidRimFlat,
+            1f to LiquidRimShade,
+            start = topLeft,
+            // along the diagonal of a square on the bar's height, so a long bar is lit at its end, not just a corner
+            end = Offset(topLeft.x + size.height * 2.5f, topLeft.y + size.height),
+            tileMode = androidx.compose.ui.graphics.TileMode.Mirror,
+        ),
+        topLeft = Offset(topLeft.x + half, topLeft.y + half),
+        size = Size(size.width - width, size.height - width),
+        cornerRadius = CornerRadius((cornerRadius - half).coerceAtLeast(0f)),
+        style = Stroke(width),
         alpha = alpha,
     )
 }

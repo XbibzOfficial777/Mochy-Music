@@ -48,12 +48,17 @@ class CastConnectionHandler(
     private var routeSelector: MediaRouteSelector? = null
     private var remoteMediaClient: RemoteMediaClient? = null
     private var castSession: CastSession? = null
+    private var initialized = false
+    private var connectionTimeoutJob: Job? = null
 
     private val _isCasting = MutableStateFlow(false)
     val isCasting: StateFlow<Boolean> = _isCasting.asStateFlow()
 
     private val _isConnecting = MutableStateFlow(false)
     val isConnecting: StateFlow<Boolean> = _isConnecting.asStateFlow()
+
+    private val _connectionError = MutableStateFlow<String?>(null)
+    val connectionError: StateFlow<String?> = _connectionError.asStateFlow()
 
     private val _castDeviceName = MutableStateFlow<String?>(null)
     val castDeviceName: StateFlow<String?> = _castDeviceName.asStateFlow()
@@ -311,8 +316,10 @@ class CastConnectionHandler(
 
         override fun onSessionStarted(session: CastSession, sessionId: String) {
             Timber.d("Cast session started: $sessionId")
+            connectionTimeoutJob?.cancel()
             _isCasting.value = true
             _isConnecting.value = false
+            _connectionError.value = null
             _castDeviceName.value = session.castDevice?.friendlyName
             castSession = session
             remoteMediaClient = session.remoteMediaClient
@@ -327,8 +334,10 @@ class CastConnectionHandler(
 
         override fun onSessionStartFailed(session: CastSession, error: Int) {
             Timber.e("Cast session start failed: $error")
+            connectionTimeoutJob?.cancel()
             _isCasting.value = false
             _isConnecting.value = false
+            _connectionError.value = "Could not connect. Check Wi-Fi and try again."
         }
 
         override fun onSessionEnding(session: CastSession) {
@@ -344,6 +353,7 @@ class CastConnectionHandler(
 
         override fun onSessionEnded(session: CastSession, error: Int) {
             Timber.d("Cast session ended: error=$error")
+            connectionTimeoutJob?.cancel()
             _isCasting.value = false
             _isConnecting.value = false
             _castDeviceName.value = null
@@ -362,9 +372,13 @@ class CastConnectionHandler(
         }
 
         override fun onSessionResumed(session: CastSession, wasSuspended: Boolean) {
+            connectionTimeoutJob?.cancel()
             _isCasting.value = true
             _isConnecting.value = false
+            _connectionError.value = null
             _castDeviceName.value = session.castDevice?.friendlyName
+            castSession = session
+            _castVolume.value = session.volume.toFloat().coerceIn(0f, 1f)
 
             remoteMediaClient = session.remoteMediaClient
             remoteMediaClient?.registerCallback(remoteMediaClientCallback)
@@ -373,34 +387,55 @@ class CastConnectionHandler(
         }
 
         override fun onSessionResumeFailed(session: CastSession, error: Int) {
+            connectionTimeoutJob?.cancel()
             _isConnecting.value = false
+            _connectionError.value = "Could not resume the Cast session. Try connecting again."
         }
 
         override fun onSessionSuspended(session: CastSession, reason: Int) {}
     }
 
     fun initialize(): Boolean {
+        // The service and picker both call this. Never register the same listener twice.
+        if (initialized) return true
         return try {
-            castContext = CastContext.getSharedInstance(context)
-            sessionManager = castContext?.sessionManager
-            mediaRouter = MediaRouter.getInstance(context)
-            routeSelector = MediaRouteSelector.Builder()
+            val cast = CastContext.getSharedInstance(context)
+            val manager = cast.sessionManager
+            val router = MediaRouter.getInstance(context)
+            val selector = MediaRouteSelector.Builder()
                 .addControlCategory(CastMediaControlIntent.categoryForCast(CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID))
                 .build()
 
-            sessionManager?.addSessionManagerListener(sessionManagerListener, CastSession::class.java)
+            castContext = cast
+            sessionManager = manager
+            mediaRouter = router
+            routeSelector = selector
+            manager.addSessionManagerListener(sessionManagerListener, CastSession::class.java)
 
-            sessionManager?.currentCastSession?.let { session ->
+            manager.currentCastSession?.takeIf { it.isConnected }?.let { session ->
+                castSession = session
                 _isCasting.value = true
                 _castDeviceName.value = session.castDevice?.friendlyName
+                _castVolume.value = session.volume.toFloat().coerceIn(0f, 1f)
                 remoteMediaClient = session.remoteMediaClient
                 remoteMediaClient?.registerCallback(remoteMediaClientCallback)
                 startPositionUpdates()
             }
-
+            initialized = true
             true
         } catch (e: Exception) {
             Timber.e(e, "Failed to initialize Cast")
+            runCatching { sessionManager?.removeSessionManagerListener(sessionManagerListener, CastSession::class.java) }
+            runCatching { remoteMediaClient?.unregisterCallback(remoteMediaClientCallback) }
+            stopPositionUpdates()
+            remoteMediaClient = null
+            castSession = null
+            sessionManager = null
+            castContext = null
+            mediaRouter = null
+            routeSelector = null
+            _isCasting.value = false
+            initialized = false
             false
         }
     }
@@ -415,15 +450,35 @@ class CastConnectionHandler(
     }
 
     fun connectToRoute(route: MediaRouter.RouteInfo) {
-
-        if (mediaRouter == null) {
-            initialize()
+        if (!initialize() || !route.isEnabled) {
+            _connectionError.value = "This device is unavailable. Please try again."
+            return
         }
+        connectionTimeoutJob?.cancel()
+        _connectionError.value = null
         _isConnecting.value = true
-        mediaRouter?.selectRoute(route)
+        try {
+            mediaRouter?.selectRoute(route)
+            // Some providers never send a failure callback when a device disappears mid-connect.
+            connectionTimeoutJob = scope.launch {
+                delay(30_000)
+                if (_isConnecting.value) {
+                    _isConnecting.value = false
+                    runCatching { sessionManager?.endCurrentSession(true) }
+                    _connectionError.value = "Connection timed out. Check Wi-Fi and try again."
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to select Cast route")
+            _isConnecting.value = false
+            _connectionError.value = "Could not connect. Check Wi-Fi and try again."
+        }
     }
 
     fun disconnect() {
+        connectionTimeoutJob?.cancel()
+        _isConnecting.value = false
+        _connectionError.value = null
         sessionManager?.endCurrentSession(true)
     }
 
@@ -568,8 +623,9 @@ class CastConnectionHandler(
 
     fun setVolume(volume: Float) {
         try {
+            val session = castSession ?: return
             val clampedVolume = volume.coerceIn(0f, 1f)
-            castSession?.volume = clampedVolume.toDouble()
+            session.volume = clampedVolume.toDouble()
             _castVolume.value = clampedVolume
             Timber.d("Set Cast volume to $clampedVolume")
         } catch (e: Exception) {
@@ -687,6 +743,11 @@ class CastConnectionHandler(
                 remoteMediaClient?.let { client ->
                     _castPosition.value = client.approximateStreamPosition
                 }
+                // The TV or another controller can change volume as well.
+                castSession?.let { session ->
+                    runCatching { session.volume.toFloat().coerceIn(0f, 1f) }
+                        .getOrNull()?.let { _castVolume.value = it }
+                }
                 delay(500)
             }
         }
@@ -698,8 +759,16 @@ class CastConnectionHandler(
     }
 
     fun release() {
+        connectionTimeoutJob?.cancel()
         stopPositionUpdates()
         remoteMediaClient?.unregisterCallback(remoteMediaClientCallback)
         sessionManager?.removeSessionManagerListener(sessionManagerListener, CastSession::class.java)
+        sessionManager = null
+        castContext = null
+        mediaRouter = null
+        routeSelector = null
+        remoteMediaClient = null
+        castSession = null
+        initialized = false
     }
 }

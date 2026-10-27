@@ -12,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStore
@@ -65,6 +66,14 @@ object PreferencesCache {
 
         writeScope.launch {
             store.edit { it[key] = value }
+        }
+    }
+
+    /** A single durable edit for related keys; it outlives a settings screen being dismissed. */
+    fun edit(store: DataStore<Preferences>, update: (MutablePreferences) -> Unit) {
+        // Start immediately so rapid selections reach DataStore in the same order as the taps.
+        writeScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            store.edit { update(it) }
         }
     }
 }

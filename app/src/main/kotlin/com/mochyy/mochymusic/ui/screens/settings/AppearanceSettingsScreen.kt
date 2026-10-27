@@ -33,6 +33,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.constants.AppTheme
+import com.mochyy.mochymusic.constants.AppThemeKey
+import com.mochyy.mochymusic.constants.PureBlackKey
 import com.mochyy.mochymusic.constants.BlurStrengthPxKey
 import com.mochyy.mochymusic.constants.CanvasThumbnailAnimationKey
 import com.mochyy.mochymusic.constants.CanvasWifiOnlyKey
@@ -57,6 +60,8 @@ import com.mochyy.mochymusic.ui.component.SubSettingsSearchBar
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.utils.rememberEnumPreference
 import com.mochyy.mochymusic.utils.rememberPreference
+import com.mochyy.mochymusic.utils.dataStore
+import com.mochyy.mochymusic.utils.PreferencesCache
 import kotlin.math.roundToInt
 
 @Composable
@@ -121,12 +126,46 @@ fun AppearanceSettingsScreen(navController: NavController) {
         LyricsMotionStyleKey,
         defaultValue = LyricsMotionStyle.MOTION,
     )
+    val pureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
+    val (appTheme) = rememberEnumPreference(
+        AppThemeKey,
+        defaultValue = if (pureBlackEnabled) AppTheme.PURE_BLACK else AppTheme.FROSTED,
+    )
 
     SubSettingsScaffold(
         title = "Appearance",
         onBack = { navController.navigateUp() },
         searchBar = { SubSettingsSearchBar(query = query, onQueryChange = { query = it }) },
     ) {
+        if (query.isBlank() || listOf("theme", "liquid glass", "pure black", "frosted").any { it.contains(query, ignoreCase = true) }) {
+            Text(
+                text = "Theme",
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                color = Color.White,
+                modifier = Modifier.padding(bottom = 10.dp, start = 4.dp)
+            )
+            AppThemePicker(
+                selected = appTheme,
+                onSelect = { theme ->
+                    // Other screens still read PureBlackKey. One edit avoids mismatched theme
+                    // state, including if the app is stopped while the choice is being saved.
+                    PreferencesCache.edit(context.applicationContext.dataStore) { prefs ->
+                        prefs[AppThemeKey] = theme.name
+                        prefs[PureBlackKey] = theme == AppTheme.PURE_BLACK
+                    }
+                },
+            )
+            Text(
+                text = appTheme.description,
+                fontFamily = InterFontFamily,
+                fontSize = 12.sp,
+                color = Color.White.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 8.dp, start = 4.dp, bottom = 18.dp)
+            )
+        }
+
         Text(
             text = "Player appearance",
             fontFamily = InterFontFamily,

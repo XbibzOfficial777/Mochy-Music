@@ -512,7 +512,19 @@ class MainActivity : ComponentActivity() {
         // Pure black only makes sense on top of the dark scheme; forcing it in light mode
         // paints a black background under light-mode colours and the app looks dark on a
         // phone set to light.
-        val pureBlack = pureBlackEnabled && useDarkTheme
+        // Existing installs may only have the original pureBlack preference. Use it until the
+        // user explicitly chooses a theme; the picker saves both keys in one transaction.
+        val appTheme by rememberEnumPreference(
+            com.mochyy.mochymusic.constants.AppThemeKey,
+            if (pureBlackEnabled) com.mochyy.mochymusic.constants.AppTheme.PURE_BLACK
+            else com.mochyy.mochymusic.constants.AppTheme.FROSTED,
+        )
+        val pureBlack = appTheme == com.mochyy.mochymusic.constants.AppTheme.PURE_BLACK && useDarkTheme
+        // read while drawing by the chrome's glass and the nav bar's pill, which have no composition of their own to ask
+        SideEffect {
+            com.mochyy.mochymusic.ui.component.ChromeTheme.liquidGlass =
+                appTheme == com.mochyy.mochymusic.constants.AppTheme.LIQUID_GLASS
+        }
 
         val (selectedThemeColorInt) = rememberPreference(SelectedThemeColorKey, defaultValue = DefaultThemeColor.toArgb())
         val selectedThemeColor = Color(selectedThemeColorInt)

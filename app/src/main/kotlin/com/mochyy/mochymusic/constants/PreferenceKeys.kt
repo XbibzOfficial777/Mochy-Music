@@ -21,6 +21,19 @@ val SelectedThemeColorKey = intPreferencesKey("selectedThemeColor")
 val DarkModeKey = stringPreferencesKey("darkMode")
 val PureBlackKey = booleanPreferencesKey("pureBlack")
 val PureBlackMiniPlayerKey = booleanPreferencesKey("pureBlackMiniPlayer")
+
+/**
+ * The app's look, picked in Settings > Appearance > Theme. Frosted and Pure black are the two looks
+ * the chrome always had (Pure black is [PureBlackKey], kept in step with this); Liquid glass makes the
+ * nav bar and the mini player clearer glass with a lit rim, and the nav bar's pill a glass lens.
+ */
+enum class AppTheme(val displayName: String, val description: String) {
+    FROSTED("Frosted", "Dark frosted glass over the app"),
+    PURE_BLACK("Pure black", "Solid black chrome, easy on OLED"),
+    LIQUID_GLASS("Liquid glass", "Clear glass with a lit rim and a sliding glass lens"),
+}
+
+val AppThemeKey = stringPreferencesKey("appTheme")
 val Enable26RecapKey = booleanPreferencesKey("enable26Recap")
 /** Opens the monthly recap even before the 3rd or with fewer than 10 songs played (Experimental). */
 val ForceMonthlyRecapKey = booleanPreferencesKey("forceMonthlyRecap")

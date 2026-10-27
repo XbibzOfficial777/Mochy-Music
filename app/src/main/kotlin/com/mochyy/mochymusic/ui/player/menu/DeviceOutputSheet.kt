@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.ui.component.SheetIcon
+import com.mochyy.mochymusic.ui.component.CastDevicesSection
 
 @Composable
 fun DeviceOutputSheet(onDismiss: () -> Unit) {
@@ -103,6 +104,8 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
                     playerConnection?.player?.volume = next
                 },
             )
+
+            CastDevicesSection()
 
             Spacer(modifier = Modifier.height(22.dp))
             SectionLabel("available devices")

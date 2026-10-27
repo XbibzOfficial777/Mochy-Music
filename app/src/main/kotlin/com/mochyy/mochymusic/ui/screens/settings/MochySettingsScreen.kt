@@ -76,6 +76,7 @@ private data class SettingsEntry(
 
 private val SettingsIndex = listOf(
     // Appearance
+    SettingsEntry("Theme", "Appearance", "appearance_settings", "theme liquid glass pure black frosted look chrome nav bar"),
     SettingsEntry("Customize player", "Appearance", "appearance_settings", "player customise cover style"),
     SettingsEntry("Customize lyrics tab", "Appearance", "appearance_settings", "lyrics letter typography font"),
     SettingsEntry("Lyrics Shader", "Appearance", "appearance_settings", "lyrics glow wave letters bloom shader"),

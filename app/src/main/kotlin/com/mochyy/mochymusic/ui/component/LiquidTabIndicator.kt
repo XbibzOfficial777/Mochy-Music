@@ -8,8 +8,10 @@
 //   lands on the nearest tab (a flick carries it on), and that tab opens. A tick under the finger
 //   each time it crosses into another tab.
 // - The tabs light up by how close the drop is to them, so their icons fill in as it passes over.
-// - On Android 13+ the icons under the drop are seen through glass: magnified, bent at its rim and
-//   split a touch into colour there. Older phones get the magnification alone, by scaling the icon.
+// - In the Liquid glass theme it's glass. On Android 13+ the icons under it are seen through it:
+//   magnified, bent at its rim and split a touch into colour there. Older phones get the
+//   magnification alone, by scaling the icon.
+//   The other themes keep the bar's plain pill, sliding and stretching just the same.
 
 package com.mochyy.mochymusic.ui.component
 
@@ -120,7 +122,7 @@ class LiquidTabState internal constructor(initialIndex: Int) {
 
     /** older phones: how much bigger to draw a tab's icon, as the lifted drop sits over it */
     fun iconZoomOf(index: Int): Float =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) 1f
+        if (!ChromeTheme.liquidGlass || Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) 1f
         else 1f + FallbackIconZoom * lift.value * litOf(index)
 
     /** the bar squishes a hair under a press and swells a hair while the drop is lifted */
@@ -289,6 +291,13 @@ fun Modifier.liquidTabIndicator(state: LiquidTabState, tabCount: Int): Modifier 
         val corner = CornerRadius(dropSize.height / 2f)
         val lift = state.lift.value
 
+        // the Frosted and Pure black themes keep the bar's plain pill; it still slides and stretches
+        if (!ChromeTheme.liquidGlass) {
+            drawRoundRect(color = ChromeHighlightColor, topLeft = topLeft, size = dropSize, cornerRadius = corner, alpha = alpha)
+            drawContent()
+            return@drawWithContent
+        }
+
         // the body: clearer as it lifts, like a drop held up to the light
         drawRoundRect(
             color = mixColor(GlassFill, GlassFillLifted, lift),
@@ -332,6 +341,10 @@ fun Modifier.liquidTabIndicator(state: LiquidTabState, tabCount: Int): Modifier 
     }
     .graphicsLayer {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return@graphicsLayer
+        if (!ChromeTheme.liquidGlass) {
+            renderEffect = null
+            return@graphicsLayer
+        }
         val geometry = dropGeometry(state, tabCount, size, RestInset.toPx(), RestGap.toPx(), LiftedInset.toPx(), LiftedExtraWidth.toPx())
         renderEffect = if (geometry == null || geometry.alpha <= 0f) {
             null

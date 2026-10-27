@@ -3976,14 +3976,15 @@ class MusicService :
     }
 
     private fun initializeCast() {
-        if (dataStore.get(com.mochyy.mochymusic.constants.EnableGoogleCastKey, true)) {
-            try {
-                castConnectionHandler = CastConnectionHandler(this, scope, this)
+        try {
+            // Keep one handler for the service lifetime even if Cast is initially disabled:
+            // PlayerConnection subscribes to its state once and the output sheet can enable it later.
+            castConnectionHandler = CastConnectionHandler(this, scope, this)
+            if (dataStore.get(com.mochyy.mochymusic.constants.EnableGoogleCastKey, true)) {
                 castConnectionHandler?.initialize()
-                timber.log.Timber.d("Google Cast initialized")
-            } catch (e: Exception) {
-                timber.log.Timber.e(e, "Failed to initialize Google Cast")
             }
+        } catch (e: Exception) {
+            timber.log.Timber.e(e, "Failed to initialize Google Cast")
         }
     }
 
