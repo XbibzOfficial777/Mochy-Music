@@ -104,6 +104,8 @@ extensions.configure<ApplicationExtension> {
         }
         create("arm64") {
             dimension = "abi"
+            // A flavor name alone does not filter native libraries in the APK.
+            ndk { abiFilters += "arm64-v8a" }
             buildConfigField("String", "ARCHITECTURE", "\"arm64\"")
         }
         create("armeabi") {
@@ -163,7 +165,8 @@ extensions.configure<ApplicationExtension> {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            isCrunchPngs = false
+            // Optimize packaged PNGs in addition to R8 and resource shrinking.
+            isCrunchPngs = true
             isDebuggable = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -253,7 +256,9 @@ extensions.configure<ApplicationExtension> {
 
     packaging {
         jniLibs {
-            useLegacyPackaging = false
+            // The opt-in release APK compresses native libraries to reduce download size.
+            // Android extracts them on install; other variants keep their existing packaging.
+            useLegacyPackaging = project.hasProperty("compressNativeLibs")
             keepDebugSymbols += listOf(
                 "**/libandroidx.graphics.path.so",
                 "**/libdatastore_shared_counter.so"

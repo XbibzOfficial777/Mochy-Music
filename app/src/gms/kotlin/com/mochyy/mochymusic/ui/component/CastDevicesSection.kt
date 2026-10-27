@@ -135,18 +135,19 @@ fun CastDevicesSection() {
 
         if (!castEnabled) {
             if (handler?.isCasting?.value == true || handler?.isConnecting?.value == true) {
-                handler.disconnect()
+                handler?.disconnect()
             }
         } else if (handler != null && handler.initialize()) {
             try {
-                router = MediaRouter.getInstance(context.applicationContext)
-                router.addCallback(
+                val discoveredRouter = MediaRouter.getInstance(context.applicationContext)
+                router = discoveredRouter
+                discoveredRouter.addCallback(
                     selector,
                     callback,
                     MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY or MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN,
                 )
                 registered = true
-                update(router)
+                update(discoveredRouter)
                 ready = true
             } catch (e: Exception) {
                 Timber.e(e, "Cannot discover Cast devices")
@@ -292,7 +293,7 @@ private fun CastRouteCard(route: CastRoute, connecting: Boolean, canConnect: Boo
                 when {
                     connecting -> "Connecting…"
                     !route.enabled -> "Unavailable"
-                    !route.description.isNullOrBlank() -> route.description
+                    !route.description.isNullOrBlank() -> route.description.orEmpty()
                     else -> "Google Cast"
                 },
                 color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,

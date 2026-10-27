@@ -1,0 +1,148 @@
+name: Xbibz signed arm64 GMS release
+
+on:
+  push:
+    branches:
+      - mochy-xbibz
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build, verify and publish signed APK
+    if: github.repository == 'XbibzOfficial777/Mochy-Music'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: temurin
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
+
+      - name: Restore and validate release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.MOCHY_RELEASE_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.MOCHY_RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.MOCHY_RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.MOCHY_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${KEYSTORE_BASE64:?Signing keystore secret is missing}"
+          : "${STORE_PASSWORD:?Store password secret is missing}"
+          : "${KEY_ALIAS:?Key alias secret is missing}"
+          : "${KEY_PASSWORD:?Key password secret is missing}"
+          umask 077
+          mkdir -p app/keystore
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > app/keystore/release.keystore
+          test -s app/keystore/release.keystore
+          keytool -list -storetype PKCS12 -keystore app/keystore/release.keystore \
+            -storepass:env STORE_PASSWORD -alias "$KEY_ALIAS" > /dev/null
+
+      - name: Build arm64 GMS release
+        env:
+          STORE_PASSWORD: ${{ secrets.MOCHY_RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.MOCHY_RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.MOCHY_RELEASE_KEY_PASSWORD }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+          LIBREFM_API_KEY: ${{ secrets.LIBREFM_API_KEY }}
+          LIBREFM_SECRET: ${{ secrets.LIBREFM_SECRET }}
+          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew assembleArm64GmsRelease -PcompressNativeLibs --no-configuration-cache --console=plain --warning-mode summary
+
+      - name: Verify architecture, compression and signing certificate
+        env:
+          STORE_PASSWORD: ${{ secrets.MOCHY_RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.MOCHY_RELEASE_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find app/build/outputs/apk/arm64Gms/release -maxdepth 1 -name '*.apk' -type f)
+          test "${#apks[@]}" -eq 1
+          apk="${apks[0]}"
+          python3 - "$apk" <<'PY'
+          import sys, zipfile
+          with zipfile.ZipFile(sys.argv[1]) as apk:
+              libraries = [entry for entry in apk.infolist() if entry.filename.startswith('lib/') and entry.filename.endswith('.so')]
+              if not libraries:
+                  raise SystemExit('No native libraries found in APK')
+              unexpected = [entry.filename for entry in libraries if not entry.filename.startswith('lib/arm64-v8a/')]
+              uncompressed = [entry.filename for entry in libraries if entry.compress_type != zipfile.ZIP_DEFLATED]
+              if unexpected:
+                  raise SystemExit('Unexpected ABI: ' + ', '.join(unexpected))
+              if uncompressed:
+                  raise SystemExit('Native libraries are not compressed: ' + ', '.join(uncompressed))
+              print(f'Verified {len(libraries)} compressed arm64-v8a libraries.')
+          PY
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$build_tools/aapt" dump badging "$apk" > /tmp/apk-badging.txt
+          grep -q "package: name='com.mochyy.mochymusic'" /tmp/apk-badging.txt
+          if grep -q 'application-debuggable' /tmp/apk-badging.txt; then
+            echo 'Refusing to publish a debuggable APK' >&2
+            exit 1
+          fi
+          "$build_tools/apksigner" verify --verbose --print-certs "$apk" | tee /tmp/apk-certificate.txt
+          expected="$(keytool -list -v -storetype PKCS12 -keystore app/keystore/release.keystore \
+            -storepass:env STORE_PASSWORD -alias "$KEY_ALIAS" | sed -n 's/^[[:space:]]*SHA256: //p' | head -1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          actual="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' /tmp/apk-certificate.txt | tr '[:upper:]' '[:lower:]')"
+          test -n "$expected" && test "$expected" = "$actual"
+          mkdir -p release-assets
+          cp "$apk" "release-assets/Mochy-Music-${GITHUB_REF_NAME}-arm64-gms.apk"
+          (cd release-assets && sha256sum *.apk > SHA256SUMS.txt)
+          ls -lh release-assets/
+
+      - name: Keep verified build as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mochy-arm64-gms-release
+          path: release-assets/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/release-notes.md <<'NOTES'
+          Unofficial Xbibz build based on Mochy Music, for **arm64-v8a Android devices** (Android 7.0 or newer). Includes Google Cast support.
+
+          - Choose between Frosted, Pure black and Liquid glass in Settings → Appearance → Theme.
+          - The player output sheet discovers Cast devices, shows connection state and controls Cast volume.
+          - Includes the issue fixes from the fork's fix/open-issues branch.
+          - This is an optimized release build with resource/code shrinking and compressed arm64 native libraries.
+
+          **Installation:** this fork is signed with its own key and cannot update an official Mochy Music installation. Back up/export your data before uninstalling the official app; uninstalling may remove app data. Only install the APK on an arm64-v8a device.
+
+          Google Cast requires Google Play services and a compatible receiver on the same network. Real-device compatibility has not been verified for every receiver.
+
+          NOTES
+          if [ -z "$LASTFM_API_KEY" ] || [ -z "$LASTFM_SECRET" ]; then
+            printf '\nLast.fm integration requires API credentials, which are not configured in this build.\n' >> /tmp/release-notes.md
+          fi
+          if [ -z "$DISCORD_CLIENT_ID" ]; then
+            printf '\nDiscord integration requires a client ID, which is not configured in this build.\n' >> /tmp/release-notes.md
+          fi
+          gh release create "$GITHUB_REF_NAME" release-assets/*.apk release-assets/SHA256SUMS.txt \
+            --verify-tag --title "Mochy Music $GITHUB_REF_NAME · arm64 GMS" --notes-file /tmp/release-notes.md
+
+      - name: Remove signing material from runner
+        if: always()
+        run: rm -f app/keystore/release.keystore

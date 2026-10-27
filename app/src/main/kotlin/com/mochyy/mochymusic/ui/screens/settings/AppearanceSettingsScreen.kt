@@ -14,11 +14,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +55,7 @@ import com.mochyy.mochymusic.constants.YtVideoBackgroundLyricsSyncKey
 import com.mochyy.mochymusic.ui.component.AppSwitch
 import com.mochyy.mochymusic.ui.component.DefaultPlayerSeekBarSlider
 import com.mochyy.mochymusic.ui.component.SettingsGroup
+import com.mochyy.mochymusic.ui.component.SettingsHighlight
 import com.mochyy.mochymusic.ui.component.SettingsGroupStyle
 import com.mochyy.mochymusic.ui.component.SettingsItem
 import com.mochyy.mochymusic.ui.component.SubSettingsScaffold
@@ -62,6 +65,7 @@ import com.mochyy.mochymusic.utils.rememberEnumPreference
 import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.utils.dataStore
 import com.mochyy.mochymusic.utils.PreferencesCache
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 @Composable
@@ -131,6 +135,22 @@ fun AppearanceSettingsScreen(navController: NavController) {
         AppThemeKey,
         defaultValue = if (pureBlackEnabled) AppTheme.PURE_BLACK else AppTheme.FROSTED,
     )
+    // A global settings search can open this page directly at the theme picker.
+    LaunchedEffect(Unit) {
+        if (SettingsHighlight.pending == "Theme") {
+            SettingsHighlight.pending = null
+            SettingsHighlight.active = "Theme"
+            try {
+                delay(2400)
+            } finally {
+                if (SettingsHighlight.active == "Theme") SettingsHighlight.active = null
+            }
+        }
+    }
+    val themeHighlight by animateColorAsState(
+        if (SettingsHighlight.active == "Theme") Color.White.copy(alpha = 0.08f) else Color.Transparent,
+        label = "themeSearchHighlight",
+    )
 
     SubSettingsScaffold(
         title = "Appearance",
@@ -148,6 +168,7 @@ fun AppearanceSettingsScreen(navController: NavController) {
             )
             AppThemePicker(
                 selected = appTheme,
+                modifier = Modifier.clip(RoundedCornerShape(22.dp)).background(themeHighlight).padding(4.dp),
                 onSelect = { theme ->
                     // Other screens still read PureBlackKey. One edit avoids mismatched theme
                     // state, including if the app is stopped while the choice is being saved.
