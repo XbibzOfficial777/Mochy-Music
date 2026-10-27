@@ -344,7 +344,7 @@ fun Modifier.liquidTabIndicator(state: LiquidTabState, tabCount: Int): Modifier 
                 rim = dropSize.height * 0.32f,
                 refract = dropSize.height * (0.10f + 0.08f * state.lift.value),
                 aberration = 0.6.dp.toPx() + 1.2.dp.toPx() * state.lift.value,
-            ).asComposeRenderEffect()
+            )?.asComposeRenderEffect()
         }
     }
 
@@ -401,7 +401,7 @@ uniform float2 halfSize;
 uniform float corner;
 uniform float magnify;
 uniform float rim;
-uniform float refract;
+uniform float bendDepth;
 uniform float aberration;
 
 float roundRect(float2 p) {
@@ -423,7 +423,7 @@ half4 main(float2 coord) {
 
     float edge = clamp(1.0 + d / rim, 0.0, 1.0);
     float bend = edge * edge * edge;
-    float2 base = center + p / (1.0 + magnify) + n * (bend * refract);
+    float2 base = center + p / (1.0 + magnify) + n * (bend * bendDepth);
     float2 split = n * (bend * aberration);
 
     half4 r = content.eval(base + split);
@@ -436,9 +436,11 @@ half4 main(float2 coord) {
 }
 """
 
-// compiled once on first use; every effect built from it keeps the uniforms it was built with
+// compiled once on first use; every effect built from it keeps the uniforms it was built with.
+// Should a phone's shader compiler refuse it, the lens is simply left off rather than the app going down.
 private object LensShader {
     var shader: Any? = null
+    var failed = false
 }
 
 @RequiresApi(33)
@@ -449,14 +451,21 @@ private fun lensEffect(
     rim: Float,
     refract: Float,
     aberration: Float,
-): android.graphics.RenderEffect {
-    val shader = LensShader.shader ?: createAgslShader(LensSource).also { LensShader.shader = it }
+): android.graphics.RenderEffect? {
+    if (LensShader.failed) return null
+    val shader = LensShader.shader ?: try {
+        createAgslShader(LensSource).also { LensShader.shader = it }
+    } catch (e: RuntimeException) {
+        LensShader.failed = true
+        android.util.Log.w("LiquidTabIndicator", "glass lens shader refused, drawing the tabs plain", e)
+        return null
+    }
     shader.setAgslUniform("center", topLeft.x + dropSize.width / 2f, topLeft.y + dropSize.height / 2f)
     shader.setAgslUniform("halfSize", dropSize.width / 2f, dropSize.height / 2f)
     shader.setAgslUniform("corner", minOf(dropSize.width, dropSize.height) / 2f)
     shader.setAgslUniform("magnify", magnify)
     shader.setAgslUniform("rim", rim.coerceAtLeast(1f))
-    shader.setAgslUniform("refract", refract)
+    shader.setAgslUniform("bendDepth", refract)
     shader.setAgslUniform("aberration", aberration)
     return agslRenderEffect(shader, "content")
 }
