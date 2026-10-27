@@ -100,7 +100,10 @@ jobs:
           "$build_tools/apksigner" verify --verbose --print-certs "$apk" | tee /tmp/apk-certificate.txt
           expected="$(keytool -list -v -storetype PKCS12 -keystore app/keystore/release.keystore \
             -storepass:env STORE_PASSWORD -alias "$KEY_ALIAS" | sed -n 's/^[[:space:]]*SHA256: //p' | head -1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
-          actual="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' /tmp/apk-certificate.txt | tr '[:upper:]' '[:lower:]')"
+          # Build-tools versions print either "Signer #1" or "V2 Signer". Verify every
+          # reported signing certificate, regardless of which scheme's prefix is printed.
+          grep -qx 'Number of signers: 1' /tmp/apk-certificate.txt
+          actual="$(sed -n 's/^.*certificate SHA-256 digest: //p' /tmp/apk-certificate.txt | tr '[:upper:]' '[:lower:]' | sort -u)"
           test -n "$expected" && test "$expected" = "$actual"
           mkdir -p release-assets
           cp "$apk" "release-assets/Mochy-Music-${GITHUB_REF_NAME}-arm64-gms.apk"
@@ -143,6 +146,12 @@ jobs:
           fi
           if [ -z "$DISCORD_CLIENT_ID" ]; then
             printf '\nDiscord integration requires a client ID, which is not configured in this build.\n' >> /tmp/release-notes.md
+          fi
+          # A verified branch artifact may already have been published manually for this tag.
+          # Never overwrite an existing release or its assets on a workflow rerun.
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release already exists; leaving its assets unchanged."
+            exit 0
           fi
           gh release create "$GITHUB_REF_NAME" release-assets/*.apk release-assets/SHA256SUMS.txt \
             --verify-tag --title "Mochy Music $GITHUB_REF_NAME · arm64 GMS" --notes-file /tmp/release-notes.md
