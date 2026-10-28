@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - mochy-xbibz
+      - xbibz-issue-features
     tags:
       - 'v*'
 

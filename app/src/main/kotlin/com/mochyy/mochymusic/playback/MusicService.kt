@@ -1554,10 +1554,12 @@ class MusicService :
                         ),
                     ).setIconResId(
                         when (player.repeatMode) {
-                            REPEAT_MODE_OFF -> R.drawable.repeat
+                            // The player's decorative repeat drawable is 95 x 77 dp. System
+                            // notifications use intrinsic dimensions, so use a 24 dp icon here.
+                            REPEAT_MODE_OFF -> R.drawable.notification_repeat
                             REPEAT_MODE_ONE -> R.drawable.repeat_one_on
                             REPEAT_MODE_ALL -> R.drawable.repeat_on
-                            else -> throw IllegalStateException()
+                            else -> R.drawable.notification_repeat
                         },
                     ).setSessionCommand(CommandToggleRepeatMode)
                     .build(),

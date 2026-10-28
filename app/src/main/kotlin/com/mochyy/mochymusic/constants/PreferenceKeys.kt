@@ -373,6 +373,20 @@ val ShowUploadedPlaylistKey = booleanPreferencesKey("show_uploaded_playlist")
 val ShowAudioQualityBadgeKey = booleanPreferencesKey("show_audio_quality_badge")
 val ShowCommentButtonKey = booleanPreferencesKey("show_comment_button")
 val ShowPlayerBottomCardKey = booleanPreferencesKey("showPlayerBottomCard")
+/** Maximum background-video resolution. The previous hard-coded choice was 720p. */
+val VideoQualityKey = stringPreferencesKey("backgroundVideoQuality")
+
+enum class VideoQuality(val maxHeight: Int, val label: String) {
+    P144(144, "144p"),
+    P240(240, "240p"),
+    P360(360, "360p"),
+    P480(480, "480p"),
+    P720(720, "720p"),
+    P1080(1080, "1080p"),
+    P1440(1440, "1440p"),
+    P2160(2160, "2160p (4K)"),
+}
+
 val PlayVideoBackgroundKey = booleanPreferencesKey("playVideoBackground")
 // a track that is a YouTube video (from a video row or the Videos search tab) shows that video in the player
 val DisableVideoAutoplayKey = booleanPreferencesKey("disableVideoAutoplay")

@@ -18,6 +18,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
@@ -28,11 +30,13 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.PlaybackException
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
 import com.mochyy.mochymusic.ui.component.GlassState
 import com.mochyy.mochymusic.ui.component.glassRoot
-import com.mochyy.mochymusic.ui.utils.rememberSettled
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -49,6 +53,8 @@ private fun VideoSize.displayAspect(): Float =
 @Composable
 fun YouTubeVideoBackground(
     streamUrl: String?,
+    streamHeaders: Map<String, String>,
+    onVideoError: (String) -> Unit,
     isPlaying: Boolean,
     positionMsProvider: () -> Long,
 
@@ -61,8 +67,13 @@ fun YouTubeVideoBackground(
     // Skipping through songs started a video decoder for every one passed on the way, each holding
     // its frames, while the last few were still closing. Memory climbed past a gigabyte in thirty
     // quick skips and weaker phones killed the app. The video starts once the song has stayed.
-    val settledUrl = rememberSettled(streamUrl, VideoSettleMs) ?: return
-    YouTubeVideoPlayer(settledUrl, isPlaying, positionMsProvider, lyricVideoAnchors, glassState, modifier)
+    val settledUrl by produceState<String?>(null, streamUrl) {
+        value = null
+        delay(VideoSettleMs)
+        value = streamUrl
+    }
+    val readyUrl = settledUrl ?: return
+    YouTubeVideoPlayer(readyUrl, streamHeaders, onVideoError, isPlaying, positionMsProvider, lyricVideoAnchors, glassState, modifier)
 }
 
 /** how long a song has to stay before its video starts */
@@ -71,6 +82,8 @@ private const val VideoSettleMs = 700L
 @Composable
 private fun YouTubeVideoPlayer(
     streamUrl: String,
+    streamHeaders: Map<String, String>,
+    onVideoError: (String) -> Unit,
     isPlaying: Boolean,
     positionMsProvider: () -> Long,
     lyricVideoAnchors: List<LyricVideoAnchor>?,
@@ -79,15 +92,39 @@ private fun YouTubeVideoPlayer(
 ) {
     val context = LocalContext.current
     var isVideoReady by remember(streamUrl) { mutableStateOf(false) }
-
-    val exoPlayer = remember(streamUrl) {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(streamUrl))
-            volume = 0f
-            repeatMode = Player.REPEAT_MODE_ALL
-            videoScalingMode = androidx.media3.common.C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
-            prepare()
+    var reportedError by remember(streamUrl) { mutableStateOf(false) }
+    val currentOnVideoError by rememberUpdatedState(onVideoError)
+    fun reportVideoFailure() {
+        if (!reportedError) {
+            reportedError = true
+            currentOnVideoError(streamUrl)
         }
+    }
+
+    val exoPlayer = remember(streamUrl, streamHeaders) {
+        runCatching {
+            val http = DefaultHttpDataSource.Factory()
+                .setAllowCrossProtocolRedirects(true)
+                .setDefaultRequestProperties(streamHeaders)
+            val player = ExoPlayer.Builder(context)
+                .setMediaSourceFactory(DefaultMediaSourceFactory(http))
+                .build()
+            try {
+                player.setMediaItem(MediaItem.fromUri(streamUrl))
+                player.volume = 0f
+                player.repeatMode = Player.REPEAT_MODE_ALL
+                player.videoScalingMode = androidx.media3.common.C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+                player.prepare()
+                player
+            } catch (error: Throwable) {
+                player.release()
+                throw error
+            }
+        }.getOrNull()
+    }
+    if (exoPlayer == null) {
+        LaunchedEffect(streamUrl) { reportVideoFailure() }
+        return
     }
 
     var videoAspect by remember(exoPlayer) { mutableFloatStateOf(exoPlayer.videoSize.displayAspect()) }
@@ -124,6 +161,10 @@ private fun YouTubeVideoPlayer(
             override fun onRenderedFirstFrame() {
                 isVideoReady = true
             }
+            override fun onPlayerError(error: PlaybackException) {
+                isVideoReady = false
+                reportVideoFailure()
+            }
         }
         exoPlayer.addListener(listener)
         onDispose {
@@ -139,7 +180,9 @@ private fun YouTubeVideoPlayer(
     LaunchedEffect(exoPlayer, streamUrl, lyricVideoAnchors) {
         while (isActive) {
             val duration = exoPlayer.duration
-            if (duration > 0) {
+            // Repeated seeks during BUFFERING can restart the load every 500ms and keep a video
+            // stuck forever. Seek once it is ready, then leave loading alone while it buffers.
+            if (duration > 0 && exoPlayer.playbackState == Player.STATE_READY) {
                 val songPositionMs = positionMsProvider()
                 val target = lyricVideoAnchors
                     ?.let { resolveAnchoredVideoPositionMs(it, songPositionMs) }
@@ -149,6 +192,27 @@ private fun YouTubeVideoPlayer(
                 }
             }
             delay(500)
+        }
+    }
+
+    // Some streams buffer forever without reporting an error. Let the cover stay visible, then
+    // try a lower resolution instead of hanging the video while audio continues independently.
+    LaunchedEffect(exoPlayer, isPlaying) {
+        if (!isPlaying) return@LaunchedEffect
+        var waitingSince: Long? = null
+        while (isActive) {
+            delay(1000)
+            val waiting = !isVideoReady || exoPlayer.playbackState == Player.STATE_BUFFERING
+            if (!waiting) {
+                waitingSince = null
+            } else {
+                val now = SystemClock.elapsedRealtime()
+                val since = waitingSince ?: now.also { waitingSince = it }
+                if (now - since >= 25_000L) {
+                    reportVideoFailure()
+                    return@LaunchedEffect
+                }
+            }
         }
     }
 
@@ -166,7 +230,7 @@ private fun YouTubeVideoPlayer(
             delay(LETTERBOX_SAMPLE_INTERVAL_MS)
             // A paused frame never changes, and a texture with no frame yet reads as black.
             if (!exoPlayer.isPlaying || !textureView.isAvailable) continue
-            val copied = runCatching { textureView.getBitmap(sample) }.isSuccess
+            val copied = runCatching { textureView.getBitmap(sample) != null }.getOrDefault(false)
             if (!copied) continue
             sample.getPixels(pixels, 0, LETTERBOX_SAMPLE_SIZE, 0, 0, LETTERBOX_SAMPLE_SIZE, LETTERBOX_SAMPLE_SIZE)
 

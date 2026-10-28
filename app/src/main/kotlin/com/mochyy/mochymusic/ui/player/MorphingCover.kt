@@ -100,6 +100,7 @@ import com.mochyy.mochymusic.ui.utils.resize
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import com.mochyy.mochymusic.ui.component.BlurEffectCache
 import com.mochyy.mochymusic.ui.component.rememberCoverBlurAvailable
@@ -119,6 +120,8 @@ import com.mochyy.mochymusic.constants.CanvasWifiOnlyKey
 import com.mochyy.mochymusic.constants.DisableBlurKey
 import com.mochyy.mochymusic.constants.ForceYtBackdropBlur1500Key
 import com.mochyy.mochymusic.constants.PlayVideoBackgroundKey
+import com.mochyy.mochymusic.constants.VideoQuality
+import com.mochyy.mochymusic.constants.VideoQualityKey
 import com.mochyy.mochymusic.constants.DisableVideoAutoplayKey
 import com.mochyy.mochymusic.utils.YTPlayerUtils
 import com.mochyy.mochymusic.constants.PlayerBackgroundStyle
@@ -145,6 +148,8 @@ import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.ui.component.GlassState
 import com.mochyy.mochymusic.ui.component.glassRoot
 import com.mochyy.mochymusic.utils.rememberPreference
+import com.mochyy.mochymusic.utils.rememberEnumPreference
+import com.mochyy.mochymusic.utils.nextLowerVideoLimit
 import androidx.core.content.getSystemService
 
 @Stable
@@ -419,39 +424,37 @@ fun MorphingCover(
         currentMetadata?.id == trackInfo.mediaId &&
         currentMetadata?.isVideoSong == true
     val playVideoBackground = !alternateStyle && (forceVideoBackground || playVideoPref || trackIsVideo)
-    var videoInfo by remember(trackInfo.mediaId) { mutableStateOf<OfficialMusicVideo?>(null) }
-    LaunchedEffect(trackInfo.mediaId, trackInfo.title, trackInfo.artist, playVideoBackground, trackIsVideo) {
+    val videoQuality by rememberEnumPreference(VideoQualityKey, defaultValue = VideoQuality.P720)
+    var maxVideoHeight by remember(trackInfo.mediaId, videoQuality, trackIsVideo) {
+        mutableIntStateOf(videoQuality.maxHeight)
+    }
+    var videoInfo by remember(trackInfo.mediaId, videoQuality, trackIsVideo) { mutableStateOf<OfficialMusicVideo?>(null) }
+    LaunchedEffect(trackInfo.mediaId, trackInfo.title, trackInfo.artist, playVideoBackground, trackIsVideo, maxVideoHeight) {
         val mediaId = trackInfo.mediaId
         val titleStr = trackInfo.title
         val artistStr = trackInfo.artist
-        if (!playVideoBackground || mediaId.isBlank()) {
-            videoInfo = null
+        val requestedHeight = maxVideoHeight
+        videoInfo = null
+        if (!playVideoBackground || mediaId.isBlank()) return@LaunchedEffect
+
+        // Cache by track, source and quality; an expired URL or a failed request is never reused.
+        val cacheKey = YouTubeVideoUrlCache.key(mediaId, requestedHeight, trackIsVideo)
+        val cached = YouTubeVideoUrlCache.get(cacheKey)
+        if (cached != null) {
+            videoInfo = cached
             return@LaunchedEffect
         }
-        if (trackIsVideo) {
-            // the audio is this very video, so its own stream lines up exactly and needs no search
-            val key = "self:$mediaId"
-            if (YouTubeVideoUrlCache.contains(key)) {
-                videoInfo = YouTubeVideoUrlCache.get(key)
-                return@LaunchedEffect
+        val resolved = if (trackIsVideo) {
+            // The audio is this very video, so its own stream lines up exactly and needs no search.
+            withContext(Dispatchers.IO) {
+                YTPlayerUtils.resolveVideoStream(mediaId, requestedHeight).getOrNull()
+                    ?.let { OfficialMusicVideo(mediaId, it) }
             }
-            val own = withContext(Dispatchers.IO) {
-                YTPlayerUtils.resolveVideoStreamUrl(mediaId).getOrNull()?.let { OfficialMusicVideo(mediaId, it) }
-            }
-            YouTubeVideoUrlCache.put(key, own)
-            videoInfo = own
-            return@LaunchedEffect
+        } else {
+            if (titleStr.isBlank() || artistStr.isBlank()) return@LaunchedEffect
+            withContext(Dispatchers.IO) { findOfficialMusicVideo(titleStr, artistStr, requestedHeight) }
         }
-        if (titleStr.isBlank() || artistStr.isBlank()) {
-            videoInfo = null
-            return@LaunchedEffect
-        }
-        if (YouTubeVideoUrlCache.contains(mediaId)) {
-            videoInfo = YouTubeVideoUrlCache.get(mediaId)
-            return@LaunchedEffect
-        }
-        val resolved = withContext(Dispatchers.IO) { findOfficialMusicVideo(titleStr, artistStr) }
-        YouTubeVideoUrlCache.put(mediaId, resolved)
+        YouTubeVideoUrlCache.put(cacheKey, resolved)
         videoInfo = resolved
     }
 
@@ -1000,6 +1003,22 @@ fun MorphingCover(
                             if (playing && !isDiscStyle && playVideoBackground && videoInfo != null) {
                                 YouTubeVideoBackground(
                                     streamUrl = videoInfo?.streamUrl,
+                                    streamHeaders = videoInfo?.stream?.headers.orEmpty(),
+                                    onVideoError = { failedUrl ->
+                                        val failed = videoInfo
+                                        if (failed?.streamUrl == failedUrl) {
+                                            val key = YouTubeVideoUrlCache.key(trackInfo.mediaId, maxVideoHeight, trackIsVideo)
+                                            YouTubeVideoUrlCache.remove(key)
+                                            videoInfo = null
+                                            val lower = nextLowerVideoLimit(failed.stream.height, maxVideoHeight)
+                                            if (lower != null) {
+                                                maxVideoHeight = lower
+                                                com.mochyy.mochymusic.ui.component.TopToaster.show("Video stalled · trying up to ${lower}p")
+                                            } else {
+                                                com.mochyy.mochymusic.ui.component.TopToaster.show("Video unavailable · audio continues")
+                                            }
+                                        }
+                                    },
                                     isPlaying = isPlaying,
                                     positionMsProvider = { playerConnection?.player?.currentPosition ?: 0L },
                                     lyricVideoAnchors = lyricVideoAnchors,

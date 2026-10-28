@@ -47,6 +47,7 @@ import java.net.ProxySelector
 import java.net.SocketAddress
 import java.net.URI
 import java.io.IOException
+import kotlinx.coroutines.ensureActive
 
 object YTPlayerUtils {
     private const val logTag = "YTPlayerUtils"
@@ -640,46 +641,72 @@ object YTPlayerUtils {
         WEB,
     )
 
-    suspend fun resolveVideoStreamUrl(videoId: String): Result<String> = runCatching {
+    /** A playable URL and the client headers YouTube expects with that URL. */
+    data class ResolvedVideoStream(
+        val url: String,
+        val height: Int,
+        val headers: Map<String, String>,
+        val expiresInSeconds: Int,
+    )
+
+    /**
+     * Find the best supported stream under the user's ceiling. A client's nearest URL can be
+     * ciphered or unavailable, so try the other formats rather than discarding that client.
+     * Continue to other clients when the first one only offers a lower resolution.
+     */
+    suspend fun resolveVideoStream(videoId: String, maxHeight: Int): Result<ResolvedVideoStream> = runCatching {
         val signatureTimestamp = getSignatureTimestampOrNull(videoId)
+        val decoder = AndroidVideoDecoderProbe()
+        var best: ResolvedVideoStream? = null
+        var bestBitrate = -1
 
         for (client in VIDEO_BACKGROUND_CLIENTS) {
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
             val response = try {
                 YouTube.player(videoId, null, client, signatureTimestamp.timestamp, null).getOrNull()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
-                Timber.tag(logTag).d("resolveVideoStreamUrl: client ${client.clientName} threw: ${e.message}")
+                Timber.tag(logTag).d("resolveVideoStream: client ${client.clientName} failed: ${e.message}")
                 null
             } ?: continue
 
-            if (response.playabilityStatus.status != "OK") {
-                Timber.tag(logTag).d("resolveVideoStreamUrl: client ${client.clientName} not OK: ${response.playabilityStatus.status}")
-                continue
-            }
+            if (response.playabilityStatus.status != "OK") continue
+            val streaming = response.streamingData ?: continue
+            val formats = (streaming.adaptiveFormats + streaming.formats.orEmpty()).distinctBy { it.itag }
+            val candidates = rankVideoFormats(
+                formats = formats,
+                maxHeight = maxHeight,
+                width = { it.width },
+                height = { it.height },
+                bitrate = { it.bitrate },
+                hasUrl = { !it.url.isNullOrBlank() || !it.signatureCipher.isNullOrBlank() || !it.cipher.isNullOrBlank() },
+                supported = decoder::supports,
+            )
+            for (format in candidates) {
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                val shortEdge = minOf(format.width!!, format.height!!)
+                if (shortEdge < (best?.height ?: 0)) break
+                val url = try {
+                    findUrlOrNull(format, videoId, response, skipNewPipe = false)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.tag(logTag).d("resolveVideoStream: ${client.clientName} format ${format.itag} failed: ${e.message}")
+                    null
+                } ?: continue
 
-            val format = response.streamingData?.adaptiveFormats
-                ?.filter { !it.isAudio && it.height != null }
-                ?.minByOrNull { kotlin.math.abs((it.height ?: 0) - 720) }
-                ?: response.streamingData?.formats?.firstOrNull { !it.isAudio }
-
-            if (format == null) {
-                Timber.tag(logTag).d("resolveVideoStreamUrl: client ${client.clientName} had no video format")
-                continue
+                if (shortEdge > (best?.height ?: 0) || (shortEdge == best?.height && format.bitrate > bestBitrate)) {
+                    best = ResolvedVideoStream(url, shortEdge, client.streamHeaders(), streaming.expiresInSeconds)
+                    bestBitrate = format.bitrate
+                }
+                // The best resolvable format for this client is enough; other clients may offer more.
+                break
             }
-
-            val url = try {
-                findUrlOrNull(format, videoId, response, skipNewPipe = false)
-            } catch (e: Exception) {
-                Timber.tag(logTag).d("resolveVideoStreamUrl: client ${client.clientName} URL resolution threw: ${e.message}")
-                null
-            }
-
-            if (url != null) {
-                Timber.tag(logTag).d("resolveVideoStreamUrl: resolved via ${client.clientName}")
-                return@runCatching url
-            }
+            if (best?.height == maxHeight) break
         }
 
-        throw Exception("Could not resolve a playable video stream for videoId=$videoId after trying ${VIDEO_BACKGROUND_CLIENTS.size} clients")
+        best ?: throw Exception("No supported video stream at or below ${maxHeight}p for videoId=$videoId")
     }
 
     suspend fun playerResponseForMetadata(

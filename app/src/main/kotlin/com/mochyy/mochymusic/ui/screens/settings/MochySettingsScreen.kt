@@ -82,6 +82,7 @@ private val SettingsIndex = listOf(
     SettingsEntry("Lyrics Shader", "Appearance", "appearance_settings", "lyrics glow wave letters bloom shader"),
     SettingsEntry("High quality bloom", "Appearance", "appearance_settings", "lyrics bloom quality extra soft pass"),
     SettingsEntry("Always enable Youtube background", "Appearance", "appearance_settings", "youtube video background canvas"),
+    SettingsEntry("Video quality", "Appearance", "appearance_settings", "video resolution 144 240 360 480 720 1080 1440 2160 4k data"),
     SettingsEntry("Enable animated canvas", "Appearance", "appearance_settings", "canvas animation spotify looping visual"),
     SettingsEntry("Audio format badge", "Appearance", "appearance_settings", "format codec opus aac flac badge title quality"),
     SettingsEntry("Show sample rate", "Appearance", "appearance_settings", "sample rate khz hz format badge quality"),

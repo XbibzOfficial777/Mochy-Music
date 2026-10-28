@@ -49,6 +49,8 @@ import com.mochyy.mochymusic.constants.LyricsMotionStyle
 import com.mochyy.mochymusic.constants.LyricsMotionStyleKey
 import com.mochyy.mochymusic.constants.LyricsWaveAnimationKey
 import com.mochyy.mochymusic.constants.PlayVideoBackgroundKey
+import com.mochyy.mochymusic.constants.VideoQuality
+import com.mochyy.mochymusic.constants.VideoQualityKey
 import com.mochyy.mochymusic.constants.ShowFormatBadgeKey
 import com.mochyy.mochymusic.constants.ShowFormatSampleRateKey
 import com.mochyy.mochymusic.constants.YtVideoBackgroundLyricsSyncKey
@@ -73,6 +75,8 @@ fun AppearanceSettingsScreen(navController: NavController) {
     val playerConnection = com.mochyy.mochymusic.LocalPlayerConnection.current
     val context = androidx.compose.ui.platform.LocalContext.current
     var query by remember { mutableStateOf("") }
+    var showVideoQuality by remember { mutableStateOf(false) }
+    val (videoQuality, onVideoQualityChange) = rememberEnumPreference(VideoQualityKey, VideoQuality.P720)
 
     val (playVideoBackground, onPlayVideoBackgroundChange) = rememberPreference(
         PlayVideoBackgroundKey,
@@ -327,6 +331,18 @@ fun AppearanceSettingsScreen(navController: NavController) {
                 },
             ),
             SettingsItem(
+                title = { Text("Video quality") },
+                highlightKey = "Video quality",
+                descriptionText = "Maximum resolution for player videos",
+                detail = "Higher resolutions use more data and depend on the video and this device's decoder.",
+                icon = painterResource(R.drawable.slow_motion_video),
+                iconShape = CircleShape,
+                onClick = { showVideoQuality = true },
+                trailingContent = {
+                    Text(videoQuality.label, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White.copy(alpha = 0.70f))
+                },
+            ),
+            SettingsItem(
                 title = { Text("Timestamp matching") },
                 descriptionText = "Based on subtitle",
                 icon = painterResource(R.drawable.lyrics),
@@ -510,6 +526,13 @@ fun AppearanceSettingsScreen(navController: NavController) {
         }
 
         Spacer(Modifier.height(140.dp))
+    }
+    if (showVideoQuality) {
+        VideoQualityDialog(
+            selected = videoQuality,
+            onSelect = { quality -> onVideoQualityChange(quality); showVideoQuality = false },
+            onDismiss = { showVideoQuality = false },
+        )
     }
 }
 

@@ -9,36 +9,32 @@ import com.mochyy.mochymusic.utils.YTPlayerUtils
 
 data class OfficialMusicVideo(
     val videoId: String,
-    val streamUrl: String,
-)
-
-object YouTubeVideoUrlCache {
-    private const val maxSize = 64
-    private val map = LinkedHashMap<String, OfficialMusicVideo?>(maxSize, 0.75f, true)
-
-    @Synchronized
-    fun contains(mediaId: String): Boolean = map.containsKey(mediaId)
-
-    @Synchronized
-    fun get(mediaId: String): OfficialMusicVideo? = map[mediaId]
-
-    @Synchronized
-    fun put(mediaId: String, video: OfficialMusicVideo?) {
-        if (mediaId.isBlank()) return
-        map[mediaId] = video
-        while (map.size > maxSize) {
-            val it = map.entries.iterator()
-            if (it.hasNext()) {
-                it.next()
-                it.remove()
-            } else {
-                break
-            }
-        }
-    }
+    val stream: YTPlayerUtils.ResolvedVideoStream,
+) {
+    val streamUrl: String get() = stream.url
 }
 
-suspend fun findOfficialMusicVideo(title: String, artist: String): OfficialMusicVideo? {
+object YouTubeVideoUrlCache {
+    private val cache = ExpiringVideoCache<OfficialMusicVideo>()
+    private const val MAX_CACHE_MS = 4 * 60 * 60 * 1000L
+
+    fun key(mediaId: String, maxHeight: Int, self: Boolean): String =
+        "${if (self) "self" else "search"}:$maxHeight:$mediaId"
+
+    fun get(key: String): OfficialMusicVideo? = cache.get(key)
+
+    fun put(key: String, video: OfficialMusicVideo?) {
+        // A temporary failure must be retryable. URLs expire, so never cache those indefinitely.
+        video ?: return
+        val lifetime = ((video.stream.expiresInSeconds.toLong() - 90L).coerceAtLeast(0L) * 1000L)
+            .coerceAtMost(MAX_CACHE_MS)
+        cache.put(key, video, lifetime)
+    }
+
+    fun remove(key: String) = cache.remove(key)
+}
+
+suspend fun findOfficialMusicVideo(title: String, artist: String, maxHeight: Int): OfficialMusicVideo? {
     if (title.isBlank() || artist.isBlank()) return null
 
     val results = YouTube.search(query = "$title $artist", filter = YouTube.SearchFilter.FILTER_VIDEO)
@@ -58,6 +54,6 @@ suspend fun findOfficialMusicVideo(title: String, artist: String): OfficialMusic
         }
         ?: return null
 
-    val streamUrl = YTPlayerUtils.resolveVideoStreamUrl(match.id).getOrNull() ?: return null
-    return OfficialMusicVideo(videoId = match.id, streamUrl = streamUrl)
+    val stream = YTPlayerUtils.resolveVideoStream(match.id, maxHeight).getOrNull() ?: return null
+    return OfficialMusicVideo(videoId = match.id, stream = stream)
 }
