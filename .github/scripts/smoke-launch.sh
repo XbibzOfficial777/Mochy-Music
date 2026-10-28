@@ -7,15 +7,19 @@ if [ "${#apks[@]}" -ne 1 ]; then
   exit 1
 fi
 build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
-package="$("$build_tools/aapt" dump badging "${apks[0]}" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -1)"
-test -n "$package"
+badging="$("$build_tools/aapt" dump badging "${apks[0]}")"
+package="$(printf '%s\n' "$badging" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -1)"
+activity="$(printf '%s\n' "$badging" | sed -n "s/^launchable-activity: name='\([^']*\)'.*/\1/p" | head -1)"
+test -n "$package" && test -n "$activity"
 export APP_PACKAGE="$package"
 printf '%s' "$package" > smoke-package.txt
 adb wait-for-device
 adb install -r "${apks[0]}"
 adb logcat -c
 adb shell am force-stop "$package"
-adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p "$package" | tee smoke-start.txt
+# Debug application IDs have a suffix, while the activity class keeps its original namespace.
+# Use the fully qualified launchable class from the APK rather than guessing either value.
+adb shell am start -W -n "$package/$activity" | tee smoke-start.txt
 grep -q 'Status: ok' smoke-start.txt
 # Give startup, dependency initialization and the first composition time to fail visibly.
 sleep 30

@@ -66,7 +66,7 @@ tap_node text 'Continue to language and translate'
 dump_ui
 find_node text 'AI configured: example/model' >/dev/null
 # A session key must not be persisted to app files or shared preferences.
-if adb shell run-as "$package" sh -c 'grep -R -l dummySecretForCI files shared_prefs 2>/dev/null' | grep -q .; then
+if adb shell "run-as '$package' sh -c 'grep -aR -l dummySecretForCI files shared_prefs 2>/dev/null || true'" | grep -q .; then
   echo 'The session key was unexpectedly persisted.' >&2
   exit 1
 fi
