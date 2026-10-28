@@ -101,7 +101,11 @@ if [ -z "$receipt" ]; then
   exit 1
 fi
 adb pull "$receipt" smoke-receipt.png >/dev/null
+# The fixture intentionally creates more receipt rows than fit on this emulator's screen.
+SCREEN_HEIGHT="$(adb shell wm size | sed -n 's/.*: [0-9]*x\([0-9]*\).*/\1/p' | tail -1)"
+export SCREEN_HEIGHT
 python3 - <<'PY'
+import os
 import struct
 from pathlib import Path
 p = Path('smoke-receipt.png').read_bytes()
@@ -109,7 +113,7 @@ if p[:8] != b'\x89PNG\r\n\x1a\n' or p[12:16] != b'IHDR':
     raise SystemExit('Receipt is not a valid PNG')
 w, h = struct.unpack('>II', p[16:24])
 print(f'Exported long receipt: {w} x {h} pixels, {len(p)} bytes')
-if w < 200 or h < 1400 or h <= w or len(p) < 10000:
+if w < 200 or h <= int(os.environ['SCREEN_HEIGHT']) or h <= w or len(p) < 10000:
     raise SystemExit('Receipt export is unexpectedly small or incomplete')
 from PIL import Image
 image = Image.open('smoke-receipt.png').convert('RGBA')
