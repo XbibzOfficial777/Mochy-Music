@@ -254,6 +254,8 @@ object LyricsTranslationHelper {
         useStreaming: Boolean = true,
         songId: String = "",
         database: MusicDatabase? = null,
+        cacheLanguageTag: String = targetLanguage,
+        sourceLanguage: String? = null,
     ) {
         translationJob?.cancel()
         _status.value = TranslationStatus.Translating
@@ -285,7 +287,7 @@ object LyricsTranslationHelper {
 
                 val fullText = nonEmptyEntries.joinToString("\n") { it.second.text }
 
-                val cacheKey = getCacheKey(fullText, mode, targetLanguage)
+                val cacheKey = getCacheKey(fullText, mode, cacheLanguageTag)
                 val cachedTranslations = translationCache[cacheKey]
                 if (cachedTranslations != null && cachedTranslations.size >= nonEmptyEntries.size) {
 
@@ -305,7 +307,7 @@ object LyricsTranslationHelper {
                                     upsert(
                                         currentLyrics.copy(
                                             translatedLyrics = cachedTranslations.joinToString("\n"),
-                                            translationLanguage = targetLanguage,
+                                            translationLanguage = cacheLanguageTag,
                                             translationMode = mode,
                                         ),
                                     )
@@ -366,6 +368,7 @@ object LyricsTranslationHelper {
                         baseUrl = baseUrl,
                         model = model,
                         mode = mode,
+                        sourceLanguage = sourceLanguage,
                     ).collect { chunk ->
                         Timber.v("Received streaming chunk: $chunk")
                         when (chunk) {
@@ -421,7 +424,7 @@ object LyricsTranslationHelper {
                         return@onSuccess
                     }
 
-                    val cacheKey2 = getCacheKey(fullText, mode, targetLanguage)
+                    val cacheKey2 = getCacheKey(fullText, mode, cacheLanguageTag)
                     translationCache[cacheKey2] = translatedLines
 
                     if (songId.isNotBlank() && database != null) {
@@ -433,7 +436,7 @@ object LyricsTranslationHelper {
                                         upsert(
                                             currentLyrics.copy(
                                                 translatedLyrics = translatedLines.joinToString("\n"),
-                                                translationLanguage = targetLanguage,
+                                                translationLanguage = cacheLanguageTag,
                                                 translationMode = mode,
                                             ),
                                         )

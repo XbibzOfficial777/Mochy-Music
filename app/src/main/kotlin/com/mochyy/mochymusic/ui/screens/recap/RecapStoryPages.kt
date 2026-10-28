@@ -5,6 +5,11 @@
 
 package com.mochyy.mochymusic.ui.screens.recap
 
+import android.graphics.Bitmap
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,14 +31,21 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
@@ -47,9 +59,14 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -61,12 +78,18 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.ui.component.BlurEffectCache
+import com.mochyy.mochymusic.ui.player.share.toShareBitmap
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.ui.utils.resize
 import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.floor
@@ -794,80 +817,182 @@ private fun ReceiptPage(s: StoryState, data: RecapStoryData) {
     val geo = s.geo
     val anim = s.pages[P_RECEIPT]
     val density = LocalDensity.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val layer = rememberGraphicsLayer()
+    var darkPaper by remember { mutableStateOf(false) }
+    var working by remember { mutableStateOf(false) }
+    var pendingBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    DisposableEffect(Unit) {
+        onDispose { pendingBitmap?.recycle() }
+    }
+    val saveDocument = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("image/png")) { uri ->
+        val bitmap = pendingBitmap
+        pendingBitmap = null
+        if (uri == null) {
+            bitmap?.recycle()
+            working = false
+        } else if (bitmap == null) {
+            // The process may have been killed while the system picker was open.
+            runCatching { context.contentResolver.delete(uri, null, null) }
+            Toast.makeText(context, "Couldn't save receipt. Please try again.", Toast.LENGTH_LONG).show()
+            working = false
+        } else {
+            scope.launch {
+                var saved = false
+                try {
+                    saved = withContext(Dispatchers.IO) {
+                        runCatching {
+                            context.contentResolver.openOutputStream(uri)?.use {
+                                bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+                            } ?: false
+                        }.getOrDefault(false)
+                    }
+                    Toast.makeText(context, if (saved) "Receipt saved" else "Couldn't save receipt", Toast.LENGTH_LONG).show()
+                } finally {
+                    bitmap.recycle()
+                    if (!saved) runCatching { context.contentResolver.delete(uri, null, null) }
+                    working = false
+                }
+            }
+        }
+    }
+
     Text(
         "Let's see your bill",
         style = recapBold(30f),
         modifier = Modifier.at(geo.inset, geo.top + geo.dp(82f)).lineMotion(anim, 0, 2, riseDp = 20f, exitToDp = 0f),
     )
+    val controlsY = geo.top + geo.dp(137f)
+    Row(
+        modifier = Modifier.at(geo.inset, controlsY).lineMotion(anim, 0, 2, riseDp = 12f, exitToDp = 0f),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        ReceiptAction(
+            text = if (darkPaper) "Dark paper" else "Light paper",
+            icon = R.drawable.contrast,
+            enabled = !working,
+            onClick = { darkPaper = !darkPaper },
+        )
+        ReceiptAction(
+            text = if (working) "Saving…" else "Save PNG",
+            icon = R.drawable.download,
+            enabled = !working,
+            onClick = {
+                working = true
+                scope.launch {
+                    try {
+                        // The receipt is a regular Column inside a scroll container, not a lazy
+                        // list: recording its own layer captures all rows, even below the viewport.
+                        withFrameNanos { }
+                        val pixels = layer.size.width.toLong() * layer.size.height.toLong()
+                        check(pixels in 1..16_000_000L) { "Receipt image is too large" }
+                        pendingBitmap = layer.toShareBitmap()
+                        saveDocument.launch("Mochy-receipt-${LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))}.png")
+                    } catch (error: Throwable) {
+                        pendingBitmap?.recycle()
+                        pendingBitmap = null
+                        working = false
+                        if (error is CancellationException) throw error
+                        Toast.makeText(context, "Couldn't prepare receipt image", Toast.LENGTH_LONG).show()
+                    }
+                }
+            },
+        )
+    }
+    val receiptTop = maxOf(geo.fy(240f), controlsY + geo.dp(60f))
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .at(0f, geo.fy(240f))
-            .height(with(density) { (geo.height - geo.fy(240f)).toDp() })
+            .at(0f, receiptTop)
+            .height(with(density) { (geo.height - receiptTop).coerceAtLeast(0f).toDp() })
             .graphicsLayer {
                 val e = easeOutBack(anim.enter.value.coerceIn(0f, 1f), 0.9f)
                 translationY = (1f - e) * size.height + easeInCubic(anim.exit.value) * size.height * 1.1f
             },
     ) {
         Box(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            Receipt(data, Modifier.padding(start = 27.dp, end = 27.dp, top = 6.dp, bottom = 120.dp))
+            Receipt(data, darkPaper, layer, Modifier.padding(start = 27.dp, end = 27.dp, top = 6.dp, bottom = 120.dp))
         }
     }
 }
 
 @Composable
-private fun Receipt(data: RecapStoryData, modifier: Modifier) {
+private fun ReceiptAction(text: String, icon: Int, enabled: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(Color.White.copy(alpha = if (enabled) 0.16f else 0.07f))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 13.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(painterResource(icon), contentDescription = null, tint = Color.White, modifier = Modifier.size(17.dp))
+        Text(text, style = recapBold(13f).copy(color = Color.White))
+    }
+}
+
+@Composable
+private fun Receipt(data: RecapStoryData, darkPaper: Boolean, layer: GraphicsLayer, modifier: Modifier) {
     val now = remember { LocalDateTime.now() }
+    val paper = if (darkPaper) Color(0xFF1D1D20) else Paper
+    val ink = if (darkPaper) Color(0xFFF2F0EA) else Ink
     val dashes = "-".repeat(64)
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(Paper, ZigzagShape)
+            // Inside the margin, around the whole unscrolled receipt; the buttons are not captured.
+            .drawWithContent {
+                layer.record { this@drawWithContent.drawContent() }
+                drawLayer(layer)
+            }
+            .background(paper, ZigzagShape)
             .padding(horizontal = 26.dp, vertical = 40.dp),
     ) {
-        ReceiptLine(dashes)
-        ReceiptLine("MOCHY")
-        ReceiptLine("${data.monthName} recap")
-        ReceiptLine("printed at ${now.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))}/${now.format(DateTimeFormatter.ofPattern("HH:mm"))}")
-        ReceiptLine(dashes)
+        ReceiptLine(dashes, ink)
+        ReceiptLine("MOCHY", ink)
+        ReceiptLine("${data.monthName} recap", ink)
+        ReceiptLine("printed at ${now.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))}/${now.format(DateTimeFormatter.ofPattern("HH:mm"))}", ink)
+        ReceiptLine(dashes, ink)
         Spacer(Modifier.height(18.dp))
-        ReceiptHeading("Top Artist")
+        ReceiptHeading("Top Artist", ink)
         data.artists.forEachIndexed { i, a ->
-            ReceiptItem(a.thumbnailUrl, CircleShape, "${i + 1}x ${a.name}", "${formatHoursDecimal(a.playTimeMs)}h")
+            ReceiptItem(a.thumbnailUrl, CircleShape, "${i + 1}x ${a.name}", "${formatHoursDecimal(a.playTimeMs)}h", ink)
         }
         Spacer(Modifier.height(18.dp))
-        ReceiptHeading("Top Music")
+        ReceiptHeading("Top Music", ink)
         data.songs.take(10).forEachIndexed { i, song ->
-            ReceiptItem(song.thumbnailUrl, RoundedCornerShape(5.dp), "${i + 1}x ${song.title}", "${formatHoursDecimal(song.playTimeMs)}h")
+            ReceiptItem(song.thumbnailUrl, RoundedCornerShape(5.dp), "${i + 1}x ${song.title}", "${formatHoursDecimal(song.playTimeMs)}h", ink)
         }
         Spacer(Modifier.height(36.dp))
         Text(
             "Total : ${formatHoursMinutes(data.stats.totalMs)} playtime",
-            style = ReceiptMono.copy(textAlign = TextAlign.Start),
+            style = ReceiptMono.copy(textAlign = TextAlign.Start, color = ink),
         )
         Text(
             "${data.stats.plays} plays · ${data.stats.songCount} songs · ${data.stats.artistCount} artists",
-            style = ReceiptMono.copy(textAlign = TextAlign.Start, color = Ink.copy(alpha = 0.6f)),
+            style = ReceiptMono.copy(textAlign = TextAlign.Start, color = ink.copy(alpha = 0.6f)),
         )
         Spacer(Modifier.height(10.dp))
-        ReceiptLine(dashes)
-        ReceiptLine("END OF LINE")
-        ReceiptLine(dashes)
+        ReceiptLine(dashes, ink)
+        ReceiptLine("END OF LINE", ink)
+        ReceiptLine(dashes, ink)
     }
 }
 
 @Composable
-private fun ReceiptLine(text: String) {
-    Text(text, style = ReceiptMono, maxLines = 1, overflow = TextOverflow.Clip, softWrap = false, modifier = Modifier.fillMaxWidth())
+private fun ReceiptLine(text: String, ink: Color) {
+    Text(text, style = ReceiptMono.copy(color = ink), maxLines = 1, overflow = TextOverflow.Clip, softWrap = false, modifier = Modifier.fillMaxWidth())
 }
 
 @Composable
-private fun ReceiptHeading(text: String) {
-    Text(text, style = recapBold(18f).copy(color = Ink), modifier = Modifier.padding(bottom = 10.dp))
+private fun ReceiptHeading(text: String, ink: Color) {
+    Text(text, style = recapBold(18f).copy(color = ink), modifier = Modifier.padding(bottom = 10.dp))
 }
 
 @Composable
-private fun ReceiptItem(url: String?, shape: Shape, title: String, value: String) {
+private fun ReceiptItem(url: String?, shape: Shape, title: String, value: String, ink: Color) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -883,12 +1008,12 @@ private fun ReceiptItem(url: String?, shape: Shape, title: String, value: String
         )
         Text(
             title,
-            style = recapBold(13.5f, tracking = -0.2f).copy(color = Color(0xFF3A3A3A)),
+            style = recapBold(13.5f, tracking = -0.2f).copy(color = ink.copy(alpha = 0.88f)),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        Text("- $value", style = recapBold(13.5f, tracking = -0.2f).copy(color = Color(0xFF3A3A3A)))
+        Text("- $value", style = recapBold(13.5f, tracking = -0.2f).copy(color = ink.copy(alpha = 0.88f)))
     }
 }
 

@@ -373,6 +373,14 @@ val ShowUploadedPlaylistKey = booleanPreferencesKey("show_uploaded_playlist")
 val ShowAudioQualityBadgeKey = booleanPreferencesKey("show_audio_quality_badge")
 val ShowCommentButtonKey = booleanPreferencesKey("show_comment_button")
 val ShowPlayerBottomCardKey = booleanPreferencesKey("showPlayerBottomCard")
+/** Art transition; slide is the pre-existing behaviour. */
+val CoverTransitionKey = stringPreferencesKey("coverTransition")
+
+enum class CoverTransition(val label: String) {
+    SLIDE("Slide"),
+    FADE("Fade"),
+}
+
 /** Maximum background-video resolution. The previous hard-coded choice was 720p. */
 val VideoQualityKey = stringPreferencesKey("backgroundVideoQuality")
 

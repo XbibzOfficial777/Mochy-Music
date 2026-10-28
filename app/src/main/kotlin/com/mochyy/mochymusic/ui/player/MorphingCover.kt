@@ -122,6 +122,8 @@ import com.mochyy.mochymusic.constants.ForceYtBackdropBlur1500Key
 import com.mochyy.mochymusic.constants.PlayVideoBackgroundKey
 import com.mochyy.mochymusic.constants.VideoQuality
 import com.mochyy.mochymusic.constants.VideoQualityKey
+import com.mochyy.mochymusic.constants.CoverTransition
+import com.mochyy.mochymusic.constants.CoverTransitionKey
 import com.mochyy.mochymusic.constants.DisableVideoAutoplayKey
 import com.mochyy.mochymusic.utils.YTPlayerUtils
 import com.mochyy.mochymusic.constants.PlayerBackgroundStyle
@@ -424,6 +426,7 @@ fun MorphingCover(
         currentMetadata?.id == trackInfo.mediaId &&
         currentMetadata?.isVideoSong == true
     val playVideoBackground = !alternateStyle && (forceVideoBackground || playVideoPref || trackIsVideo)
+    val coverTransition by rememberEnumPreference(CoverTransitionKey, defaultValue = CoverTransition.SLIDE)
     val videoQuality by rememberEnumPreference(VideoQualityKey, defaultValue = VideoQuality.P720)
     var maxVideoHeight by remember(trackInfo.mediaId, videoQuality, trackIsVideo) {
         mutableIntStateOf(videoQuality.maxHeight)
@@ -982,8 +985,11 @@ fun MorphingCover(
                                 .graphicsLayer {
                                     val o = carousel?.offsetOfSong(info.mediaId) ?: carousel?.playingOffset ?: 0f
                                     // on a squared card the canvas is part of the card, so it moves and rounds with it
-                                    translationX = o * (size.width + if (squaredCards) SquaredCardGap.toPx() else 0f)
-                                    alpha = if (kotlin.math.abs(o) >= 1f) 0f else 1f
+                                    translationX = if (coverTransition == CoverTransition.FADE) 0f
+                                        else o * (size.width + if (squaredCards) SquaredCardGap.toPx() else 0f)
+                                    alpha = if (coverTransition == CoverTransition.FADE) {
+                                        (1f - kotlin.math.abs(o)).coerceIn(0f, 1f)
+                                    } else if (kotlin.math.abs(o) >= 1f) 0f else 1f
                                     if (squaredCards) shape = artShape
                                     clip = true
                                 }

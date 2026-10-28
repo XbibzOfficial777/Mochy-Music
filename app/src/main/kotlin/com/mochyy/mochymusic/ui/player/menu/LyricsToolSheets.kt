@@ -56,6 +56,7 @@ import com.mochyy.mochymusic.constants.TranslateSourceLanguageKey
 import com.mochyy.mochymusic.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.mochyy.mochymusic.lyrics.LyricsProviderRegistry
 import com.mochyy.mochymusic.lyrics.LyricsTranslationHelper
+import com.mochyy.mochymusic.lyrics.AiTranslationSession
 import com.mochyy.mochymusic.lyrics.LyricsUtils
 import com.mochyy.mochymusic.ui.component.AppSwitch
 import com.mochyy.mochymusic.ui.component.SheetIcon
@@ -396,6 +397,7 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
     val status by LyricsTranslationHelper.status.collectAsState()
     val translationOn by LyricsTranslationHelper.translationOn.collectAsState()
     val isTranslating = status is LyricsTranslationHelper.TranslationStatus.Translating
+    val aiSession by AiTranslationSession.config.collectAsState()
 
     MenuSheetSurface(onDismiss = onDismiss, wrapHeight = true) { _ ->
         val closeSheet = LocalMenuSheetClose.current
@@ -407,6 +409,10 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
                 .padding(top = 16.dp, bottom = 24.dp)
         ) {
             Text(text = "Lyrics translation", color = Color(0xFF9A9A9A), fontSize = 12.sp)
+            aiSession?.let {
+                Text("Using OpenRouter · ${it.model}", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(6.dp))
+            }
             Text(
                 text = "Translate from",
                 color = Color.White,

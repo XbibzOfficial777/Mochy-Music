@@ -33,7 +33,8 @@ object OpenRouterStreamingService {
         apiKey: String,
         baseUrl: String,
         model: String,
-        mode: String
+        mode: String,
+        sourceLanguage: String? = null,
     ): Flow<StreamChunk> = flow {
         if (text.isBlank()) {
             emit(StreamChunk.Error("Input text is empty"))
@@ -56,6 +57,8 @@ CRITICAL RULES:
 5. Return EXACTLY $lineCount items in the array
 6. If uncertain, provide best approximation but maintain line count"""
 
+            val source = sourceLanguage?.takeIf { it.isNotBlank() && it != "auto" }
+                ?.let { " from $it" }.orEmpty()
             val userPrompt = when (mode) {
                 "Transcribed" -> """Transcribe/transliterate the following $lineCount lines phonetically into $targetLanguage script.
 
@@ -71,7 +74,7 @@ $text
 
 Output MUST be a JSON array with EXACTLY $lineCount strings."""
 
-                else -> """Translate the following $lineCount lines to $targetLanguage.
+                else -> """Translate the following $lineCount lines$source to $targetLanguage.
 
 IMPORTANT:
 - Provide natural, accurate translation
@@ -107,7 +110,7 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
             }
 
             val request = Request.Builder()
-                .url(baseUrl.ifBlank { "https://openrouter.ai/api/v1/chat/completions" })
+                .url(openRouterEndpoint(baseUrl))
                 .apply {
                     if (apiKey.isNotBlank()) {
                         addHeader("Authorization", "Bearer ${apiKey.trim()}")

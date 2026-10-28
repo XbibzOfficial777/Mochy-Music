@@ -51,6 +51,8 @@ import com.mochyy.mochymusic.constants.LyricsWaveAnimationKey
 import com.mochyy.mochymusic.constants.PlayVideoBackgroundKey
 import com.mochyy.mochymusic.constants.VideoQuality
 import com.mochyy.mochymusic.constants.VideoQualityKey
+import com.mochyy.mochymusic.constants.CoverTransition
+import com.mochyy.mochymusic.constants.CoverTransitionKey
 import com.mochyy.mochymusic.constants.ShowFormatBadgeKey
 import com.mochyy.mochymusic.constants.ShowFormatSampleRateKey
 import com.mochyy.mochymusic.constants.YtVideoBackgroundLyricsSyncKey
@@ -77,6 +79,7 @@ fun AppearanceSettingsScreen(navController: NavController) {
     var query by remember { mutableStateOf("") }
     var showVideoQuality by remember { mutableStateOf(false) }
     val (videoQuality, onVideoQualityChange) = rememberEnumPreference(VideoQualityKey, VideoQuality.P720)
+    val (coverTransition, onCoverTransitionChange) = rememberEnumPreference(CoverTransitionKey, CoverTransition.SLIDE)
 
     val (playVideoBackground, onPlayVideoBackgroundChange) = rememberPreference(
         PlayVideoBackgroundKey,
@@ -238,6 +241,20 @@ fun AppearanceSettingsScreen(navController: NavController) {
         }
 
         val playerToggleItems = listOf(
+            SettingsItem(
+                title = { Text("Cover animation") },
+                highlightKey = "Cover animation",
+                descriptionText = "Fade or slide between song covers",
+                detail = "Switches the artwork transition. Animated disc styles keep their mechanical motion.",
+                icon = painterResource(R.drawable.album),
+                iconShape = CircleShape,
+                onClick = {
+                    onCoverTransitionChange(if (coverTransition == CoverTransition.SLIDE) CoverTransition.FADE else CoverTransition.SLIDE)
+                },
+                trailingContent = {
+                    Text(coverTransition.label, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White.copy(alpha = 0.70f))
+                },
+            ),
             SettingsItem(
                 title = { Text("Lyrics animation") },
                 highlightKey = "Lyrics animation style",

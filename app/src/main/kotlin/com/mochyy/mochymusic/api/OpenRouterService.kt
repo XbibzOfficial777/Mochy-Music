@@ -133,7 +133,7 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                 }
 
                 val request = Request.Builder()
-                    .url(baseUrl.ifBlank { "https://openrouter.ai/api/v1/chat/completions" })
+                    .url(openRouterEndpoint(baseUrl))
                     .apply {
                         if (apiKey.isNotBlank()) {
                             addHeader("Authorization", "Bearer ${apiKey.trim()}")

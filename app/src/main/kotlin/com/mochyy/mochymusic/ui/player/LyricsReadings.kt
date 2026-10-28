@@ -31,6 +31,8 @@ import com.mochyy.mochymusic.constants.TranslateSourceLanguageKey
 import com.mochyy.mochymusic.db.MusicDatabase
 import com.mochyy.mochymusic.lyrics.LyricsEntry
 import com.mochyy.mochymusic.lyrics.LyricsTranslationHelper
+import com.mochyy.mochymusic.lyrics.AiTranslationSession
+import com.mochyy.mochymusic.lyrics.aiTranslationTag
 import com.mochyy.mochymusic.lyrics.LyricsUtils
 import com.mochyy.mochymusic.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
@@ -165,6 +167,11 @@ fun LyricsReadings(
     val (openRouterModel) = rememberPreference(OpenRouterModelKey, defaultValue = "")
     val (deeplKey) = rememberPreference(DeeplApiKey, defaultValue = "")
     val (deeplFormality) = rememberPreference(DeeplFormalityKey, defaultValue = "default")
+    val aiSession by AiTranslationSession.config.collectAsState()
+    val effectiveProvider = if (aiSession != null) "OpenRouter" else aiProvider
+    val effectiveKey = aiSession?.apiKey ?: openRouterKey
+    val effectiveModel = aiSession?.model ?: openRouterModel
+    val effectiveBaseUrl = if (aiSession != null) "https://openrouter.ai/api/v1/chat/completions" else openRouterBaseUrl
 
     LaunchedEffect(songId, translateSessionWide) {
         LyricsTranslationHelper.onSongChanged(songId, translateSessionWide)
@@ -176,7 +183,7 @@ fun LyricsReadings(
 
     LaunchedEffect(
         lines, translationOn, translateLanguage, translateSourceLanguage, translateMode,
-        aiProvider, openRouterKey, deeplKey,
+        effectiveProvider, effectiveKey, effectiveModel, effectiveBaseUrl, deeplKey, deeplFormality,
     ) {
         if (lines.isEmpty()) return@LaunchedEffect
         if (!translationOn) {
@@ -184,14 +191,13 @@ fun LyricsReadings(
             return@LaunchedEffect
         }
         val target = translateLanguage.ifBlank { "en" }
+        val useAi = hasAiKeyFor(effectiveProvider, effectiveKey, deeplKey)
+        val languageTag = LyricsTranslationHelper.languageTag(translateSourceLanguage, target)
+        val cacheTag = if (useAi) aiTranslationTag(effectiveProvider, effectiveModel, languageTag) else languageTag
         if (LyricsTranslationHelper.loadTranslationsFromDatabase(
                 lyrics = lines,
                 lyricsEntity = latestLyricsEntity,
-                targetLanguage = if (hasAiKeyFor(aiProvider, openRouterKey, deeplKey)) {
-                    target
-                } else {
-                    LyricsTranslationHelper.languageTag(translateSourceLanguage, target)
-                },
+                targetLanguage = cacheTag,
                 mode = translateMode,
             )
         ) return@LaunchedEffect
@@ -199,7 +205,7 @@ fun LyricsReadings(
         // Google Translate needs no account, so it is used whenever the chosen AI provider has no
         // key. (This used to check for ANY key, so DeepL picked with only an OpenRouter key saved
         // went to DeepL and failed with "API key required".)
-        if (!hasAiKeyFor(aiProvider, openRouterKey, deeplKey)) {
+        if (!useAi) {
             LyricsTranslationHelper.translateWithGoogle(
                 lyrics = lines,
                 targetLanguage = target,
@@ -213,17 +219,19 @@ fun LyricsReadings(
             LyricsTranslationHelper.translateLyrics(
                 lyrics = lines,
                 targetLanguage = target,
-                apiKey = openRouterKey,
-                baseUrl = openRouterBaseUrl,
-                model = openRouterModel,
+                apiKey = effectiveKey,
+                baseUrl = effectiveBaseUrl,
+                model = effectiveModel,
                 mode = translateMode,
                 scope = this,
                 context = context,
-                provider = aiProvider,
+                provider = effectiveProvider,
                 deeplApiKey = deeplKey,
                 deeplFormality = deeplFormality,
                 songId = songId.orEmpty(),
                 database = database,
+                cacheLanguageTag = cacheTag,
+                sourceLanguage = translateSourceLanguage,
             )
         }
     }

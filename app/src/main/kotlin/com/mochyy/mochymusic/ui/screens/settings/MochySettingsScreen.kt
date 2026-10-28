@@ -78,6 +78,7 @@ private val SettingsIndex = listOf(
     // Appearance
     SettingsEntry("Theme", "Appearance", "appearance_settings", "theme liquid glass pure black frosted look chrome nav bar"),
     SettingsEntry("Customize player", "Appearance", "appearance_settings", "player customise cover style"),
+    SettingsEntry("Cover animation", "Appearance", "appearance_settings", "cover fade slide artwork transition"),
     SettingsEntry("Customize lyrics tab", "Appearance", "appearance_settings", "lyrics letter typography font"),
     SettingsEntry("Lyrics Shader", "Appearance", "appearance_settings", "lyrics glow wave letters bloom shader"),
     SettingsEntry("High quality bloom", "Appearance", "appearance_settings", "lyrics bloom quality extra soft pass"),

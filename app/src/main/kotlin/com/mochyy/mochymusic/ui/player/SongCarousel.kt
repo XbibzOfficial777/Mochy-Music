@@ -41,6 +41,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
+import com.mochyy.mochymusic.constants.CoverTransition
+import com.mochyy.mochymusic.constants.CoverTransitionKey
+import com.mochyy.mochymusic.utils.rememberEnumPreference
 import com.mochyy.mochymusic.playback.PlayerConnection
 import com.mochyy.mochymusic.ui.player.models.QueueItemData
 import com.mochyy.mochymusic.ui.player.models.QueueState
@@ -136,12 +139,7 @@ class SongCarousel internal constructor(private val scope: CoroutineScope) {
      */
     fun crossfadeAlpha(slot: CarouselSong): Float {
         val lower = floor(position).toInt()
-        val fraction = position - lower
-        return when (slot.step) {
-            lower -> 1f
-            lower + 1 -> if (slots.any { it.step == lower }) fraction else 1f
-            else -> 0f
-        }
+        return coverCrossfadeAlpha(position, slot.step, slots.any { it.step == lower })
     }
 
     // ---- the queue ----
@@ -450,6 +448,8 @@ fun CarouselPictures(
     cardGap: Dp = 0.dp,
     picture: @Composable BoxScope.(url: String?, modifier: Modifier) -> Unit,
 ) {
+    val transition by rememberEnumPreference(CoverTransitionKey, defaultValue = CoverTransition.SLIDE)
+    val fade = transition == CoverTransition.FADE
     Box(modifier = if (cardShape == null) modifier.clipToBounds() else modifier) {
         val slots = carousel?.slots.orEmpty()
         if (carousel == null || slots.isEmpty()) {
@@ -463,9 +463,9 @@ fun CarouselPictures(
                         .fillMaxSize()
                         .graphicsLayer {
                             val o = carousel.offsetOf(slot)
-                            // off the row's visible part: kept, not drawn
-                            alpha = if (abs(o) >= 1f) 0f else 1f
-                            translationX = o * (size.width + cardGap.toPx())
+                            // Fade keeps the two cards in place; slide remains the default.
+                            alpha = if (fade) carousel.crossfadeAlpha(slot) else if (abs(o) >= 1f) 0f else 1f
+                            translationX = if (fade) 0f else o * (size.width + cardGap.toPx())
                             // each page shows only its own part of the row: unclipped, the parallax shift put a third of the next picture on screen the instant it came in
                             if (cardShape != null) shape = cardShape
                             clip = true
@@ -475,7 +475,7 @@ fun CarouselPictures(
                         slot.artworkUrl,
                         Modifier
                             .fillMaxSize()
-                            .graphicsLayer { translationX = -carousel.offsetOf(slot) * size.width * parallax },
+                            .graphicsLayer { translationX = if (fade) 0f else -carousel.offsetOf(slot) * size.width * parallax },
                     )
                 }
             }

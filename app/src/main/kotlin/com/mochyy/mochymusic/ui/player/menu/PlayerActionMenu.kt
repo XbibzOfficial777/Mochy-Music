@@ -112,6 +112,7 @@ fun PlayerActionMenu(
     var showLyricsEditor by remember { mutableStateOf(false) }
     var showLyricsProvider by remember { mutableStateOf(false) }
     var showLyricsTranslation by remember { mutableStateOf(false) }
+    var showAiTranslationSettings by remember { mutableStateOf(false) }
     var showLyricsOffset by remember { mutableStateOf(false) }
 
     // Only touched by the lyrics section. hiltViewModel() itself is cheap, but the flows are
@@ -189,12 +190,8 @@ fun PlayerActionMenu(
                     SheetActionCardRow {
                         SheetActionCard(
                             icon = R.drawable.translate,
-                            title = "Ai translation",
-                            // Greyed out until the AI translation settings are filled in — an
-                            // enabled button that silently does nothing is worse than a disabled
-                            // one that says so.
-                            enabled = false,
-                            onClick = {},
+                            title = "AI translation",
+                            onClick = { showAiTranslationSettings = true },
                             modifier = Modifier.weight(1f),
                         )
                         SheetActionCard(
@@ -361,6 +358,12 @@ fun PlayerActionMenu(
     }
     if (showLyricsOffset) {
         LyricsOffsetSheet(onDismiss = { showLyricsOffset = false })
+    }
+    if (showAiTranslationSettings) {
+        AiTranslationSettingsSheet(
+            onDismiss = { showAiTranslationSettings = false },
+            onContinue = { showAiTranslationSettings = false; showLyricsTranslation = true },
+        )
     }
     if (showLyricsTranslation) {
         LyricsTranslationSheet(onDismiss = { showLyricsTranslation = false })

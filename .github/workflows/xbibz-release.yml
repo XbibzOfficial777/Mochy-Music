@@ -134,12 +134,16 @@ jobs:
 
           - Choose between Frosted, Pure black and Liquid glass in Settings → Appearance → Theme.
           - The player output sheet discovers Cast devices, shows connection state and controls Cast volume.
-          - Includes the issue fixes from the fork's fix/open-issues branch.
+          - Choose a maximum player video resolution from 144p to 2160p (4K). Video availability and device decoder support vary; if a video fails, the app tries a lower resolution while audio continues.
+          - Use a correctly sized repeat action in media notifications and choose Fade or Slide for cover transitions.
+          - Save the entire monthly recap receipt as PNG, with light or dark paper, using the system file picker.
+          - Configure AI lyrics translation with an OpenRouter key and model ID for the current app process. Lyrics are sent to OpenRouter and provider charges may apply; the new session key is not saved to disk.
+          - Includes the previously merged issue fixes. Large requests such as listen-together, add-ons and iOS are not included.
           - This is an optimized release build with resource/code shrinking and compressed arm64 native libraries.
 
           **Installation:** this fork is signed with its own key and cannot update an official Mochy Music installation. Back up/export your data before uninstalling the official app; uninstalling may remove app data. Only install the APK on an arm64-v8a device.
 
-          Google Cast requires Google Play services and a compatible receiver on the same network. Real-device compatibility has not been verified for every receiver.
+          Google Cast requires Google Play services and a compatible receiver on the same network. Physical-device video playback, receipt export and Cast have not been verified on every device; OpenRouter translation requires your own credentials and has not been live-tested in this release.
 
           NOTES
           if [ -z "$LASTFM_API_KEY" ] || [ -z "$LASTFM_SECRET" ]; then
