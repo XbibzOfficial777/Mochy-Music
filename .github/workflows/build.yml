@@ -83,6 +83,8 @@ jobs:
         with:
           name: app-universal-gms-debug
           path: smoke-apk
+      - name: Install PNG verification dependency
+        run: python3 -m pip install --quiet pillow
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -96,7 +98,9 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: bash .github/scripts/smoke-launch.sh
+          script: |
+            bash .github/scripts/smoke-launch.sh
+            bash .github/scripts/smoke-fixtures.sh
       - name: Save smoke-test evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -106,4 +110,10 @@ jobs:
             smoke-start.txt
             smoke-logcat.txt
             smoke-launch.png
+            smoke-*-start.txt
+            smoke-ui.xml
+            smoke-document-picker.xml
+            smoke-fixtures-logcat.txt
+            smoke-fixtures-screen.png
+            smoke-receipt.png
           if-no-files-found: warn

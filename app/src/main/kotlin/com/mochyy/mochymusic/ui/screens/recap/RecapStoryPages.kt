@@ -813,7 +813,7 @@ private object ZigzagShape : Shape {
 }
 
 @Composable
-private fun ReceiptPage(s: StoryState, data: RecapStoryData) {
+internal fun ReceiptPage(s: StoryState, data: RecapStoryData) {
     val geo = s.geo
     val anim = s.pages[P_RECEIPT]
     val density = LocalDensity.current

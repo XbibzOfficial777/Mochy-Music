@@ -98,6 +98,11 @@ jobs:
             echo 'Refusing to publish a debuggable APK' >&2
             exit 1
           fi
+          "$build_tools/aapt" dump xmltree "$apk" AndroidManifest.xml > /tmp/apk-manifest.txt
+          if grep -Fq 'IssueSmokeActivity' /tmp/apk-manifest.txt; then
+            echo 'Refusing to publish a release containing debug-only test fixtures' >&2
+            exit 1
+          fi
           "$build_tools/apksigner" verify --verbose --print-certs "$apk" | tee /tmp/apk-certificate.txt
           expected="$(keytool -list -v -storetype PKCS12 -keystore app/keystore/release.keystore \
             -storepass:env STORE_PASSWORD -alias "$KEY_ALIAS" | sed -n 's/^[[:space:]]*SHA256: //p' | head -1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"

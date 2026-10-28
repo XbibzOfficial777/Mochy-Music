@@ -10,6 +10,7 @@ build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d 
 package="$("$build_tools/aapt" dump badging "${apks[0]}" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -1)"
 test -n "$package"
 export APP_PACKAGE="$package"
+printf '%s' "$package" > smoke-package.txt
 adb wait-for-device
 adb install -r "${apks[0]}"
 adb logcat -c

@@ -22,4 +22,9 @@
         android:name="android.permission.REQUEST_INSTALL_PACKAGES"
         tools:node="replace" />
 
+    <!-- Deterministic UI fixtures for the emulator; this activity is absent from release APKs. -->
+    <application>
+        <activity android:name="com.mochyy.mochymusic.ui.screens.recap.IssueSmokeActivity"
+            android:exported="true" />
+    </application>
 </manifest>
