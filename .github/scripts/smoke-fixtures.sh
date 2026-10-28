@@ -68,8 +68,17 @@ hide_keyboard_if_visible
 tap_node text 'Continue to language and translate'
 dump_ui
 find_node text 'AI configured: example/model' >/dev/null
-# A session key must not be persisted to app files or shared preferences.
-if adb shell "run-as '$package' sh -c 'grep -aR -l dummySecretForCI files shared_prefs 2>/dev/null || true'" | grep -q .; then
+# A session key must not be persisted. First prove the scanner can actually read private app files.
+scan_key() {
+  adb shell "run-as '$package' sh -c 'grep -aR -l dummySecretForCI files shared_prefs 2>/dev/null || true'"
+}
+adb shell "run-as '$package' sh -c 'mkdir -p files; printf dummySecretForCI > files/ci-key-scanner-probe'"
+if ! scan_key | grep -q 'ci-key-scanner-probe'; then
+  echo 'The private-file key scanner is not working.' >&2
+  exit 1
+fi
+adb shell run-as "$package" rm files/ci-key-scanner-probe
+if scan_key | grep -q .; then
   echo 'The session key was unexpectedly persisted.' >&2
   exit 1
 fi

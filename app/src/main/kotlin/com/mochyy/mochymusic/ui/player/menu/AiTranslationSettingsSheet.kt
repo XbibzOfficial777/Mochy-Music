@@ -42,7 +42,9 @@ internal fun AiTranslationSettingsSheet(onDismiss: () -> Unit, onContinue: () ->
     var key by remember(active) { mutableStateOf(active?.apiKey.orEmpty()) }
     var model by remember(active) { mutableStateOf(active?.model.orEmpty()) }
 
-    MenuSheetSurface(onDismiss = onDismiss) { _ ->
+    // Configuration fields need the full sheet on small displays and when the IME resizes the
+    // window; a half-height detent can leave the model field and Continue action below the fold.
+    MenuSheetSurface(onDismiss = onDismiss, halfDetent = 0.94f, fullDetent = 0.94f) { _ ->
         Column(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
                 .imePadding().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 24.dp),
