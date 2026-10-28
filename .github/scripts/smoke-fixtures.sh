@@ -38,8 +38,11 @@ tap_node() {
   sleep 2
 }
 hide_keyboard_if_visible() {
-  dump_ui
-  if grep -Eq 'package="[^"]*inputmethod[^"]*"' smoke-ui.xml; then
+  # uiautomator dump covers the app window, not the separate IME window. Ask the input-method
+  # service instead, otherwise taps on obscured fields can accidentally keep typing in the first.
+  local state
+  state="$(adb shell dumpsys input_method 2>/dev/null || true)"
+  if [[ "$state" == *"mInputShown=true"* || "$state" == *"mIsInputViewShown=true"* || "$state" == *"isInputViewShown=true"* ]]; then
     adb shell input keyevent 4
     sleep 1
   fi
