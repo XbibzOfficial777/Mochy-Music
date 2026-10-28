@@ -2,6 +2,11 @@ name: CI & Debug Build
 
 on:
   workflow_dispatch:
+    inputs:
+      artifact_run_id:
+        description: 'Optional CI run ID whose identical app sources supplied the debug APK'
+        required: false
+        default: ''
   push:
     branches: [ '**' ]
     paths-ignore:
@@ -12,11 +17,15 @@ on:
   pull_request:
     branches: [ '**' ]
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   build_debug:
     name: Build Universal GMS Debug
     runs-on: ubuntu-latest
-    if: github.actor != 'dependabot[bot]'
+    if: github.actor != 'dependabot[bot]' && (github.event_name != 'workflow_dispatch' || inputs.artifact_run_id == '')
     steps:
       - uses: actions/checkout@v5
 
@@ -71,6 +80,7 @@ jobs:
   smoke_test:
     name: Android emulator launch (API ${{ matrix.api }})
     needs: build_debug
+    if: ${{ always() && (needs.build_debug.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.artifact_run_id != '')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -79,10 +89,28 @@ jobs:
         api: [30, 35]
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify reused APK matches current app sources
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.artifact_run_id != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN: ${{ inputs.artifact_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN" =~ ^[0-9]+$ ]]
+          source_sha="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN" --jq .head_sha)"
+          [[ "$source_sha" =~ ^[0-9a-f]{40}$ ]]
+          git cat-file -e "$source_sha^{commit}"
+          # Only workflow/test-script changes may differ; all app and build sources must match.
+          git diff --exit-code "$source_sha" "$GITHUB_SHA" -- . ':(exclude).github/**'
+          echo "Debug APK source $source_sha matches current application sources."
       - uses: actions/download-artifact@v4
         with:
           name: app-universal-gms-debug
           path: smoke-apk
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.artifact_run_id || github.run_id }}
       - name: Install PNG verification dependency
         run: python3 -m pip install --quiet pillow
       - name: Enable KVM
