@@ -11,6 +11,7 @@ on:
         default: ''
 permissions:
   contents: read
+  actions: read
 jobs:
   build:
     if: github.event_name != 'workflow_dispatch' || inputs.artifact_run_id == ''
