@@ -431,7 +431,7 @@ private fun SearchActiveContent(
         if (query.isEmpty()) {
             if (state.history.isNotEmpty()) {
                 item(key = "history_header") {
-                    SearchSectionHeader(title = "Search History")
+                    SearchSectionHeader(title = stringResource(R.string.search_history))
                 }
                 items(
                     items = state.history,
@@ -455,7 +455,7 @@ private fun SearchActiveContent(
         } else {
             if (state.suggestions.isNotEmpty()) {
                 item(key = "suggestion_header") {
-                    SearchSectionHeader(title = "Suggestion")
+                    SearchSectionHeader(title = stringResource(R.string.suggestions))
                 }
                 items(
                     items = state.suggestions,
@@ -474,7 +474,7 @@ private fun SearchActiveContent(
             if (state.items.isNotEmpty()) {
                 item(key = "top_result_header") {
                     Spacer(modifier = Modifier.height(10.dp))
-                    SearchSectionHeader(title = "Top Result")
+                    SearchSectionHeader(title = stringResource(R.string.search_top_result))
                 }
                 items(
                     items = state.items,
@@ -507,7 +507,7 @@ private fun SearchActiveContent(
                         // offline there's nothing on its way: the library just has no match
                         if (offlineMode) {
                             Text(
-                                text = "Offline mode: nothing in your library matches",
+                                text = stringResource(R.string.search_offline_no_matches),
                                 color = SearchColors.Secondary,
                                 fontSize = 13.sp,
                             )

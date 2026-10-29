@@ -36,4 +36,16 @@
     <string name="library_cached_search">Cari musik dalam cache</string>
     <string name="library_all_search">Cari di pustaka Anda</string>
     <string name="search_tracks_placeholder">Cari lagu, album, lirik…</string>
+    <string name="home_start_listening">Mulai dengarkan sekarang</string>
+    <string name="home_hop_in">Mulai dengarkan</string>
+    <string name="home_your_playlists">Daftar putar Anda</string>
+    <string name="profile_label">Profil</string>
+    <string name="library_tab_all">Semua</string>
+    <string name="library_tab_local">Lokal</string>
+    <string name="library_tab_imported">Diimpor</string>
+    <string name="library_empty_import">Belum ada apa pun di sini. Impor musik Anda di atas untuk mengisi pustaka.</string>
+    <string name="library_pinned">Disematkan</string>
+    <string name="library_recently_added">Baru ditambahkan</string>
+    <string name="search_top_result">Hasil teratas</string>
+    <string name="search_offline_no_matches">Mode offline: tidak ada yang cocok di pustaka Anda</string>
 </resources>

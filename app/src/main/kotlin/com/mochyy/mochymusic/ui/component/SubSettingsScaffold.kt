@@ -202,7 +202,7 @@ fun SubSettingsScaffold(
             ) {
                 Icon(
                     painter = painterResource(R.drawable.arrow_back_ios),
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.back_content_desc),
                     tint = Color.White,
                     modifier = Modifier.size(18.dp)
                 )
