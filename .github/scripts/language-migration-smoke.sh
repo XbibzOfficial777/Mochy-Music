@@ -104,7 +104,16 @@ echo '=== Reset follows device, including after process restart ==='
 tap "Langue de l'application"
 tap 'Valeurs par défaut du système'
 sleep 6
-assert_text 'Bahasa aplikasi'
+if [ "$api" -ge 33 ]; then adb shell cmd locale get-app-locales "$package" --user 0 | tee language-platform-after-reset.txt; fi
+if ! assert_text 'Bahasa aplikasi'; then
+  echo 'Immediate UI did not return to Indonesian; checking cold restart before failing.'
+  adb exec-out screencap -p > language-before-restart.png
+  adb shell am force-stop "$package"
+  start
+  assert_text 'Bahasa aplikasi'
+  echo 'Cold restart did recover Indonesian, but immediate reset is broken.' >&2
+  exit 1
+fi
 adb shell am force-stop "$package"
 start
 assert_text 'Bahasa aplikasi'
