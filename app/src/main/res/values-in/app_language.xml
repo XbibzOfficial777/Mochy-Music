@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_language">Bahasa aplikasi</string>
     <string name="app_language_search">Cari bahasa</string>
     <string name="app_language_follow_device">Ikuti bahasa perangkat</string>
     <string name="app_language_incomplete">Beberapa terjemahan belum lengkap; teks yang belum tersedia ditampilkan dalam bahasa Inggris.</string>
