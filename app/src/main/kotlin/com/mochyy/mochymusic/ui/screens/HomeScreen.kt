@@ -1936,7 +1936,7 @@ fun HomeScreen(
                         )
 
                         Text(
-                            text = "Home",
+                            text = stringResource(R.string.home),
                             style = TextStyle(
                                 fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Bold,
