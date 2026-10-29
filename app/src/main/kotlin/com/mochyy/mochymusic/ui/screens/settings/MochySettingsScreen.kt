@@ -526,7 +526,7 @@ fun MochySettingsScreen(navController: NavController) {
                     {
                         Icon(
                             painter = painterResource(R.drawable.close),
-                            contentDescription = "Clear",
+                            contentDescription = stringResource(R.string.settings_clear_search),
                             tint = Color.White.copy(alpha = 0.7f),
                             modifier = Modifier
                                 .size(20.dp)
