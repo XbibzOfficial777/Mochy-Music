@@ -44,6 +44,7 @@ import com.mochyy.mochymusic.constants.CanvasWifiOnlyKey
 import com.mochyy.mochymusic.constants.DisableBlurKey
 import com.mochyy.mochymusic.constants.EnableElementBlurAnimatorKey
 import com.mochyy.mochymusic.constants.EnableProgressiveBlurKey
+import com.mochyy.mochymusic.constants.HidePlayerStatusBarKey
 import com.mochyy.mochymusic.constants.LyricsHighBloomKey
 import com.mochyy.mochymusic.constants.LyricsMotionStyle
 import com.mochyy.mochymusic.constants.LyricsMotionStyleKey
@@ -84,6 +85,10 @@ fun AppearanceSettingsScreen(navController: NavController) {
     val (playVideoBackground, onPlayVideoBackgroundChange) = rememberPreference(
         PlayVideoBackgroundKey,
         defaultValue = false
+    )
+    val (hidePlayerStatusBar, onHidePlayerStatusBarChange) = rememberPreference(
+        HidePlayerStatusBarKey,
+        defaultValue = false,
     )
     val (lyricsSync, onLyricsSyncChange) = rememberPreference(
         YtVideoBackgroundLyricsSyncKey,
@@ -253,6 +258,17 @@ fun AppearanceSettingsScreen(navController: NavController) {
                 },
                 trailingContent = {
                     Text(coverTransition.label, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White.copy(alpha = 0.70f))
+                },
+            ),
+            SettingsItem(
+                title = { Text("Hide status bar in player") },
+                highlightKey = "Hide status bar in player",
+                descriptionText = "Show the status bar again when the player closes",
+                icon = painterResource(R.drawable.fullscreen),
+                iconShape = CircleShape,
+                onClick = { onHidePlayerStatusBarChange(!hidePlayerStatusBar) },
+                trailingContent = {
+                    AppSwitch(checked = hidePlayerStatusBar, onCheckedChange = onHidePlayerStatusBarChange)
                 },
             ),
             SettingsItem(
