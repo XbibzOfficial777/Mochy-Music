@@ -95,6 +95,18 @@ assert_text 'Mode offline'
 assert_preferences
 adb exec-out screencap -p > language-system-id.png
 
+echo '=== Explicit Indonesian matches the device language and updates the selection ==='
+tap 'Bahasa aplikasi'
+search_and_select 'Cari bahasa' Indonesian 'Bahasa Indonesia'
+assert_text 'Bahasa aplikasi'
+assert_text 'Bahasa Indonesia'
+assert_text 'Mode offline'
+tap 'Bahasa aplikasi'
+tap 'Bawaan sistem'
+sleep 5
+assert_text 'Bawaan sistem'
+assert_preferences
+
 echo '=== Pick English independently of Indonesian device; persist across restart ==='
 tap 'Bahasa aplikasi'
 assert_text 'Beberapa terjemahan belum lengkap; teks yang belum tersedia ditampilkan dalam bahasa Inggris.'
