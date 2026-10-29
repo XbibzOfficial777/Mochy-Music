@@ -47,8 +47,8 @@ ime_visible() {
   state="$(adb shell dumpsys input_method 2>/dev/null || true)"
   # On Android 15 the IME process can report mIsInputViewShown=true even after the
   # system has hidden it. Prefer the input-method manager's authoritative state.
-  if grep -Eq '^[[:space:]]*mInputShown=(true|false)' <<< "$state"; then
-    grep -Eq '^[[:space:]]*mInputShown=true' <<< "$state"
+  if grep -Eq '(^|[[:space:]])mInputShown=(true|false)([[:space:]]|$)' <<< "$state"; then
+    grep -Eq '(^|[[:space:]])mInputShown=true([[:space:]]|$)' <<< "$state"
   else
     grep -Eq 'mIsInputViewShown=true|isInputViewShown=true' <<< "$state"
   fi
