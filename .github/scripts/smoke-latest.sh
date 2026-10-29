@@ -43,7 +43,15 @@ tap_node() {
   sleep 2
 }
 ime_visible() {
-  adb shell dumpsys input_method 2>/dev/null | grep -Eq 'mInputShown=true|mIsInputViewShown=true|isInputViewShown=true'
+  local state
+  state="$(adb shell dumpsys input_method 2>/dev/null || true)"
+  # On Android 15 the IME process can report mIsInputViewShown=true even after the
+  # system has hidden it. Prefer the input-method manager's authoritative state.
+  if grep -Eq '^[[:space:]]*mInputShown=(true|false)' <<< "$state"; then
+    grep -Eq '^[[:space:]]*mInputShown=true' <<< "$state"
+  else
+    grep -Eq 'mIsInputViewShown=true|isInputViewShown=true' <<< "$state"
+  fi
 }
 require_ime() {
   if ! ime_visible; then
@@ -63,19 +71,34 @@ require_no_ime() {
 # #150 / #146: the real shared SearchField stays composed below an open sheet.
 start_fixture focus
 assert_text 'Status visible: true'
-assert_text 'Nav visible: true'
+# Some emulator images start with navigation bars already hidden. Check that this helper
+# preserves the initial state instead of assuming a particular navigation mode.
+dump_ui
+nav_initial="$(python3 - <<'PY2'
+import xml.etree.ElementTree as ET
+for n in ET.parse('smoke-latest-ui.xml').iter('node'):
+    text = n.get('text', '')
+    if text in ('Nav visible: true', 'Nav visible: false'):
+        print(text.rsplit(' ', 1)[-1])
+        break
+else:
+    raise SystemExit('Nav visibility label missing')
+PY2
+)"
 tap_node text 'Focus search'
 adb shell input text 'Needle123'
 sleep 1
 assert_text 'Search focus: true'
 assert_text 'Query: Needle123'
 require_ime
+adb exec-out screencap -p > smoke-latest-search-before.png
 tap_node text 'Open player'
 assert_text 'Search focus: false'
 assert_text 'Query: Needle123'
 require_no_ime
 assert_text 'Status visible: false'
-assert_text 'Nav visible: true'
+assert_text "Nav visible: $nav_initial"
+adb exec-out screencap -p > smoke-latest-search-after.png
 # Recreating the sheet while a player editor has focus must not clear the editor or its keyboard.
 tap_node text 'Focus editor'
 adb shell input text 'Editor456'
@@ -87,6 +110,7 @@ assert_text 'Sheet bound: 560'
 assert_text 'Editor focus: true'
 require_ime
 assert_text 'Status visible: false'
+adb exec-out screencap -p > smoke-latest-editor-resized.png
 adb shell input keyevent 4
 sleep 1
 tap_node text 'Bar off'
@@ -95,7 +119,7 @@ tap_node text 'Bar on'
 assert_text 'Status visible: false'
 tap_node text 'Close player'
 assert_text 'Status visible: true'
-assert_text 'Nav visible: true'
+assert_text "Nav visible: $nav_initial"
 cp smoke-latest-ui.xml smoke-latest-focus.xml
 adb exec-out screencap -p > smoke-latest-focus.png
 
@@ -107,6 +131,7 @@ assert_text 'Liked: false'
 tap_node content-desc 'Like'
 assert_text 'Liked: true'
 assert_text 'Row count: 0'
+adb exec-out screencap -p > smoke-latest-album-liked.png
 tap_node content-desc 'More options'
 assert_text 'Menu count: 1'
 assert_text 'Row count: 0'
