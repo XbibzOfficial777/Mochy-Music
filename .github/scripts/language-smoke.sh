@@ -140,16 +140,29 @@ fi
 echo '=== Unsupported device locale falls back to English ==='
 if adb shell pm list packages | grep -q '^package:com.android.customlocale2'; then
   adb shell am broadcast -a com.android.intent.action.SET_LOCALE --es com.android.intent.extra.LOCALE 'zu_ZA' com.android.customlocale2
-  sleep 4
-  start
-  assert_text 'SYSTEM zu-ZA'
-  assert_text 'App language'
-  assert_text 'Offline mode'
-  assert_preferences
-  adb exec-out screencap -p > language-unsupported.png
 else
-  echo 'Custom locale helper missing; unsupported-device test unavailable on this image.' >&2
-  exit 1
+  # Google APIs test images do not always ship CustomLocale2. They are rooted
+  # userdebug images: switch the system property and restart only the framework.
+  adb root
+  adb wait-for-device
+  adb shell setprop persist.sys.locale zu-ZA
+  adb shell setprop ctl.restart zygote || true
 fi
+adb wait-for-device
+timeout 180 bash -c '
+  until cfg="$(adb shell cmd activity get-config 2>/dev/null | tr -d "\r")" &&
+    printf "%s\n" "$cfg" | grep -qiE "(^|[^[:alpha:]])zu(-r|[-_+])ZA([^[:alpha:]]|$)" &&
+    [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = 1 ] &&
+    adb shell cmd package list packages >/dev/null 2>&1; do
+      sleep 3
+  done
+  echo "Framework ready: $cfg"
+'
+start
+assert_text 'SYSTEM zu-ZA'
+assert_text 'App language'
+assert_text 'Offline mode'
+assert_preferences
+adb exec-out screencap -p > language-unsupported.png
 
 echo 'Language smoke tests passed.'
