@@ -33,7 +33,7 @@ set_device_locale() {
         printf "%s\n" "$state" | grep -q RUNNING_UNLOCKED &&
         adb shell cmd package list packages >/dev/null 2>&1; then
           echo "New framework $pid, $state: $cfg"
-          sleep 5
+          sleep 15
           exit 0
       fi
       sleep 3
@@ -70,9 +70,15 @@ adb shell "mkdir -p $appdir/files/datastore $appdir/no_backup && \
 adb logcat -c
 
 start_main() {
-  adb shell am start -W -n "$main" | tee language-main-start.txt
-  grep -q 'Status: ok' language-main-start.txt
-  sleep 30
+  local attempt
+  for attempt in 1 2 3; do
+    adb shell am start -W -n "$main" | tee language-main-start.txt
+    if grep -q 'Status: ok' language-main-start.txt; then sleep 30; return; fi
+    grep -q 'Status: timeout' language-main-start.txt || return 1
+    echo "Launch timed out under emulator load; retry $attempt" >&2
+    sleep 10
+  done
+  return 1
 }
 dump() {
   adb shell uiautomator dump /sdcard/language-window.xml >/dev/null
