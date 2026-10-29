@@ -129,6 +129,7 @@ jobs:
           script: |
             bash .github/scripts/smoke-launch.sh
             bash .github/scripts/smoke-fixtures.sh
+            bash .github/scripts/smoke-latest.sh
       - name: Save smoke-test evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -144,4 +145,7 @@ jobs:
             smoke-fixtures-logcat.txt
             smoke-fixtures-screen.png
             smoke-receipt.png
+            smoke-latest-*.xml
+            smoke-latest-*.png
+            smoke-latest-*.txt
           if-no-files-found: warn
