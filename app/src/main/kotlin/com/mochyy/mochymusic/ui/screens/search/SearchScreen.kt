@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
@@ -265,7 +266,7 @@ fun SearchScreen(
             glassState = glassState,
             progressProvider = progressProvider,
             pureBlack = pureBlack,
-            title = "Search",
+            title = stringResource(R.string.search),
             trailing = {
                 SearchAvatar(imageUrl = profilePicStr.ifBlank { null }, onClick = { navController.navigateToTab("settings") })
             },
@@ -274,7 +275,7 @@ fun SearchScreen(
                 value = query,
                 onValueChange = { query = it },
                 onSearch = commit,
-                placeholder = "Search for any tracks, albums, lyrics...",
+                placeholder = stringResource(R.string.search_tracks_placeholder),
                 focused = active,
                 leading = if (active) {
                     {

@@ -27,12 +27,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.mochyy.mochymusic.ui.menu.rememberResyncAll
 import com.mochyy.mochymusic.LocalPlayerAwareWindowInsets
+import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.constants.ProfilePicUriKey
 import com.mochyy.mochymusic.db.entities.Song
@@ -113,12 +115,12 @@ fun LibraryHomeScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         LibraryScaffold(
-            title = "Library",
+            title = stringResource(R.string.filter_library),
             subtitle = null,
             searchPlaceholder = when (tab) {
-                LibraryTab.Local -> "Search your local music"
-                LibraryTab.Cached -> "Search your cached music"
-                else -> "Search anything on your library"
+                LibraryTab.Local -> stringResource(R.string.library_local_search)
+                LibraryTab.Cached -> stringResource(R.string.library_cached_search)
+                else -> stringResource(R.string.library_all_search)
             },
             query = query,
             onQueryChange = { query = it },
