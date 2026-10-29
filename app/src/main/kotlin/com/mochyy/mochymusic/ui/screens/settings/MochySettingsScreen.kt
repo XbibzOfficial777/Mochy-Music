@@ -78,6 +78,39 @@ private data class SettingsEntry(
     val highlightKey: String get() = title
 }
 
+// Search IDs stay stable in English; visible labels and matching can follow the UI locale.
+private val LocalizedSettingsTitles = mapOf(
+    "Customize player" to R.string.appearance_customize_player,
+    "Customize lyrics tab" to R.string.appearance_customize_lyrics,
+    "Lyrics Shader" to R.string.appearance_shader,
+    "High quality bloom" to R.string.appearance_bloom,
+    "Always enable Youtube background" to R.string.appearance_youtube_background,
+    "Enable animated canvas" to R.string.appearance_canvas,
+    "Audio format badge" to R.string.appearance_format_badge,
+    "Show sample rate" to R.string.appearance_sample_rate,
+    "Blur" to R.string.appearance_blur,
+    "Animation" to R.string.appearance_animation,
+    "Keep playing even when closed" to R.string.playback_keep_playing,
+    "Save Player's last state" to R.string.playback_save_state,
+    "Skip Silence" to R.string.playback_skip_silence,
+    "Prefer USB DAC" to R.string.playback_usb_prefer,
+    "USB DAC passthrough" to R.string.playback_usb_passthrough,
+    "Hi-res output" to R.string.playback_hires,
+    "Hi-fi resampler" to R.string.playback_hifi,
+    "Offline mode" to R.string.settings_offline_mode,
+    "Local song auto metadata" to R.string.settings_local_auto_metadata,
+)
+private val LocalizedSettingsPages = mapOf(
+    "General" to R.string.general,
+    "Appearance" to R.string.appearance,
+    "Playback" to R.string.settings_playback_category,
+    "Customisation" to R.string.settings_customisation_category,
+    "Storage" to R.string.storage,
+    "Audio Lab" to R.string.settings_audio_lab_category,
+    "Modules" to R.string.settings_modules_category,
+    "Integrations" to R.string.integrations,
+)
+
 private val SettingsIndex = listOf(
     // Appearance
     SettingsEntry("Customize player", "Appearance", "appearance_settings", "player customise cover style"),
@@ -228,8 +261,8 @@ fun MochySettingsScreen(navController: NavController) {
         } else {
             SettingsIndex.filter {
                 it.title.contains(q, ignoreCase = true) ||
-                    it.titleRes?.let { id -> context.getString(id).contains(q, ignoreCase = true) } == true ||
-                    it.pageRes?.let { id -> context.getString(id).contains(q, ignoreCase = true) } == true ||
+                    (it.titleRes ?: LocalizedSettingsTitles[it.title])?.let { id -> context.getString(id).contains(q, ignoreCase = true) } == true ||
+                    (it.pageRes ?: LocalizedSettingsPages[it.page])?.let { id -> context.getString(id).contains(q, ignoreCase = true) } == true ||
                     it.keywords.contains(q, ignoreCase = true) ||
                     it.page.contains(q, ignoreCase = true)
             }
@@ -321,14 +354,14 @@ fun MochySettingsScreen(navController: NavController) {
                                     Spacer(modifier = Modifier.width(11.dp))
                                     Column {
                                         Text(
-                                            text = entry.titleRes?.let { stringResource(it) } ?: entry.title,
+                                            text = (entry.titleRes ?: LocalizedSettingsTitles[entry.title])?.let { stringResource(it) } ?: entry.title,
                                             fontFamily = InterFontFamily,
                                             fontWeight = FontWeight.SemiBold,
                                             fontSize = 16.sp,
                                             color = Color.White
                                         )
                                         Text(
-                                            text = entry.pageRes?.let { stringResource(it) } ?: entry.page,
+                                            text = (entry.pageRes ?: LocalizedSettingsPages[entry.page])?.let { stringResource(it) } ?: entry.page,
                                             fontFamily = InterFontFamily,
                                             fontSize = 12.sp,
                                             color = Color.White.copy(alpha = 0.55f)
