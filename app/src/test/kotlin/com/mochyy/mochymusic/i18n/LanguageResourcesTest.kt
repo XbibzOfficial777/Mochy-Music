@@ -27,7 +27,7 @@ class LanguageResourcesTest {
         .associateBy { it.getAttribute("name") }
 
     @Test fun `picker lists exactly the app translated resource locales`() {
-        val array = children(File(resDir, "values/app_language.xml"))
+        val array = children(File(resDir, "values/app_language_tags.xml"))
             .single { it.tagName == "string-array" && it.getAttribute("name") == "app_language_tags" }
         val nodes = array.childNodes
         val tags = (0 until nodes.length).mapNotNull { nodes.item(it) as? Element }
