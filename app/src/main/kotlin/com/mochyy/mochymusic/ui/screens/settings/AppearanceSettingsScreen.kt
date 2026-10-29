@@ -87,7 +87,7 @@ fun AppearanceSettingsScreen(navController: NavController) {
     )
     val (lyricsSync, onLyricsSyncChange) = rememberPreference(
         YtVideoBackgroundLyricsSyncKey,
-        defaultValue = false
+        defaultValue = true
     )
     val (canvasEnabled, onCanvasEnabledChange) = rememberPreference(
         CanvasThumbnailAnimationKey,

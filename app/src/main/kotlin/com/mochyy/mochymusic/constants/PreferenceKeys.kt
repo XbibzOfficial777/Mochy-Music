@@ -193,6 +193,15 @@ enum class DownloadQuality(val title: String, val description: String) {
 
 val AudioOffload = booleanPreferencesKey("enableOffload")
 
+// where the sound goes: a plugged-in usb dac first, its own rate (or bit-perfect) on android 14+, 24-bit kept as float
+val PreferUsbDacKey = booleanPreferencesKey("preferUsbDac")
+val UsbPassthroughKey = booleanPreferencesKey("usbDacPassthrough")
+val HiResOutputKey = booleanPreferencesKey("hiResFloatOutput")
+val HiFiResamplerKey = booleanPreferencesKey("hiFiResampler")
+
+// which service the about sheet's "about" text comes from: "musixmatch" or "youtube"
+val AboutSongSourceKey = stringPreferencesKey("aboutSongSource")
+
 val PersistentQueueKey = booleanPreferencesKey("persistentQueue")
 val PersistentShuffleAcrossQueuesKey = booleanPreferencesKey("persistentShuffleAcrossQueues")
 val RememberShuffleAndRepeatKey = booleanPreferencesKey("rememberShuffleAndRepeat")
@@ -753,6 +762,10 @@ val TranslateModeKey = stringPreferencesKey("translateMode")
 val TranslateLanguageKey = stringPreferencesKey("translateLanguage")
 /** Language the lyrics are translated FROM; "auto" lets the translator detect it. */
 val TranslateSourceLanguageKey = stringPreferencesKey("translateSourceLanguage")
+// a video's own uploaded translation is used as the lyrics translation when it has one (settings > general)
+val YouTubeCaptionTranslationKey = booleanPreferencesKey("youtubeCaptionTranslation")
+// a music video's lyrics are moved onto the video's own timing, found from its auto captions (settings > general)
+val SyncLyricsToVideoKey = booleanPreferencesKey("syncLyricsToVideo")
 val DeeplApiKey = stringPreferencesKey("deeplApiKey")
 val DeeplFormalityKey = stringPreferencesKey("deeplFormality")
 val LyricsGlowEffectKey = booleanPreferencesKey("lyricsGlowEffect")

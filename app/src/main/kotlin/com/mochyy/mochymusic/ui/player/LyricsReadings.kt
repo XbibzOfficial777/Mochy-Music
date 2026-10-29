@@ -28,12 +28,14 @@ import com.mochyy.mochymusic.constants.TranslateLanguageKey
 import com.mochyy.mochymusic.constants.TranslateLyricsKey
 import com.mochyy.mochymusic.constants.TranslateModeKey
 import com.mochyy.mochymusic.constants.TranslateSourceLanguageKey
+import com.mochyy.mochymusic.constants.YouTubeCaptionTranslationKey
 import com.mochyy.mochymusic.db.MusicDatabase
 import com.mochyy.mochymusic.lyrics.LyricsEntry
 import com.mochyy.mochymusic.lyrics.LyricsTranslationHelper
 import com.mochyy.mochymusic.lyrics.AiTranslationSession
 import com.mochyy.mochymusic.lyrics.aiTranslationTag
 import com.mochyy.mochymusic.lyrics.LyricsUtils
+import com.mochyy.mochymusic.lyrics.YouTubeCaptionTranslation
 import com.mochyy.mochymusic.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -172,6 +174,8 @@ fun LyricsReadings(
     val effectiveKey = aiSession?.apiKey ?: openRouterKey
     val effectiveModel = aiSession?.model ?: openRouterModel
     val effectiveBaseUrl = if (aiSession != null) "https://openrouter.ai/api/v1/chat/completions" else openRouterBaseUrl
+    val (youtubeTranslations) = rememberPreference(YouTubeCaptionTranslationKey, defaultValue = true)
+    val playerConnection = com.mochyy.mochymusic.LocalPlayerConnection.current
 
     LaunchedEffect(songId, translateSessionWide) {
         LyricsTranslationHelper.onSongChanged(songId, translateSessionWide)
@@ -184,6 +188,7 @@ fun LyricsReadings(
     LaunchedEffect(
         lines, translationOn, translateLanguage, translateSourceLanguage, translateMode,
         effectiveProvider, effectiveKey, effectiveModel, effectiveBaseUrl, deeplKey, deeplFormality,
+        youtubeTranslations,
     ) {
         if (lines.isEmpty()) return@LaunchedEffect
         if (!translationOn) {
@@ -194,6 +199,25 @@ fun LyricsReadings(
         val useAi = hasAiKeyFor(effectiveProvider, effectiveKey, deeplKey)
         val languageTag = LyricsTranslationHelper.languageTag(translateSourceLanguage, target)
         val cacheTag = if (useAi) aiTranslationTag(effectiveProvider, effectiveModel, languageTag) else languageTag
+
+        // a translation someone uploaded to the video beats any machine one, so it's tried first
+        val metadata = playerConnection?.mediaMetadata?.value?.takeIf { it.id == songId }
+        if (youtubeTranslations && metadata != null &&
+            LyricsTranslationHelper.translateWithYouTubeCaptions(
+                lyrics = lines,
+                request = YouTubeCaptionTranslation.Request(
+                    songId = metadata.id,
+                    title = metadata.title,
+                    artist = metadata.artists.joinToString { it.name },
+                    isVideo = metadata.isVideoSong,
+                    lines = lines,
+                    targetLanguage = target,
+                ),
+                lyricsEntity = latestLyricsEntity,
+                mode = translateMode,
+                database = database,
+            )
+        ) return@LaunchedEffect
         if (LyricsTranslationHelper.loadTranslationsFromDatabase(
                 lyrics = lines,
                 lyricsEntity = latestLyricsEntity,
