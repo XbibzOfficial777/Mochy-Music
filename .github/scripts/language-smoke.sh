@@ -32,7 +32,7 @@ set_device_locale() {
         printf "%s\n" "$state" | grep -q RUNNING_UNLOCKED &&
         adb shell cmd package list packages >/dev/null 2>&1; then
           echo "New framework $pid, $state: $cfg"
-          sleep 5
+          sleep 15
           exit 0
       fi
       sleep 3
@@ -42,9 +42,17 @@ set_device_locale() {
 set_device_locale id-ID '(^|[^[:alpha:]])(id|in)(-r|[-_+])ID([^[:alpha:]]|$)'
 adb install -r "$apk"
 start() {
-  adb shell am start -W -n "$activity" | tee language-start.txt
-  grep -q 'Status: ok' language-start.txt
-  sleep 4
+  # A fresh framework can take longer than ActivityManager's 10-second wait.
+  # Retry only a launch timeout; assertions below still verify the actual UI.
+  local attempt
+  for attempt in 1 2 3; do
+    adb shell am start -W -n "$activity" | tee language-start.txt
+    if grep -q 'Status: ok' language-start.txt; then sleep 4; return; fi
+    grep -q 'Status: timeout' language-start.txt || return 1
+    echo "Launch timed out under emulator load; retry $attempt" >&2
+    sleep 10
+  done
+  return 1
 }
 dump() {
   adb shell uiautomator dump /sdcard/language-window.xml >/dev/null
@@ -192,4 +200,13 @@ assert_text 'App language'
 assert_text 'Offline mode'
 assert_preferences
 
+adb logcat -d -v threadtime > language-test-logcat.txt
+python3 - <<'PY2'
+from pathlib import Path
+lines = Path('language-test-logcat.txt').read_text(errors='replace').splitlines()
+for i, line in enumerate(lines):
+    if 'FATAL EXCEPTION' in line and any('Process: com.mochyy.mochymusic.debug' in x for x in lines[i:i+15]):
+        print('\n'.join(lines[i:i+20]))
+        raise SystemExit('App fatal exception during language smoke')
+PY2
 echo 'Language smoke tests passed.'
