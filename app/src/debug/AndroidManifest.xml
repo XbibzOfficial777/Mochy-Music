@@ -22,4 +22,9 @@
         android:name="android.permission.REQUEST_INSTALL_PACKAGES"
         tools:node="replace" />
 
+    <application>
+        <activity
+            android:name="com.mochyy.mochymusic.i18n.LanguageSmokeActivity"
+            android:exported="true" />
+    </application>
 </manifest>
