@@ -2,11 +2,18 @@ name: Language UI validation (temporary)
 on:
   push:
     branches: [ 'ci/language-ui-validation' ]
+    paths-ignore: [ '.github/**' ]
   workflow_dispatch:
+    inputs:
+      artifact_run_id:
+        description: 'Reuse a debug APK from a run with identical app sources'
+        required: false
+        default: ''
 permissions:
   contents: read
 jobs:
   build:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.artifact_run_id == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -32,6 +39,7 @@ jobs:
           path: app/build/outputs/apk/universalGms/debug/*.apk
   emulator:
     needs: build
+    if: ${{ always() && (needs.build.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.artifact_run_id != '')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
@@ -40,10 +48,24 @@ jobs:
         api: [30, 35]
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify reused source
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.artifact_run_id != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN: ${{ inputs.artifact_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN" =~ ^[0-9]+$ ]]
+          sha="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN" --jq .head_sha)"
+          git diff --exit-code "$sha" "$GITHUB_SHA" -- app
       - uses: actions/download-artifact@v4
         with:
           name: language-debug-apk
           path: language-apk
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.artifact_run_id || github.run_id }}
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

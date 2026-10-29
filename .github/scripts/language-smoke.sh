@@ -10,6 +10,11 @@ cleanup() {
   adb exec-out cat /sdcard/language-window.xml > language-final.xml 2>/dev/null || true
 }
 trap cleanup EXIT
+# -change-locale restarts Android's framework asynchronously after the action first reports boot.
+# Wait for that restart to settle before installing or invoking ActivityManager.
+sleep 15
+adb wait-for-device
+timeout 120 bash -c 'until adb shell cmd activity get-config >/dev/null 2>&1; do sleep 3; done'
 adb install -r "$apk"
 start() {
   adb shell am start -W -n "$activity" | tee language-start.txt
