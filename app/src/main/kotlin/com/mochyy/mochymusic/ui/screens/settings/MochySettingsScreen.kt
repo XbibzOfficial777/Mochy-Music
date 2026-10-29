@@ -80,6 +80,10 @@ private data class SettingsEntry(
 
 // Search IDs stay stable in English; visible labels and matching can follow the UI locale.
 private val LocalizedSettingsTitles = mapOf(
+    "Theme" to R.string.theme,
+    "Cover animation" to R.string.bibz_cover_animation,
+    "Hide status bar in player" to R.string.bibz_hide_status,
+    "Video quality" to R.string.bibz_video_quality,
     "Customize player" to R.string.appearance_customize_player,
     "Customize lyrics tab" to R.string.appearance_customize_lyrics,
     "Lyrics Shader" to R.string.appearance_shader,

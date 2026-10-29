@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bibz_theme_frosted">Kaca buram</string>
+    <string name="bibz_theme_frosted_desc">Kaca buram gelap di seluruh aplikasi</string>
+    <string name="bibz_theme_black">Hitam pekat</string>
+    <string name="bibz_theme_black_desc">Tampilan hitam solid yang cocok untuk OLED</string>
+    <string name="bibz_theme_glass">Liquid Glass</string>
+    <string name="bibz_theme_glass_desc">Kaca bening dengan tepi bercahaya dan lensa kaca yang bergeser</string>
+    <string name="bibz_cover_animation">Animasi sampul</string>
+    <string name="bibz_cover_animation_desc">Transisi pudar atau geser antarsampul lagu</string>
+    <string name="bibz_cover_animation_detail">Mengubah transisi sampul. Gaya cakram animasi tetap menggunakan gerakan mekanisnya.</string>
+    <string name="bibz_cover_slide">Geser</string>
+    <string name="bibz_cover_fade">Pudar</string>
+    <string name="bibz_hide_status">Sembunyikan bilah status di pemutar</string>
+    <string name="bibz_hide_status_desc">Tampilkan kembali bilah status saat pemutar ditutup</string>
+    <string name="bibz_video_quality">Kualitas video</string>
+    <string name="bibz_video_quality_desc">Resolusi maksimum untuk video pemutar</string>
+    <string name="bibz_video_quality_detail">Resolusi yang lebih tinggi menggunakan lebih banyak data dan bergantung pada video serta dekoder perangkat.</string>
+    <string name="bibz_video_quality_dialog">Resolusi maksimum video pemutar. Ketersediaan dan dukungan perangkat berbeda-beda; kualitas lebih tinggi menggunakan lebih banyak data. Audio tetap diputar jika video tidak tersedia.</string>
+</resources>

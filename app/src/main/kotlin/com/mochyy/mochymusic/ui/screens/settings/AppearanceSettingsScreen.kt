@@ -170,9 +170,9 @@ fun AppearanceSettingsScreen(navController: NavController) {
         onBack = { navController.navigateUp() },
         searchBar = { SubSettingsSearchBar(query = query, onQueryChange = { query = it }) },
     ) {
-        if (query.isBlank() || listOf("theme", "liquid glass", "pure black", "frosted").any { it.contains(query, ignoreCase = true) }) {
+        if (query.isBlank() || listOf("theme", stringResource(R.string.theme), "liquid glass", "pure black", "frosted").any { it.contains(query, ignoreCase = true) }) {
             Text(
-                text = "Theme",
+                text = stringResource(R.string.theme),
                 fontFamily = InterFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
@@ -192,7 +192,11 @@ fun AppearanceSettingsScreen(navController: NavController) {
                 },
             )
             Text(
-                text = appTheme.description,
+                text = stringResource(when (appTheme) {
+                    AppTheme.FROSTED -> R.string.bibz_theme_frosted_desc
+                    AppTheme.PURE_BLACK -> R.string.bibz_theme_black_desc
+                    AppTheme.LIQUID_GLASS -> R.string.bibz_theme_glass_desc
+                }),
                 fontFamily = InterFontFamily,
                 fontSize = 12.sp,
                 color = Color.White.copy(alpha = 0.6f),
@@ -248,23 +252,23 @@ fun AppearanceSettingsScreen(navController: NavController) {
 
         val playerToggleItems = listOf(
             SettingsItem(
-                title = { Text("Cover animation") },
+                title = { Text(stringResource(R.string.bibz_cover_animation)) },
                 highlightKey = "Cover animation",
-                descriptionText = "Fade or slide between song covers",
-                detail = "Switches the artwork transition. Animated disc styles keep their mechanical motion.",
+                descriptionText = stringResource(R.string.bibz_cover_animation_desc),
+                detail = stringResource(R.string.bibz_cover_animation_detail),
                 icon = painterResource(R.drawable.album),
                 iconShape = CircleShape,
                 onClick = {
                     onCoverTransitionChange(if (coverTransition == CoverTransition.SLIDE) CoverTransition.FADE else CoverTransition.SLIDE)
                 },
                 trailingContent = {
-                    Text(coverTransition.label, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White.copy(alpha = 0.70f))
+                    Text(stringResource(if (coverTransition == CoverTransition.SLIDE) R.string.bibz_cover_slide else R.string.bibz_cover_fade), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White.copy(alpha = 0.70f))
                 },
             ),
             SettingsItem(
-                title = { Text("Hide status bar in player") },
+                title = { Text(stringResource(R.string.bibz_hide_status)) },
                 highlightKey = "Hide status bar in player",
-                descriptionText = "Show the status bar again when the player closes",
+                descriptionText = stringResource(R.string.bibz_hide_status_desc),
                 icon = painterResource(R.drawable.fullscreen),
                 iconShape = CircleShape,
                 onClick = { onHidePlayerStatusBarChange(!hidePlayerStatusBar) },
@@ -365,10 +369,10 @@ fun AppearanceSettingsScreen(navController: NavController) {
                 },
             ),
             SettingsItem(
-                title = { Text("Video quality") },
+                title = { Text(stringResource(R.string.bibz_video_quality)) },
                 highlightKey = "Video quality",
-                descriptionText = "Maximum resolution for player videos",
-                detail = "Higher resolutions use more data and depend on the video and this device's decoder.",
+                descriptionText = stringResource(R.string.bibz_video_quality_desc),
+                detail = stringResource(R.string.bibz_video_quality_detail),
                 icon = painterResource(R.drawable.slow_motion_video),
                 iconShape = CircleShape,
                 onClick = { showVideoQuality = true },

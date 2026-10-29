@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bibz_theme_frosted">Frosted</string>
+    <string name="bibz_theme_frosted_desc">Dark frosted glass over the app</string>
+    <string name="bibz_theme_black">Pure black</string>
+    <string name="bibz_theme_black_desc">Solid black chrome, easy on OLED</string>
+    <string name="bibz_theme_glass">Liquid glass</string>
+    <string name="bibz_theme_glass_desc">Clear glass with a lit rim and a sliding glass lens</string>
+    <string name="bibz_cover_animation">Cover animation</string>
+    <string name="bibz_cover_animation_desc">Fade or slide between song covers</string>
+    <string name="bibz_cover_animation_detail">Switches the artwork transition. Animated disc styles keep their mechanical motion.</string>
+    <string name="bibz_cover_slide">Slide</string>
+    <string name="bibz_cover_fade">Fade</string>
+    <string name="bibz_hide_status">Hide status bar in player</string>
+    <string name="bibz_hide_status_desc">Show the status bar again when the player closes</string>
+    <string name="bibz_video_quality">Video quality</string>
+    <string name="bibz_video_quality_desc">Maximum resolution for player videos</string>
+    <string name="bibz_video_quality_detail">Higher resolutions use more data and depend on the video and this device\'s decoder.</string>
+    <string name="bibz_video_quality_dialog">Maximum resolution for player videos. Availability and device support vary; higher quality uses more data. Audio continues if video is unavailable.</string>
+</resources>

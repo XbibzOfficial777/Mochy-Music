@@ -18,6 +18,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import com.mochyy.mochymusic.R
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.mochyy.mochymusic.constants.VideoQuality
@@ -31,11 +33,11 @@ internal fun VideoQualityDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFF202024),
-        title = { Text("Video quality", color = Color.White) },
+        title = { Text(stringResource(R.string.bibz_video_quality), color = Color.White) },
         text = {
             Column {
                 Text(
-                    "Maximum resolution for player videos. Availability and device support vary; higher quality uses more data. Audio continues if video is unavailable.",
+                    stringResource(R.string.bibz_video_quality_dialog),
                     color = Color.White.copy(alpha = 0.72f),
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
@@ -63,6 +65,6 @@ internal fun VideoQualityDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close", color = Color.White) } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close), color = Color.White) } },
     )
 }
