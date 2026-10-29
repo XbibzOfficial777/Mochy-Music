@@ -100,7 +100,7 @@ scroll_to() {
   for i in 1 2 3 4 5 6 7; do
     dump
     if node "$field" "$text" >/dev/null 2>&1; then return 0; fi
-    adb shell input swipe 160 560 160 190 500
+    adb shell input swipe 160 490 160 180 500
     sleep 2
   done
   echo "Could not find after scrolling: $field=$text" >&2
