@@ -11,14 +11,36 @@ cleanup() {
   adb exec-out cat /sdcard/language-window.xml > language-final.xml 2>/dev/null || true
 }
 trap cleanup EXIT
-adb wait-for-device
-timeout 180 bash -c '
-  until cfg="$(adb shell cmd activity get-config 2>/dev/null | tr -d "\r")" &&
-    printf "%s\n" "$cfg" | grep -qiE "(^|[^[:alpha:]])(id|in)(-r|[-_+])ID([^[:alpha:]]|$)" &&
-    [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = 1 ] &&
-    adb shell cmd package list packages >/dev/null 2>&1; do sleep 3; done
-  echo "Framework ready: $cfg"
-'
+# This is a rooted, ephemeral Google APIs emulator. Change the locale after the
+# runner has booted it, then wait for a *new* system_server and an unlocked user.
+# sys.boot_completed alone stays 1 during a framework restart and is not sufficient.
+set_device_locale() {
+  local tag="$1" pattern="$2" oldpid
+  adb root >/dev/null
+  adb wait-for-device
+  oldpid="$(adb shell pidof system_server | tr -d '\r')"
+  test -n "$oldpid"
+  adb shell setprop persist.sys.locale "$tag"
+  adb shell setprop ctl.restart zygote || true
+  timeout 180 bash -c '
+    old="$1"; pattern="$2"
+    while :; do
+      pid="$(adb shell pidof system_server 2>/dev/null | tr -d "\r")"
+      cfg="$(adb shell cmd activity get-config 2>/dev/null | tr -d "\r")"
+      state="$(adb shell am get-started-user-state 0 2>/dev/null | tr -d "\r")"
+      if [ -n "$pid" ] && [ "$pid" != "$old" ] &&
+        printf "%s\n" "$cfg" | grep -qiE "$pattern" &&
+        printf "%s\n" "$state" | grep -q RUNNING_UNLOCKED &&
+        adb shell cmd package list packages >/dev/null 2>&1; then
+          echo "New framework $pid, $state: $cfg"
+          sleep 5
+          exit 0
+      fi
+      sleep 3
+    done
+  ' _ "$oldpid" "$pattern"
+}
+set_device_locale id-ID '(^|[^[:alpha:]])(id|in)(-r|[-_+])ID([^[:alpha:]]|$)'
 adb install -r "$apk"
 adb shell pm grant "$package" android.permission.POST_NOTIFICATIONS >/dev/null 2>&1 || true
 # Seed the normal DataStore with deterministic content preferences using the debug-only fixture.
