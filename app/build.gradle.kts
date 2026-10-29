@@ -28,8 +28,8 @@ extensions.configure<ApplicationExtension> {
         minSdk = 24
         targetSdk = 36
         // Fork builds need their own version identity: official APKs have a different signer.
-        versionCode = 75
-        versionName = "8.2.3-xbibz.2"
+        versionCode = 76
+        versionName = "8.2.3-xbibz.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

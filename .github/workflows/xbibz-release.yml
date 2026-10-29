@@ -99,7 +99,7 @@ jobs:
             exit 1
           fi
           "$build_tools/aapt" dump xmltree "$apk" AndroidManifest.xml > /tmp/apk-manifest.txt
-          if grep -Fq 'IssueSmokeActivity' /tmp/apk-manifest.txt; then
+          if grep -Eq 'IssueSmokeActivity|LatestIssuesSmokeActivity' /tmp/apk-manifest.txt; then
             echo 'Refusing to publish a release containing debug-only test fixtures' >&2
             exit 1
           fi
@@ -143,12 +143,16 @@ jobs:
           - Use a correctly sized repeat action in media notifications and choose Fade or Slide for cover transitions.
           - Save the entire monthly recap receipt as PNG, with light or dark paper, using the system file picker.
           - Configure AI lyrics translation with an OpenRouter key and model ID for the current app process. Lyrics are sent to OpenRouter and provider charges may apply; the new session key is not saved to disk.
-          - Includes the previously merged issue fixes. Large requests such as listen-together, add-ons and iOS are not included.
+          - The search field releases its cursor and keyboard when the player opens, without clearing the search query or the player's own editor.
+          - Optionally hide the status bar while the player is open (Settings → Appearance); it returns when the player closes.
+          - Album rows show a like button alongside the existing song menu. Like changes use the normal library and sync path.
+          - The player sheet and album likes have smoother transitions. Liquid Glass remains exclusive to this fork; its tab transitions and press effects respect the app's Animation switch.
+          - Includes upstream changes available at the time of this build and previously merged issue fixes. Large requests such as listen-together, add-ons and iOS are not included.
           - This is an optimized release build with resource/code shrinking and compressed arm64 native libraries.
 
           **Installation:** this fork is signed with its own key and cannot update an official Mochy Music installation. Back up/export your data before uninstalling the official app; uninstalling may remove app data. Only install the APK on an arm64-v8a device.
 
-          Google Cast requires Google Play services and a compatible receiver on the same network. Physical-device video playback, receipt export and Cast have not been verified on every device; OpenRouter translation requires your own credentials and has not been live-tested in this release.
+          Google Cast requires Google Play services and a compatible receiver on the same network. The new UI checks use Android 11 and 15 emulators and synthetic data, not real YouTube accounts or physical devices. Video playback, receipt export and Cast have not been verified on every device; OpenRouter translation requires your own credentials and has not been live-tested in this release.
 
           NOTES
           if [ -z "$LASTFM_API_KEY" ] || [ -z "$LASTFM_SECRET" ]; then
