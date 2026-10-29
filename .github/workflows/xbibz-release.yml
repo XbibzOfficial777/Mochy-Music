@@ -5,6 +5,7 @@ on:
     branches:
       - mochy-xbibz
       - xbibz-issue-features
+      - xbibz-language-verify
     tags:
       - 'v*'
 
