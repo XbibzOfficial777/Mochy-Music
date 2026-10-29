@@ -30,5 +30,7 @@
         <activity android:name="com.mochyy.mochymusic.ui.screens.recap.LatestIssuesSmokeActivity"
             android:exported="true"
             android:windowSoftInputMode="adjustResize" />
+        <activity android:name="com.mochyy.mochymusic.i18n.LanguageSmokeActivity"
+            android:exported="true" android:windowSoftInputMode="adjustResize" />
     </application>
 </manifest>
