@@ -29,7 +29,7 @@ node() {
 import re, sys, xml.etree.ElementTree as ET
 wanted = sys.argv[1].casefold()
 for node in ET.parse('language-ui.xml').iter('node'):
-    if node.get('text', '').casefold() == wanted:
+    if node.get('text', '').casefold() == wanted and node.get('class') != 'android.widget.EditText':
         xy = [int(n) for n in re.findall(r'\d+', node.get('bounds',''))]
         if len(xy) == 4 and xy[2] > xy[0] and xy[3] > xy[1]:
             print((xy[0]+xy[2])//2, (xy[1]+xy[3])//2)
