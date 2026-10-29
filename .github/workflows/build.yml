@@ -2,6 +2,7 @@ name: Original issue fixes validation
 on:
   push:
     branches: ['ci/original-latest-validation']
+    paths-ignore: ['.github/**']
   workflow_dispatch:
     inputs:
       artifact_run_id:
