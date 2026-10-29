@@ -10,10 +10,19 @@ cleanup() {
   adb exec-out cat /sdcard/language-window.xml > language-final.xml 2>/dev/null || true
 }
 trap cleanup EXIT
-# -change-locale restarts Android's framework asynchronously after the action first reports boot.
-sleep 15
+# -change-locale restarts the framework asynchronously after emulator boot.
+# Wait for the actual Indonesian configuration AND package manager readiness;
+# merely seeing ActivityManager once can race with the restart.
 adb wait-for-device
-timeout 120 bash -c 'until adb shell cmd activity get-config >/dev/null 2>&1; do sleep 3; done'
+timeout 180 bash -c '
+  until cfg="$(adb shell cmd activity get-config 2>/dev/null | tr -d "\r")" &&
+    printf "%s\n" "$cfg" | grep -qiE "(^|[^[:alpha:]])(id|in)(-r|[-_+])ID([^[:alpha:]]|$)" &&
+    [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = 1 ] &&
+    adb shell cmd package list packages >/dev/null 2>&1; do
+      sleep 3
+  done
+  echo "Framework ready: $cfg"
+'
 adb install -r "$apk"
 start() {
   adb shell am start -W -n "$activity" | tee language-start.txt
