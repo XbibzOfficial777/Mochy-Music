@@ -99,7 +99,7 @@ jobs:
             exit 1
           fi
           "$build_tools/aapt" dump xmltree "$apk" AndroidManifest.xml > /tmp/apk-manifest.txt
-          if grep -Eq 'IssueSmokeActivity|LatestIssuesSmokeActivity' /tmp/apk-manifest.txt; then
+          if grep -Eq 'IssueSmokeActivity|LatestIssuesSmokeActivity|LanguageSmokeActivity' /tmp/apk-manifest.txt; then
             echo 'Refusing to publish a release containing debug-only test fixtures' >&2
             exit 1
           fi
@@ -137,6 +137,8 @@ jobs:
           cat > /tmp/release-notes.md <<'NOTES'
           Unofficial Xbibz build based on Mochy Music, for **arm64-v8a Android devices** (Android 7.0 or newer). Includes Google Cast support.
 
+          - Choose the app UI language under Settings → General → App language, or follow the device language. Android 13+ also shares this choice with system per-app language settings. English is the fallback when a translation is unavailable.
+          - Indonesian resources and the main settings/navigation labels have been expanded. Existing other-language translations and some older hardcoded screens remain incomplete; those parts may still appear in English. The UI language choice does not change lyric translation settings.
           - Choose between Frosted, Pure black and Liquid glass in Settings → Appearance → Theme.
           - The player output sheet discovers Cast devices, shows connection state and controls Cast volume.
           - Choose a maximum player video resolution from 144p to 2160p (4K). Video availability and device decoder support vary; if a video fails, the app tries a lower resolution while audio continues.
