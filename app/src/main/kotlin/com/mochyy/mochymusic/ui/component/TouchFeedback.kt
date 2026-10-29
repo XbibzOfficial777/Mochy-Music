@@ -117,7 +117,12 @@ fun Modifier.pressBounce(
     pressedScale: Float = 0.88f,
 ): Modifier {
     val scale = remember { Animatable(1f) }
-    LaunchedEffect(interactionSource, pressedScale) {
+    val motionEnabled = com.mochyy.mochymusic.ui.utils.AppMotion.enabled
+    LaunchedEffect(interactionSource, pressedScale, motionEnabled) {
+        if (!motionEnabled) {
+            scale.snapTo(1f)
+            return@LaunchedEffect
+        }
         var pressed = 0
         interactionSource.interactions.collect { interaction ->
             when (interaction) {

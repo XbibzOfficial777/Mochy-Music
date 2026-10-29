@@ -135,7 +135,20 @@ class LiquidTabState internal constructor(initialIndex: Int) {
 @Composable
 fun rememberLiquidTabState(selectedIndex: Int): LiquidTabState {
     val state = remember { LiquidTabState(selectedIndex) }
-    LaunchedEffect(selectedIndex) {
+    val motionEnabled = com.mochyy.mochymusic.ui.utils.AppMotion.enabled
+    LaunchedEffect(selectedIndex, motionEnabled) {
+        if (!motionEnabled) {
+            // Keep the glass, but honour the user's animation switch. Cancel a pending landing
+            // before snapping so a stale spring cannot pull the indicator away again.
+            state.landJob?.cancel()
+            state.landJob = null
+            state.sliding = false
+            state.press.snapTo(0f)
+            state.lift.snapTo(0f)
+            state.shown.snapTo(if (selectedIndex >= 0) 1f else 0f)
+            if (selectedIndex >= 0) state.position.snapTo(selectedIndex.toFloat())
+            return@LaunchedEffect
+        }
         if (selectedIndex < 0) {
             state.shown.animateTo(0f, tween(200))
             return@LaunchedEffect
@@ -172,6 +185,7 @@ fun Modifier.liquidTabSlide(
     val scope = rememberCoroutineScope()
     val currentSelected by rememberUpdatedState(selectedIndex)
     val currentOnSlideTo by rememberUpdatedState(onSlideTo)
+    val currentMotion by rememberUpdatedState(com.mochyy.mochymusic.ui.utils.AppMotion.enabled)
 
     return pointerInput(state, tabCount) {
         if (tabCount <= 0) return@pointerInput
@@ -182,12 +196,12 @@ fun Modifier.liquidTabSlide(
             state.sliding = false
             val slot = size.width.toFloat() / tabCount
             val touchSlop = viewConfiguration.touchSlop
-            scope.launch { state.press.animateTo(1f, PressSpring) }
+            if (currentMotion) scope.launch { state.press.animateTo(1f, PressSpring) }
 
             // pressing the lit tab picks the drop up straight away, as if to carry it somewhere
             val downIndex = (down.position.x / slot).toInt().coerceIn(0, tabCount - 1)
             val pickedUp = downIndex == currentSelected && state.shown.value > 0f
-            if (pickedUp) scope.launch { state.lift.animateTo(1f, LiftSpring) }
+            if (pickedUp && currentMotion) scope.launch { state.lift.animateTo(1f, LiftSpring) }
 
             val tracker = VelocityTracker()
             var sliding = false
@@ -210,8 +224,10 @@ fun Modifier.liquidTabSlide(
                         if (state.shown.value == 0f) {
                             scope.launch { state.position.snapTo(positionUnder(change.position.x, slot, tabCount)) }
                         }
-                        scope.launch { state.shown.animateTo(1f, tween(150)) }
-                        scope.launch { state.lift.animateTo(1f, LiftSpring) }
+                        scope.launch {
+                            if (currentMotion) state.shown.animateTo(1f, tween(150)) else state.shown.snapTo(1f)
+                        }
+                        if (currentMotion) scope.launch { state.lift.animateTo(1f, LiftSpring) }
                     }
                 }
                 if (sliding) {
@@ -219,7 +235,9 @@ fun Modifier.liquidTabSlide(
                     change.consume()
                     tracker.addPosition(change.uptimeMillis, change.position)
                     val target = positionUnder(change.position.x, slot, tabCount)
-                    scope.launch { state.position.animateTo(target, FollowSpring) }
+                    scope.launch {
+                        if (currentMotion) state.position.animateTo(target, FollowSpring) else state.position.snapTo(target)
+                    }
                     val under = target.roundToInt().coerceIn(0, tabCount - 1)
                     if (under != lastTick) {
                         lastTick = under
@@ -228,14 +246,16 @@ fun Modifier.liquidTabSlide(
                 }
             }
 
-            scope.launch { state.press.animateTo(0f, PressSpring) }
+            if (currentMotion) scope.launch { state.press.animateTo(0f, PressSpring) }
             if (!sliding) {
-                if (pickedUp) scope.launch { state.lift.animateTo(0f, SettleLiftSpring) }
+                if (pickedUp && currentMotion) scope.launch { state.lift.animateTo(0f, SettleLiftSpring) }
                 // a landing this press called off can leave the drop between two tabs: home it. A tap
                 // that changes the tab sends it on from there anyway.
                 val lit = currentSelected
                 if (lit >= 0 && !state.position.isRunning && abs(state.position.value - lit) > 0.001f) {
-                    scope.launch { state.position.animateTo(lit.toFloat(), FlowSpring) }
+                    scope.launch {
+                        if (currentMotion) state.position.animateTo(lit.toFloat(), FlowSpring) else state.position.snapTo(lit.toFloat())
+                    }
                 }
                 return@awaitEachGesture
             }
@@ -245,7 +265,7 @@ fun Modifier.liquidTabSlide(
             val projected = state.position.value + speed * FlickProjection
             val landing = projected.roundToInt().coerceIn(0, tabCount - 1)
             haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
-            state.landJob = scope.land(state, landing, speed) { currentSelected }
+            state.landJob = scope.land(state, landing, speed, currentMotion) { currentSelected }
             if (landing != currentSelected) currentOnSlideTo(landing)
         }
     }
@@ -266,15 +286,28 @@ private fun positionUnder(x: Float, slot: Float, tabCount: Int): Float {
  * Lands the drop on [landing], carrying the flick's [speed] into the spring, and sets it down. Should
  * the tab not change after all (the page refused it), it flows back to the one that's lit.
  */
-private fun CoroutineScope.land(state: LiquidTabState, landing: Int, speed: Float, selected: () -> Int): Job =
-    launch {
+private fun CoroutineScope.land(
+    state: LiquidTabState,
+    landing: Int,
+    speed: Float,
+    motionEnabled: Boolean,
+    selected: () -> Int,
+): Job = launch {
+    if (motionEnabled) {
         launch { state.lift.animateTo(0f, SettleLiftSpring) }
         state.position.animateTo(landing.toFloat(), LandSpring, initialVelocity = speed)
-        delay(450)
-        state.sliding = false
-        val lit = selected()
-        if (lit >= 0 && lit != landing) state.position.animateTo(lit.toFloat(), FlowSpring)
+    } else {
+        state.lift.snapTo(0f)
+        state.position.snapTo(landing.toFloat())
     }
+    // Give navigation a chance to confirm the new tab even when motion is disabled.
+    delay(if (motionEnabled) 450 else 150)
+    state.sliding = false
+    val lit = selected()
+    if (lit >= 0 && lit != landing) {
+        if (motionEnabled) state.position.animateTo(lit.toFloat(), FlowSpring) else state.position.snapTo(lit.toFloat())
+    }
+}
 
 /**
  * Draws the drop behind the tabs and its rim over them, and on Android 13+ looks at the tabs

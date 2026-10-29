@@ -82,9 +82,10 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import kotlin.math.pow
 
+// A quicker, nearly critical settle: responsive without making the player bounce past its edge.
 private val PlayerSheetAnimationSpec = spring<Dp>(
     dampingRatio = 0.96f,
-    stiffness = 80f
+    stiffness = 140f
 )
 
 /**
@@ -109,8 +110,8 @@ private val SheetCloseFlickTravel = 12.dp
 private val MiniPlayerDismissCommit = 48.dp
 
 private val PlayerSheetHorizontalAnimationSpec = spring<Float>(
-    dampingRatio = 0.92f,
-    stiffness = 90f
+    dampingRatio = 0.94f,
+    stiffness = 135f
 )
 
 /** How far the mini player tilts and shrinks under a press. */

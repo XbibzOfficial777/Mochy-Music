@@ -5,6 +5,8 @@ package com.mochyy.mochymusic.ui.component.detail
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -97,6 +99,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.mochyy.mochymusic.ui.component.pressBounce
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -1434,19 +1439,40 @@ fun PlaylistTrackRow(
         }
         com.mochyy.mochymusic.ui.component.OnDeviceMarks(songId, modifier = Modifier.padding(end = 2.dp))
         if (trailing == null && liked != null && onLikeClick != null) {
+            val interaction = remember { MutableInteractionSource() }
+            val likeLabel = stringResource(if (liked) R.string.action_remove_like else R.string.action_like)
+            val motionEnabled = com.mochyy.mochymusic.ui.utils.AppMotion.enabled
+            val heartTint by animateColorAsState(
+                targetValue = if (liked) MaterialTheme.colorScheme.error else Color.White.copy(alpha = 0.65f),
+                animationSpec = if (motionEnabled) tween(220) else androidx.compose.animation.core.snap(),
+                label = "albumLikeTint",
+            )
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .size(48.dp)
+                    .semantics { contentDescription = likeLabel }
+                    .then(if (motionEnabled) Modifier.pressBounce(interaction, pressedScale = 0.90f) else Modifier)
                     .clip(CircleShape)
-                    .clickable(role = Role.Button, onClick = onLikeClick),
+                    .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onLikeClick),
             ) {
-                Icon(
-                    painter = painterResource(if (liked) R.drawable.favorite else R.drawable.favorite_border),
-                    contentDescription = stringResource(if (liked) R.string.action_remove_like else R.string.action_like),
-                    tint = if (liked) MaterialTheme.colorScheme.error else Color.White.copy(alpha = 0.65f),
-                    modifier = Modifier.size(20.dp),
-                )
+                AnimatedContent(
+                    targetState = liked,
+                    transitionSpec = {
+                        if (motionEnabled) {
+                            (fadeIn(tween(160)) + scaleIn(initialScale = 0.86f, animationSpec = spring(dampingRatio = 0.80f, stiffness = 600f)))
+                                .togetherWith(fadeOut(tween(120)) + scaleOut(targetScale = 0.88f, animationSpec = tween(120)))
+                        } else EnterTransition.None togetherWith ExitTransition.None
+                    },
+                    label = "albumLikeIcon",
+                ) { isLiked ->
+                    Icon(
+                        painter = painterResource(if (isLiked) R.drawable.favorite else R.drawable.favorite_border),
+                        contentDescription = null,
+                        tint = heartTint,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
         }
         if (trailing != null) {
