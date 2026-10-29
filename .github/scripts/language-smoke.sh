@@ -163,4 +163,21 @@ assert_text 'Offline mode'
 assert_preferences
 adb exec-out screencap -p > language-unsupported.png
 
+echo '=== Pick Indonesian on an unsupported-language device; persist and reset ==='
+tap 'App language'
+search_and_select 'Search languages' Indonesian 'Bahasa Indonesia'
+assert_text 'Bahasa aplikasi'
+assert_text 'Mode offline'
+assert_text 'SYSTEM zu-ZA'
+assert_preferences
+force_restart
+assert_text 'Bahasa aplikasi'
+assert_text 'Mode offline'
+tap 'Bahasa aplikasi'
+tap 'Bawaan sistem'
+sleep 5
+assert_text 'App language'
+assert_text 'Offline mode'
+assert_preferences
+
 echo 'Language smoke tests passed.'
