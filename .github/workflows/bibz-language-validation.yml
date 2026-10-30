@@ -1,0 +1,92 @@
+name: Signed dual-ABI release runtime validation (temporary)
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_run_id:
+        description: 'Successful signed dual-ABI build run with identical application sources'
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - abi: arm64-v8a
+            api: 30
+            emulator_arch: x86_64
+          - abi: arm64-v8a
+            api: 35
+            emulator_arch: x86_64
+          - abi: armeabi-v7a
+            api: 30
+            emulator_arch: x86
+          - abi: armeabi-v7a
+            api: 30
+            emulator_arch: x86_64
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify the build used identical application sources
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN: ${{ inputs.artifact_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN" =~ ^[0-9]+$ ]]
+          sha="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN" --jq .head_sha)"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+          git cat-file -e "$sha^{commit}"
+          git diff --exit-code "$sha" "$GITHUB_SHA" -- . ':(exclude).github/**'
+          echo "Verified identical application sources: $sha"
+      - uses: actions/download-artifact@v4
+        with:
+          name: mochy-release-${{ matrix.abi }}
+          path: language-apk
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.artifact_run_id }}
+      - name: Verify the exact signed artifact
+        env:
+          TARGET_ABI: ${{ matrix.abi }}
+        run: |
+          set -euo pipefail
+          (cd language-apk && sha256sum --check "SHA256SUMS-$TARGET_ABI.txt")
+          mapfile -t apks < <(find language-apk -maxdepth 1 -name '*.apk' -type f)
+          test "${#apks[@]}" -eq 1
+          python3 .github/scripts/verify_release_native.py "${apks[0]}" "$TARGET_ABI"
+      - name: Download and verify the previous public arm64 release
+        if: matrix.abi == 'arm64-v8a'
+        run: |
+          set -euo pipefail
+          mkdir -p old-apk
+          curl -fL --retry 3 -o old-apk/v4.apk 'https://github.com/XbibzOfficial777/Mochy-Music/releases/download/v8.2.3-xbibz.4/Mochy-Music-v8.2.3-xbibz.4-arm64-gms.apk'
+          echo 'cab0125095ea4bff35943e9a786ce719369d8f4b0530a4bd41aede153131c08c  old-apk/v4.apk' | sha256sum --check
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        env:
+          TARGET_ABI: ${{ matrix.abi }}
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: ${{ matrix.emulator_arch }}
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: bash .github/scripts/dual-abi-smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dual-abi-evidence-${{ matrix.abi }}-api-${{ matrix.api }}-${{ matrix.emulator_arch }}
+          path: |
+            language-*.txt
+            language-*.xml
+            language-*.png
+          if-no-files-found: warn
