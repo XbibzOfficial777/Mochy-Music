@@ -27,9 +27,12 @@ const val DiscordUrl = ""
 // keep the upstream owner above for attribution, and use a separate fork release channel here.
 private const val ForkReleaseRepo = "XbibzOfficial777/Mochy-Music"
 internal val isXbibzReleaseBuild: Boolean
-    get() = BuildConfig.APPLICATION_ID == "com.mochyy.mochymusic" &&
-        BuildConfig.ARCHITECTURE == "arm64" && BuildConfig.CAST_AVAILABLE &&
-        BuildConfig.VERSION_NAME.contains("-xbibz.", ignoreCase = true)
+    get() = isXbibzRelease(
+        applicationId = BuildConfig.APPLICATION_ID,
+        architecture = BuildConfig.ARCHITECTURE,
+        castAvailable = BuildConfig.CAST_AVAILABLE,
+        version = BuildConfig.VERSION_NAME,
+    )
 
 private val ReleasesApi: String
     get() = if (isXbibzReleaseBuild) {
@@ -197,8 +200,10 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                         val asset = assets.getJSONObject(a)
                         val name = asset.optString("name").orEmpty()
                         if (!name.endsWith(".apk", ignoreCase = true)) continue
-                        if (isXbibzReleaseBuild &&
-                            (!name.contains("arm64", ignoreCase = true) || !name.contains("gms", ignoreCase = true))) continue
+                        // Never offer a different ABI or the official channel to a fork build.
+                        // In particular, 32-bit-only devices cannot install an arm64 APK and
+                        // some 64-bit-only devices cannot install an ARMv7 APK.
+                        if (isXbibzReleaseBuild && !isCompatibleXbibzAsset(appArch, name)) continue
                         val url = asset.optString("browser_download_url").orEmpty()
                         if (url.isBlank()) continue
                         val size = asset.optLong("size", 0L)

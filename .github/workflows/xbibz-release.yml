@@ -1,10 +1,12 @@
-name: Xbibz signed arm64 GMS release
+name: Xbibz signed ARM GMS releases
 
 on:
   push:
     branches:
       - mochy-xbibz
       - xbibz-issue-features
+      # Test a release commit before advancing the stable branch or creating its tag.
+      - xbibz-dual-abi-verify
     tags:
       - 'v*'
 
@@ -12,24 +14,32 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    name: Build, verify and publish signed APK
+  build:
+    name: Build and verify signed ${{ matrix.abi }} APK
     if: github.repository == 'XbibzOfficial777/Mochy-Music'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - abi: arm64-v8a
+            flavor: arm64Gms
+            task: assembleArm64GmsRelease
+          - abi: armeabi-v7a
+            flavor: armeabiGms
+            task: assembleArmeabiGmsRelease
     steps:
       - uses: actions/checkout@v5
-
       - name: Set up JDK 21
         uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: temurin
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-disabled: true
-
       - name: Restore and validate release keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.MOCHY_RELEASE_KEYSTORE_BASE64 }}
@@ -46,11 +56,14 @@ jobs:
           mkdir -p app/keystore
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > app/keystore/release.keystore
           test -s app/keystore/release.keystore
-          keytool -list -storetype PKCS12 -keystore app/keystore/release.keystore \
-            -storepass:env STORE_PASSWORD -alias "$KEY_ALIAS" > /dev/null
-
-      - name: Build arm64 GMS release
+          actual="$(keytool -list -v -storetype PKCS12 -keystore app/keystore/release.keystore \
+            -storepass:env STORE_PASSWORD -alias "$KEY_ALIAS" | sed -n 's/^[[:space:]]*SHA256: //p' | head -1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          trusted="$(tr -d '[:space:]' < .github/release-certificate.sha256)"
+          test -n "$actual" && test "$actual" = "$trusted"
+          echo 'Release key matches the previously distributed Bibz certificate.'
+      - name: Build optimized non-debuggable GMS release
         env:
+          GRADLE_TASK: ${{ matrix.task }}
           STORE_PASSWORD: ${{ secrets.MOCHY_RELEASE_STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.MOCHY_RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.MOCHY_RELEASE_KEY_PASSWORD }}
@@ -62,70 +75,88 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x gradlew
-          ./gradlew assembleArm64GmsRelease -PcompressNativeLibs --no-configuration-cache --console=plain --warning-mode summary
-
-      - name: Verify architecture, compression and signing certificate
+          ./gradlew "$GRADLE_TASK" -PcompressNativeLibs --no-configuration-cache --console=plain --warning-mode summary
+      - name: Verify ABI, ELF libraries, manifest, version and signing
         env:
-          STORE_PASSWORD: ${{ secrets.MOCHY_RELEASE_STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.MOCHY_RELEASE_KEY_ALIAS }}
+          ABI: ${{ matrix.abi }}
+          FLAVOR: ${{ matrix.flavor }}
         run: |
           set -euo pipefail
-          mapfile -t apks < <(find app/build/outputs/apk/arm64Gms/release -maxdepth 1 -name '*.apk' -type f)
+          mapfile -t apks < <(find "app/build/outputs/apk/$FLAVOR/release" -maxdepth 1 -name '*.apk' -type f)
           test "${#apks[@]}" -eq 1
           apk="${apks[0]}"
-          python3 - "$apk" <<'PY'
-          import sys, zipfile
-          with zipfile.ZipFile(sys.argv[1]) as apk:
-              libraries = [entry for entry in apk.infolist() if entry.filename.startswith('lib/') and entry.filename.endswith('.so')]
-              if not libraries:
-                  raise SystemExit('No native libraries found in APK')
-              unexpected = [entry.filename for entry in libraries if not entry.filename.startswith('lib/arm64-v8a/')]
-              uncompressed = [entry.filename for entry in libraries if entry.compress_type != zipfile.ZIP_DEFLATED]
-              if unexpected:
-                  raise SystemExit('Unexpected ABI: ' + ', '.join(unexpected))
-              if uncompressed:
-                  raise SystemExit('Native libraries are not compressed: ' + ', '.join(uncompressed))
-              print(f'Verified {len(libraries)} compressed arm64-v8a libraries.')
-          PY
+          python3 .github/scripts/verify_release_native.py "$apk" "$ABI"
           build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           "$build_tools/aapt" dump badging "$apk" > /tmp/apk-badging.txt
           grep -q "package: name='com.mochyy.mochymusic'" /tmp/apk-badging.txt
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            # A tag must describe the version actually embedded in the signed APK.
-            grep -Fq "versionName='${GITHUB_REF_NAME#v}'" /tmp/apk-badging.txt
-          fi
+          grep -Fx "sdkVersion:'24'" /tmp/apk-badging.txt
+          grep -Fx "native-code: '$ABI'" /tmp/apk-badging.txt
           if grep -q 'application-debuggable' /tmp/apk-badging.txt; then
-            echo 'Refusing to publish a debuggable APK' >&2
+            echo 'Refusing a debuggable APK' >&2
             exit 1
           fi
           "$build_tools/aapt" dump xmltree "$apk" AndroidManifest.xml > /tmp/apk-manifest.txt
           if grep -Eq 'IssueSmokeActivity|LatestIssuesSmokeActivity|LanguageSmokeActivity' /tmp/apk-manifest.txt; then
-            echo 'Refusing to publish a release containing debug-only test fixtures' >&2
+            echo 'Refusing an APK containing debug-only test fixtures' >&2
             exit 1
           fi
           "$build_tools/apksigner" verify --verbose --print-certs "$apk" | tee /tmp/apk-certificate.txt
-          expected="$(keytool -list -v -storetype PKCS12 -keystore app/keystore/release.keystore \
-            -storepass:env STORE_PASSWORD -alias "$KEY_ALIAS" | sed -n 's/^[[:space:]]*SHA256: //p' | head -1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
-          # Build-tools versions print either "Signer #1" or "V2 Signer". Verify every
-          # reported signing certificate, regardless of which scheme's prefix is printed.
           grep -qx 'Number of signers: 1' /tmp/apk-certificate.txt
           actual="$(sed -n 's/^.*certificate SHA-256 digest: //p' /tmp/apk-certificate.txt | tr '[:upper:]' '[:lower:]' | sort -u)"
-          test -n "$expected" && test "$expected" = "$actual"
+          trusted="$(tr -d '[:space:]' < .github/release-certificate.sha256)"
+          test -n "$actual" && test "$actual" = "$trusted"
+          version="$(sed -n "s/^package:.*versionName='\([^']*\)'.*/\1/p" /tmp/apk-badging.txt | head -1)"
+          code="$(sed -n "s/^package:.*versionCode='\([^']*\)'.*/\1/p" /tmp/apk-badging.txt | head -1)"
+          [[ "$version" =~ ^[0-9A-Za-z][0-9A-Za-z._+-]*$ ]]
+          [[ "$code" =~ ^[0-9]+$ ]]
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            test "v$version" = "$GITHUB_REF_NAME"
+          fi
           mkdir -p release-assets
-          cp "$apk" "release-assets/Mochy-Music-${GITHUB_REF_NAME}-arm64-gms.apk"
-          (cd release-assets && sha256sum *.apk > SHA256SUMS.txt)
+          filename="Mochy-Music-v${version}-${ABI}-gms.apk"
+          cp "$apk" "release-assets/$filename"
+          (cd release-assets && sha256sum "$filename" > "SHA256SUMS-${ABI}.txt")
+          ABI="$ABI" VERSION="$version" CODE="$code" CERT="$actual" python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          abi = os.environ['ABI']
+          data = {
+              'abi': abi,
+              'applicationId': 'com.mochyy.mochymusic',
+              'versionName': os.environ['VERSION'],
+              'versionCode': int(os.environ['CODE']),
+              'minSdk': 24,
+              'signerSha256': os.environ['CERT'],
+          }
+          Path(f'release-assets/metadata-{abi}.json').write_text(json.dumps(data, sort_keys=True) + '\n')
+          PY
           ls -lh release-assets/
-
-      - name: Keep verified build as a workflow artifact
+      - name: Keep verified APK as a workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mochy-arm64-gms-release
+          name: mochy-release-${{ matrix.abi }}
           path: release-assets/
           if-no-files-found: error
           retention-days: 14
+      - name: Remove signing material from runner
+        if: always()
+        run: rm -f app/keystore/release.keystore
 
-      - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+  publish:
+    name: Verify both ABIs and publish release
+    needs: build
+    if: github.repository == 'XbibzOfficial777/Mochy-Music' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mochy-release-*
+          path: release-assets
+          merge-multiple: true
+      - name: Verify paired APKs and checksums
+        run: python3 .github/scripts/verify_dual_artifacts.py release-assets --tag "$GITHUB_REF_NAME"
+      - name: Publish GitHub Release without replacing an existing one
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -134,44 +165,26 @@ jobs:
           DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
         run: |
           set -euo pipefail
-          cat > /tmp/release-notes.md <<'NOTES'
-          Unofficial Xbibz build based on Mochy Music, for **arm64-v8a Android devices** (Android 7.0 or newer). Includes Google Cast support.
-
-          - Choose the app UI language under Settings → General → App language, or follow the device language. Android 13+ also shares this choice with system per-app language settings. English is the fallback when a translation is unavailable.
-          - Indonesian resources and the main settings/navigation labels have been expanded. Existing other-language translations and some older hardcoded screens remain incomplete; those parts may still appear in English. The UI language choice does not change lyric translation settings.
-          - Choose between Frosted, Pure black and Liquid glass in Settings → Appearance → Theme.
-          - The player output sheet discovers Cast devices, shows connection state and controls Cast volume.
-          - Choose a maximum player video resolution from 144p to 2160p (4K). Video availability and device decoder support vary; if a video fails, the app tries a lower resolution while audio continues.
-          - Use a correctly sized repeat action in media notifications and choose Fade or Slide for cover transitions.
-          - Save the entire monthly recap receipt as PNG, with light or dark paper, using the system file picker.
-          - Configure AI lyrics translation with an OpenRouter key and model ID for the current app process. Lyrics are sent to OpenRouter and provider charges may apply; the new session key is not saved to disk.
-          - The search field releases its cursor and keyboard when the player opens, without clearing the search query or the player's own editor.
-          - Optionally hide the status bar while the player is open (Settings → Appearance); it returns when the player closes.
-          - Album rows show a like button alongside the existing song menu. Like changes use the normal library and sync path.
-          - The player sheet and album likes have smoother transitions. Liquid Glass remains exclusive to this fork; its tab transitions and press effects respect the app's Animation switch.
-          - Includes upstream changes available at the time of this build and previously merged issue fixes. Large requests such as listen-together, add-ons and iOS are not included.
-          - This is an optimized release build with resource/code shrinking and compressed arm64 native libraries.
-
-          **Installation:** this fork is signed with its own key and cannot update an official Mochy Music installation. Back up/export your data before uninstalling the official app; uninstalling may remove app data. Only install the APK on an arm64-v8a device.
-
-          Google Cast requires Google Play services and a compatible receiver on the same network. The new UI checks use Android 11 and 15 emulators and synthetic data, not real YouTube accounts or physical devices. Video playback, receipt export and Cast have not been verified on every device; OpenRouter translation requires your own credentials and has not been live-tested in this release.
-
-          NOTES
-          if [ -z "$LASTFM_API_KEY" ] || [ -z "$LASTFM_SECRET" ]; then
-            printf '\nLast.fm integration requires API credentials, which are not configured in this build.\n' >> /tmp/release-notes.md
-          fi
-          if [ -z "$DISCORD_CLIENT_ID" ]; then
-            printf '\nDiscord integration requires a client ID, which is not configured in this build.\n' >> /tmp/release-notes.md
-          fi
-          # A verified branch artifact may already have been published manually for this tag.
-          # Never overwrite an existing release or its assets on a workflow rerun.
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            echo "Release already exists; leaving its assets unchanged."
+            echo 'Release already exists; leaving its assets unchanged.'
             exit 0
           fi
-          gh release create "$GITHUB_REF_NAME" release-assets/*.apk release-assets/SHA256SUMS.txt \
-            --verify-tag --title "Mochy Music $GITHUB_REF_NAME · arm64 GMS" --notes-file /tmp/release-notes.md
+          cat > /tmp/release-notes.md <<'NOTES'
+          Unofficial Xbibz release for Android 7.0 or newer, with Google Cast support.
 
-      - name: Remove signing material from runner
-        if: always()
-        run: rm -f app/keystore/release.keystore
+          Download **arm64-v8a** for 64-bit ARM devices, or **armeabi-v7a** for 32-bit ARMv7 devices. Both APKs are optimized, non-debuggable, and signed with the same Bibz release key. The app selects future fork updates for its installed architecture.
+
+          App language may follow the device or be chosen in Settings → General → App language; missing translations fall back to English. Existing translations and some older hardcoded screens remain incomplete, and RTL layout is not yet supported. Liquid Glass remains exclusive to this fork.
+
+          This fork uses a different signing key from official Mochy Music and cannot directly update an official installation. Back up or export data before uninstalling; app data may otherwise be lost. Some newer devices do not support 32-bit apps, so use the 64-bit APK on those devices.
+
+          Builds and emulator tests do not replace testing on physical devices or real accounts. Availability of media, decoders, Cast receivers and third-party services varies.
+          NOTES
+          if [ -z "$LASTFM_API_KEY" ] || [ -z "$LASTFM_SECRET" ]; then
+            printf '\nLast.fm credentials are not configured in this build.\n' >> /tmp/release-notes.md
+          fi
+          if [ -z "$DISCORD_CLIENT_ID" ]; then
+            printf '\nDiscord client ID is not configured in this build.\n' >> /tmp/release-notes.md
+          fi
+          gh release create "$GITHUB_REF_NAME" release-assets/*.apk release-assets/SHA256SUMS.txt \
+            --verify-tag --title "Mochy Music $GITHUB_REF_NAME · ARM GMS" --notes-file /tmp/release-notes.md

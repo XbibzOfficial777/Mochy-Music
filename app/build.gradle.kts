@@ -28,8 +28,8 @@ extensions.configure<ApplicationExtension> {
         minSdk = 24
         targetSdk = 36
         // Fork builds need their own version identity: official APKs have a different signer.
-        versionCode = 77
-        versionName = "8.2.3-xbibz.4"
+        versionCode = 78
+        versionName = "8.2.3-xbibz.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -111,6 +111,8 @@ extensions.configure<ApplicationExtension> {
         }
         create("armeabi") {
             dimension = "abi"
+            // Do not mistake the flavor name for an ABI filter: this APK is 32-bit ARMv7 only.
+            ndk { abiFilters += "armeabi-v7a" }
             buildConfigField("String", "ARCHITECTURE", "\"armeabi\"")
         }
         create("x86") {
