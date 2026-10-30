@@ -96,6 +96,28 @@ start_main() {
 dump() {
   adb shell uiautomator dump /sdcard/language-window.xml >/dev/null
   adb exec-out cat /sdcard/language-window.xml > language-ui.xml
+  # An unrelated emulator Pixel Launcher ANR can cover the app on a loaded CI
+  # runner. Dismiss only that exact system dialog; never dismiss a Mochy ANR.
+  if grep -q "Pixel Launcher isn't responding" language-ui.xml; then
+    echo 'Dismissing unrelated Pixel Launcher ANR dialog.' >&2
+    local xy
+    xy="$(python3 - <<'PY2'
+import re, xml.etree.ElementTree as ET
+for node in ET.parse('language-ui.xml').iter('node'):
+    if node.get('resource-id') == 'android:id/aerr_close':
+        b = list(map(int, re.findall(r'\d+', node.get('bounds', ''))))
+        if len(b) == 4:
+            print((b[0]+b[2])//2, (b[1]+b[3])//2)
+            break
+else:
+    raise SystemExit('Cannot dismiss Pixel Launcher ANR')
+PY2
+)"
+    adb shell input tap $xy
+    sleep 3
+    adb shell uiautomator dump /sdcard/language-window.xml >/dev/null
+    adb exec-out cat /sdcard/language-window.xml > language-ui.xml
+  fi
 }
 node() {
   python3 - "$1" "$2" <<'PY'
