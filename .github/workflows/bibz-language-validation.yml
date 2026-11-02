@@ -13,7 +13,7 @@ on:
       scenario:
         description: 'Language upgrade or offline playback'
         type: choice
-        options: [language, playback]
+        options: [language, playback, fixture]
         default: language
 permissions:
   contents: read
@@ -44,11 +44,12 @@ jobs:
           echo "Verified identical application sources: $sha"
       - uses: actions/download-artifact@v4
         with:
-          name: mochy-release-${{ matrix.abi }}
+          name: ${{ inputs.scenario == 'fixture' && 'app-universal-gms-debug' || format('mochy-release-{0}', matrix.abi) }}
           path: language-apk
           github-token: ${{ github.token }}
           run-id: ${{ inputs.artifact_run_id }}
       - name: Verify the exact signed artifact
+        if: inputs.scenario != 'fixture'
         env:
           TARGET_ABI: ${{ matrix.abi }}
         run: |
@@ -58,6 +59,7 @@ jobs:
           test "${#apks[@]}" -eq 1
           python3 .github/scripts/verify_release_native.py "${apks[0]}" "$TARGET_ABI"
       - name: Download and verify the previous public .5 release
+        if: inputs.scenario != 'fixture'
         env:
           OLD_ABI: ${{ matrix.oldabi }}
         run: |
@@ -89,7 +91,7 @@ jobs:
           arch: ${{ matrix.emulator_arch }}
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: bash -c 'if [ "$SCENARIO" = playback ]; then bash .github/scripts/signed-playback-smoke.sh; else bash .github/scripts/dual-abi-smoke.sh; fi'
+          script: bash -c 'if [ "$SCENARIO" = playback ]; then bash .github/scripts/signed-playback-smoke.sh; elif [ "$SCENARIO" = fixture ]; then adb install -r language-apk/*.apk && echo com.mochyy.mochymusic.debug > smoke-package.txt && bash .github/scripts/smoke-backdrop-only.sh; else bash .github/scripts/dual-abi-smoke.sh; fi'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -98,4 +100,7 @@ jobs:
             language-*.txt
             language-*.xml
             language-*.png
+            smoke-latest-*.xml
+            smoke-latest-*.txt
+            smoke-latest-*.png
           if-no-files-found: warn
