@@ -74,12 +74,16 @@ for suffix in A B; do
   adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file:///sdcard/Music/$file" >/dev/null
   id=''
   for attempt in $(seq 1 15); do
-    result="$(adb shell content query --uri content://media/external/audio/media --projection _id:_display_name --where "_display_name='$file'" 2>/dev/null | tr -d '\r' || true)"
-    id="$(printf '%s\n' "$result" | sed -n 's/.*_id=\([0-9][0-9]*\).*/\1/p' | head -1)"
+    result="$(adb shell content query --uri content://media/external/audio/media --projection _id:_display_name 2>&1 | tr -d '\r' || true)"
+    printf '%s\n' "$result" > "language-playback-media-index-$suffix.txt"
+    id="$(printf '%s\n' "$result" | grep -F "_display_name=$file" | sed -n 's/.*_id=\([0-9][0-9]*\).*/\1/p' | head -1 || true)"
     [ -n "$id" ] && break
     sleep 2
   done
-  [[ "$id" =~ ^[0-9]+$ ]]
+  if ! [[ "$id" =~ ^[0-9]+$ ]]; then
+    echo "Media scanner did not index $file: $result" >&2
+    exit 1
+  fi
   echo "Synthetic local file $file indexed as media item $id"
   adb shell am start -W -n "$main" -a android.intent.action.SEND -t 'audio/wav' \
     --eu android.intent.extra.STREAM "content://media/external/audio/media/$id" --grant-read-uri-permission \
