@@ -68,8 +68,9 @@ fun CoverGradientBackdrop(
 
     val ownTime = remember { mutableFloatStateOf(0f) }
     val runOwnClock = timeProvider == null
-    LaunchedEffect(animate, runOwnClock) {
-        if (!animate || !runOwnClock) return@LaunchedEffect
+    val motionAllowed = com.mochyy.mochymusic.ui.utils.rememberMotionAllowed()
+    LaunchedEffect(animate, runOwnClock, shader, motionAllowed) {
+        if (!animate || !runOwnClock || shader == null || !motionAllowed) return@LaunchedEffect
         while (isActive) {
             withInfiniteAnimationFrameNanos { frameTimeNanos ->
 

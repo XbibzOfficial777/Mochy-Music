@@ -914,6 +914,7 @@ private fun PlayerSheet(
                         com.mochyy.mochymusic.ui.player.styles.AlternatePlayerStyle(
                             style = playerStyle,
                             actions = styleActions,
+                            visible = !styleCovered,
                             // under a lyrics page that fills the screen it needn't be drawn
                             modifier = Modifier
                                 .fillMaxSize()

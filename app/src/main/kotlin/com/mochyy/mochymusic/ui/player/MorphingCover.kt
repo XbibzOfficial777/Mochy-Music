@@ -593,7 +593,10 @@ fun MorphingCover(
     val warpTimeState = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
     // Started and stopped from a flow, not keyed on a derived state: read in composition, its flip
     // recomposed all of this in the first frames of every open.
-    LaunchedEffect(editMode, alternateStyle) {
+    val warpMotionAllowed = com.mochyy.mochymusic.ui.utils.rememberMotionAllowed()
+    LaunchedEffect(editMode, alternateStyle, backgroundStyle, warpShader, warpMotionAllowed) {
+        // No decorative frame clock for a solid/Apple background, unsupported shader, or reduced motion.
+        if (!warpMotionAllowed || warpShader == null || backgroundStyle != PlayerBackgroundStyle.COVER_GRADIENT) return@LaunchedEffect
         snapshotFlow { !alternateStyle && !editMode && progressProvider() > 0.02f && lyricsProgressProvider() < 0.6f }
             .collectLatest { active ->
                 if (!active) return@collectLatest
@@ -1303,6 +1306,7 @@ private fun PlayerBackdropCrossfade(
     videoGlassState: GlassState,
     canvasGlassState: GlassState,
     canvasMirrorAlpha: () -> Float,
+    backdropVisible: () -> Boolean,
     maxWidth: Dp,
     maxHeight: Dp,
     warpShader: Any?,
@@ -1328,6 +1332,13 @@ private fun PlayerBackdropCrossfade(
     val currentCanvasAlpha = androidx.compose.runtime.rememberUpdatedState(canvasMirrorAlpha)
     val effectiveCanvasAlpha = { (currentCanvasAlpha.value() * (1f - currentLyricsProgress.value())).coerceIn(0f, 1f) }
     val canvasShown by remember { derivedStateOf { effectiveCanvasAlpha() > 0.005f } }
+    val currentBackdropVisible = androidx.compose.runtime.rememberUpdatedState(backdropVisible)
+    val colorBackdropVisible by remember {
+        derivedStateOf {
+            currentBackdropVisible.value() &&
+                effectiveVideoAlpha() < 0.999f && effectiveCanvasAlpha() < 0.999f
+        }
+    }
 
     Box(modifier = modifier) {
         Box(
@@ -1343,7 +1354,8 @@ private fun PlayerBackdropCrossfade(
                     style = backgroundStyle,
                     thumbnailUrl = trackInfo.thumbnailUrl,
                     pureBlack = pureBlack,
-                    modifier = Modifier.requiredSize(maxWidth, maxHeight)
+                    modifier = Modifier.requiredSize(maxWidth, maxHeight),
+                    animate = colorBackdropVisible,
                 )
             } else {
                 CoverBackdropFade(
@@ -1731,6 +1743,7 @@ private fun SheetBackdrop(
                 videoGlassState = videoGlassState,
                 canvasGlassState = canvasGlassState,
                 canvasMirrorAlpha = canvasMirrorAlpha,
+                backdropVisible = { sheetBackdropAlpha(progressProvider()) > 0.001f },
                 maxWidth = maxWidth,
                 maxHeight = maxHeight,
                 warpShader = warpShader,

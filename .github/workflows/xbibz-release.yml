@@ -1,4 +1,4 @@
-name: Xbibz signed ARM GMS releases
+name: Xbibz signed GMS releases
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
       - xbibz-issue-features
       # Test a release commit before advancing the stable branch or creating its tag.
       - xbibz-dual-abi-verify
+      - xbibz-animation-verify
     tags:
       - 'v*'
 
@@ -29,6 +30,9 @@ jobs:
           - abi: armeabi-v7a
             flavor: armeabiGms
             task: assembleArmeabiGmsRelease
+          - abi: universal
+            flavor: universalGms
+            task: assembleUniversalGmsRelease
     steps:
       - uses: actions/checkout@v5
       - name: Set up JDK 21
@@ -40,6 +44,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-disabled: true
+      - name: Test the native release verifier
+        run: |
+          python3 .github/scripts/test_release_native.py
+          python3 .github/scripts/test_release_artifacts.py
       - name: Restore and validate release keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.MOCHY_RELEASE_KEYSTORE_BASE64 }}
@@ -90,7 +98,21 @@ jobs:
           "$build_tools/aapt" dump badging "$apk" > /tmp/apk-badging.txt
           grep -q "package: name='com.mochyy.mochymusic'" /tmp/apk-badging.txt
           grep -Fx "sdkVersion:'24'" /tmp/apk-badging.txt
-          grep -Fx "native-code: '$ABI'" /tmp/apk-badging.txt
+          grep -Fx "targetSdkVersion:'36'" /tmp/apk-badging.txt
+          ABI="$ABI" python3 - <<'PYABI'
+          import os, re, sys
+          sys.path.insert(0, '.github/scripts')
+          from verify_release_native import PACKAGES
+          text = open('/tmp/apk-badging.txt').read()
+          lines = [line for line in text.splitlines() if line.startswith('native-code:')]
+          if len(lines) != 1:
+              raise SystemExit('Expected exactly one native-code badging line')
+          found = set(re.findall(r"'([^']+)'", lines[0]))
+          expected = set(PACKAGES[os.environ['ABI']])
+          if found != expected:
+              raise SystemExit(f'Native ABI mismatch: {found} != {expected}')
+          print(f'Verified Android badging native ABIs: {sorted(found)}')
+          PYABI
           if grep -q 'application-debuggable' /tmp/apk-badging.txt; then
             echo 'Refusing a debuggable APK' >&2
             exit 1
@@ -126,6 +148,8 @@ jobs:
               'versionName': os.environ['VERSION'],
               'versionCode': int(os.environ['CODE']),
               'minSdk': 24,
+              'targetSdk': 36,
+              'debuggable': False,
               'signerSha256': os.environ['CERT'],
           }
           Path(f'release-assets/metadata-{abi}.json').write_text(json.dumps(data, sort_keys=True) + '\n')
@@ -143,7 +167,7 @@ jobs:
         run: rm -f app/keystore/release.keystore
 
   publish:
-    name: Verify both ABIs and publish release
+    name: Verify all three APKs and publish release
     needs: build
     if: github.repository == 'XbibzOfficial777/Mochy-Music' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
@@ -154,7 +178,7 @@ jobs:
           pattern: mochy-release-*
           path: release-assets
           merge-multiple: true
-      - name: Verify paired APKs and checksums
+      - name: Verify all APKs and checksums
         run: python3 .github/scripts/verify_dual_artifacts.py release-assets --tag "$GITHUB_REF_NAME"
       - name: Publish GitHub Release without replacing an existing one
         env:
@@ -172,7 +196,7 @@ jobs:
           cat > /tmp/release-notes.md <<'NOTES'
           Unofficial Xbibz release for Android 7.0 or newer, with Google Cast support.
 
-          Download **arm64-v8a** for 64-bit ARM devices, or **armeabi-v7a** for 32-bit ARMv7 devices. Both APKs are optimized, non-debuggable, and signed with the same Bibz release key. The app selects future fork updates for its installed architecture.
+          Download **arm64-v8a** for 64-bit ARM devices, **armeabi-v7a** for 32-bit ARMv7 devices, or **universal** for ARM and x86/x86_64 devices. All three APKs are optimized, non-debuggable, and signed with the same Bibz release key. Each build selects only its corresponding future fork update.
 
           App language may follow the device or be chosen in Settings → General → App language; missing translations fall back to English. Existing translations and some older hardcoded screens remain incomplete, and RTL layout is not yet supported. Liquid Glass remains exclusive to this fork.
 
@@ -187,4 +211,4 @@ jobs:
             printf '\nDiscord client ID is not configured in this build.\n' >> /tmp/release-notes.md
           fi
           gh release create "$GITHUB_REF_NAME" release-assets/*.apk release-assets/SHA256SUMS.txt \
-            --verify-tag --title "Mochy Music $GITHUB_REF_NAME · ARM GMS" --notes-file /tmp/release-notes.md
+            --verify-tag --title "Mochy Music $GITHUB_REF_NAME · GMS" --notes-file /tmp/release-notes.md

@@ -15,16 +15,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.palette.graphics.Palette
@@ -34,6 +37,8 @@ import coil3.request.allowHardware
 import coil3.toBitmap
 import com.mochyy.mochymusic.constants.PlayerBackgroundStyle
 import com.mochyy.mochymusic.ui.utils.resize
+import com.mochyy.mochymusic.ui.utils.rememberMotionAllowed
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -43,6 +48,7 @@ fun PlayerBackgroundContent(
     thumbnailUrl: String?,
     pureBlack: Boolean,
     modifier: Modifier = Modifier,
+    animate: Boolean = true,
 ) {
     when (style) {
         PlayerBackgroundStyle.COVER_GRADIENT -> Unit
@@ -51,6 +57,7 @@ fun PlayerBackgroundContent(
         PlayerBackgroundStyle.APPLE_MUSIC -> AppleMusicBackground(
             thumbnailUrl = thumbnailUrl,
             modifier = modifier,
+            animate = animate,
         )
     }
 }
@@ -74,6 +81,7 @@ fun PlayerBackgroundPreview(
             thumbnailUrl = thumbnailUrl,
             pureBlack = false,
             modifier = modifier,
+            animate = animate,
         )
         return
     }
@@ -108,100 +116,117 @@ private fun DarkGradientBackground(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun AppleMusicBackground(thumbnailUrl: String?, modifier: Modifier = Modifier) {
+private fun AppleMusicBackground(
+    thumbnailUrl: String?,
+    modifier: Modifier = Modifier,
+    animate: Boolean,
+) {
     val context = LocalContext.current
     val fallbackColorInt = MaterialTheme.colorScheme.primaryContainer.toArgb()
     val surfaceColor = MaterialTheme.colorScheme.surfaceContainer
-
+    val motionAllowed = rememberMotionAllowed() && animate
     var palette by remember { mutableStateOf<List<Color>>(emptyList()) }
 
-    LaunchedEffect(thumbnailUrl) {
+    LaunchedEffect(thumbnailUrl, fallbackColorInt) {
         if (thumbnailUrl == null) {
             palette = emptyList()
             return@LaunchedEffect
         }
-        withContext(Dispatchers.IO) {
-            runCatching {
+        // Do image I/O and palette calculation off the UI thread, but publish the result on the
+        // composition's dispatcher. Do not swallow cancellation when a cover changes or disappears.
+        val colors = try {
+            val bitmap = withContext(Dispatchers.IO) {
                 val request = ImageRequest.Builder(context)
                     .data(thumbnailUrl)
                     .size(100, 100)
                     .allowHardware(false)
                     .build()
-                val bitmap = context.imageLoader.execute(request).image?.toBitmap()
-                    ?: return@runCatching
-                val generated = withContext(Dispatchers.Default) {
-                    Palette.from(bitmap)
-                        .maximumColorCount(8)
-                        .resizeBitmapArea(100 * 100)
-                        .generate()
-                }
-                palette = com.mochyy.mochymusic.ui.theme.PlayerColorExtractor.extractAppleMusicColors(
+                context.imageLoader.execute(request).image?.toBitmap()
+            } ?: return@LaunchedEffect // keep the previous palette on a failed load, as before
+            withContext(Dispatchers.Default) {
+                val generated = Palette.from(bitmap)
+                    .maximumColorCount(8)
+                    .resizeBitmapArea(100 * 100)
+                    .generate()
+                com.mochyy.mochymusic.ui.theme.PlayerColorExtractor.extractAppleMusicColors(
                     palette = generated,
                     fallbackColor = fallbackColorInt,
                 )
             }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
         }
+        if (colors != null) palette = colors
     }
 
-    val transition = rememberInfiniteTransition(label = "appleMusicMorph")
-    val drift by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2f * Math.PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 24_000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "appleMusicDrift",
-    )
+    // Removing the transition also removes its frame clock when this is a static preview, hidden
+    // behind video/canvas, or either the app or Android has switched decorative motion off.
+    val drift = if (motionAllowed) {
+        val transition = rememberInfiniteTransition(label = "appleMusicMorph")
+        transition.animateFloat(
+            initialValue = 0f,
+            targetValue = (2f * Math.PI).toFloat(),
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = AppleBlobCycleMs, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+            label = "appleMusicDrift",
+        )
+    } else null
 
-    val blobColors = List(BlobCount) { index ->
-        animateColorAsState(
-            targetValue = palette.getOrNull(index) ?: surfaceColor,
-            animationSpec = tween(durationMillis = 800),
-            label = "appleMusicBlob$index",
-        ).value
+    // Keep colour state reads in drawWithCache. The 800 ms palette change need not recompose the
+    // player on every frame, and the six shaders are reused on ordinary drift frames.
+    val blobColors = List(AppleBlobCount) { index ->
+        val target = palette.getOrNull(index) ?: surfaceColor
+        if (motionAllowed) {
+            animateColorAsState(
+                targetValue = target,
+                animationSpec = tween(durationMillis = 800),
+                label = "appleMusicBlob$index",
+            )
+        } else rememberUpdatedState(target)
     }
-
     val base = palette.firstOrNull() ?: surfaceColor
-
     Box(
         modifier = modifier
             .background(base)
-            .drawColorBlobs(blobColors) { drift },
+            .drawColorBlobs(blobColors) { drift?.value ?: 0f },
     )
 }
 
-private const val BlobCount = 6
-
-private fun Modifier.drawColorBlobs(
-    colors: List<Color>,
+internal fun Modifier.drawColorBlobs(
+    colors: List<State<Color>>,
     phase: () -> Float,
-): Modifier = drawBehind {
-    val t = phase()
-    colors.forEachIndexed { index, color ->
-
-        val angle = t * (0.6f + index * 0.17f) + index * 1.05f
-        val orbitX = size.width * (0.20f + 0.06f * (index % 3))
-        val orbitY = size.height * (0.14f + 0.05f * (index % 4))
-        val center = Offset(
-            x = size.width * (0.28f + 0.15f * (index % 3)) + orbitX * kotlin.math.cos(angle),
-            y = size.height * (0.24f + 0.18f * (index % 4)) + orbitY * kotlin.math.sin(angle),
-        )
-        val radius = size.minDimension * (0.55f + 0.08f * (index % 3))
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(color.copy(alpha = 0.55f), color.copy(alpha = 0f)),
-                center = center,
-                radius = radius,
-            ),
-            radius = radius,
-            center = center,
+): Modifier = drawWithCache {
+    val radii = FloatArray(colors.size) { index -> size.minDimension * (0.55f + 0.08f * (index % 3)) }
+    // A zero-size layout cannot be seen; radialGradient requires a positive radius.
+    if (size.minDimension <= 0f) return@drawWithCache onDrawBehind {}
+    val brushes = colors.mapIndexed { index, colorState ->
+        val color = colorState.value
+        Brush.radialGradient(
+            colors = listOf(color.copy(alpha = 0.55f), color.copy(alpha = 0f)),
+            center = Offset.Zero,
+            radius = radii[index],
         )
     }
-
-    drawRect(
-        brush = Brush.verticalGradient(
-            listOf(Color.Black.copy(alpha = 0.10f), Color.Black.copy(alpha = 0.45f)),
-        )
+    val scrim = Brush.verticalGradient(
+        listOf(Color.Black.copy(alpha = 0.10f), Color.Black.copy(alpha = 0.45f)),
     )
+    onDrawBehind {
+        val t = phase()
+        brushes.forEachIndexed { index, brush ->
+            val angle = appleBlobAngle(t, index)
+            val orbitX = size.width * (0.20f + 0.06f * (index % 3))
+            val orbitY = size.height * (0.14f + 0.05f * (index % 4))
+            val centerX = size.width * (0.28f + 0.15f * (index % 3)) + orbitX * kotlin.math.cos(angle)
+            val centerY = size.height * (0.24f + 0.18f * (index % 4)) + orbitY * kotlin.math.sin(angle)
+            // Translate a cached origin-centred shader instead of allocating a new one each frame.
+            translate(centerX, centerY) {
+                drawCircle(brush = brush, radius = radii[index], center = Offset.Zero)
+            }
+        }
+        drawRect(brush = scrim)
+    }
 }

@@ -1217,9 +1217,9 @@ class MainActivity : ComponentActivity() {
                                                 val previousRouteIndex = tabOwnership.indexOf(initialState, stack)
 
                                                 if (currentRouteIndex == -1 || currentRouteIndex >= previousRouteIndex)
-                                                    slideInHorizontally { it / 8 } + fadeIn(tween(200))
+                                                    slideInHorizontally(tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it / 8 } + fadeIn(tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing))
                                                 else
-                                                    slideInHorizontally { -it / 8 } + fadeIn(tween(200))
+                                                    slideInHorizontally(tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { -it / 8 } + fadeIn(tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing))
                                             }
                                         },
 
@@ -1230,9 +1230,9 @@ class MainActivity : ComponentActivity() {
                                                 val targetRouteIndex = tabOwnership.indexOf(targetState, stack)
 
                                                 if (targetRouteIndex == -1 || targetRouteIndex >= currentRouteIndex)
-                                                    slideOutHorizontally { -it / 8 } + fadeOut(tween(200))
+                                                    slideOutHorizontally(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { -it / 8 } + fadeOut(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing))
                                                 else
-                                                    slideOutHorizontally { it / 8 } + fadeOut(tween(200))
+                                                    slideOutHorizontally(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it / 8 } + fadeOut(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing))
                                             }
                                         },
 
@@ -1243,9 +1243,9 @@ class MainActivity : ComponentActivity() {
                                                 val previousRouteIndex = tabOwnership.indexOf(initialState, stack)
 
                                                 if (previousRouteIndex != -1 && previousRouteIndex < currentRouteIndex)
-                                                    slideInHorizontally { it / 8 } + fadeIn(tween(200))
+                                                    slideInHorizontally(tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it / 8 } + fadeIn(tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing))
                                                 else
-                                                    slideInHorizontally { -it / 8 } + fadeIn(tween(200))
+                                                    slideInHorizontally(tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { -it / 8 } + fadeIn(tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing))
                                             }
                                         },
 
@@ -1256,9 +1256,9 @@ class MainActivity : ComponentActivity() {
                                                 val targetRouteIndex = tabOwnership.indexOf(targetState, stack)
 
                                                 if (currentRouteIndex != -1 && currentRouteIndex < targetRouteIndex)
-                                                    slideOutHorizontally { -it / 8 } + fadeOut(tween(200))
+                                                    slideOutHorizontally(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { -it / 8 } + fadeOut(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing))
                                                 else
-                                                    slideOutHorizontally { it / 8 } + fadeOut(tween(200))
+                                                    slideOutHorizontally(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it / 8 } + fadeOut(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing))
                                             }
                                         },
                                         modifier = Modifier

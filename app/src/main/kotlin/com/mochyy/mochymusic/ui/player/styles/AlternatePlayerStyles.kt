@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,9 +71,10 @@ fun AlternatePlayerStyle(
     actions: StyleActions,
     modifier: Modifier = Modifier,
     preview: Boolean = false,
+    visible: Boolean = true,
 ) {
     when (style) {
-        PlayerStyle.POSTER -> PosterPlayerStyle(actions, modifier, preview)
+        PlayerStyle.POSTER -> PosterPlayerStyle(actions, modifier, preview, visible)
         PlayerStyle.TIMELINE -> TimelinePlayerStyle(actions, modifier, preview)
         PlayerStyle.LYRICS -> LyricsPlayerStyle(actions, modifier, preview)
         PlayerStyle.IPOD -> com.mochyy.mochymusic.ui.player.ipod.IpodPlayerStyle(modifier, preview)
@@ -244,17 +246,24 @@ private val PosterChevron = 43.dp
  * sideways, the circle swings in from the left.
  */
 @Composable
-private fun PosterPlayerStyle(actions: StyleActions, modifier: Modifier, preview: Boolean) {
+private fun PosterPlayerStyle(actions: StyleActions, modifier: Modifier, preview: Boolean, visible: Boolean) {
     val tones = rememberStyleTones()
     val track = rememberStyleTrack()
     val r = rememberResponsive()
     val position = rememberLivePosition(animated = !preview)
     val lyrics = rememberStyleLyrics(readings = !preview)
     val carousel = rememberStyleCarousel(preview)
-    val backgroundClock = rememberBackdropClock(running = !preview)
+    val styleShowing = rememberStyleShowing()
+    val styleOnScreen by remember(styleShowing) { derivedStateOf { styleShowing() } }
     val backgroundStyle by com.mochyy.mochymusic.utils.rememberEnumPreference(
         com.mochyy.mochymusic.constants.PlayerBackgroundStyleKey,
         com.mochyy.mochymusic.constants.PlayerBackgroundStyle.COVER_GRADIENT,
+    )
+    val motionAllowed = com.mochyy.mochymusic.ui.utils.rememberMotionAllowed()
+    val warpAvailable = com.mochyy.mochymusic.ui.player.customize.rememberWarpShader() != null
+    val backgroundClock = rememberBackdropClock(
+        running = !preview && visible && motionAllowed && warpAvailable &&
+            backgroundStyle == com.mochyy.mochymusic.constants.PlayerBackgroundStyle.COVER_GRADIENT,
     )
     val (visualizer) = com.mochyy.mochymusic.utils.rememberPreference(com.mochyy.mochymusic.constants.PosterVisualizerKey, defaultValue = false)
     val ring = rememberCoverRingState()
@@ -294,7 +303,7 @@ private fun PosterPlayerStyle(actions: StyleActions, modifier: Modifier, preview
                         thumbnailUrl = track.artwork,
                         width = w,
                         height = h,
-                        animate = !preview,
+                        animate = !preview && visible && styleOnScreen,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }

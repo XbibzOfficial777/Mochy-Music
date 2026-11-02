@@ -84,8 +84,8 @@ import kotlin.math.pow
 
 // A quicker, nearly critical settle: responsive without making the player bounce past its edge.
 private val PlayerSheetAnimationSpec = spring<Dp>(
-    dampingRatio = 0.96f,
-    stiffness = 140f
+    dampingRatio = 0.95f,
+    stiffness = 170f
 )
 
 /**
@@ -779,14 +779,16 @@ class BottomSheetState(
     fun collapse(animationSpec: AnimationSpec<Dp>) {
         onAnchorChanged(collapsedAnchor)
         coroutineScope.launch {
-            animatable.animateTo(collapsedBound, animationSpec)
+            if (com.mochyy.mochymusic.ui.utils.AppMotion.enabled) animatable.animateTo(collapsedBound, animationSpec)
+            else animatable.snapTo(collapsedBound)
         }
     }
 
     fun expand(animationSpec: AnimationSpec<Dp>) {
         onAnchorChanged(expandedAnchor)
         coroutineScope.launch {
-            animatable.animateTo(animatable.upperBound!!, animationSpec)
+            if (com.mochyy.mochymusic.ui.utils.AppMotion.enabled) animatable.animateTo(animatable.upperBound!!, animationSpec)
+            else animatable.snapTo(animatable.upperBound!!)
         }
     }
 
@@ -809,13 +811,15 @@ class BottomSheetState(
     fun dismiss() {
         onAnchorChanged(dismissedAnchor)
         coroutineScope.launch {
-            animatable.animateTo(animatable.lowerBound!!)
+            if (com.mochyy.mochymusic.ui.utils.AppMotion.enabled) animatable.animateTo(animatable.lowerBound!!)
+            else animatable.snapTo(animatable.lowerBound!!)
         }
     }
 
     suspend fun dismissAndWait() {
         onAnchorChanged(dismissedAnchor)
-        animatable.animateTo(animatable.lowerBound!!)
+        if (com.mochyy.mochymusic.ui.utils.AppMotion.enabled) animatable.animateTo(animatable.lowerBound!!)
+        else animatable.snapTo(animatable.lowerBound!!)
     }
 
     fun snapTo(value: Dp) {
@@ -990,7 +994,10 @@ fun rememberBottomSheetState(
             // running within a frame, and this then stands down
             delay(SheetSettleGraceMs)
             // launched on its own, so the next emission (the animation starting) can't cancel it
-            coroutineScope.launch { animatable.animateTo(target, PlayerSheetAnimationSpec) }
+            coroutineScope.launch {
+                if (com.mochyy.mochymusic.ui.utils.AppMotion.enabled) animatable.animateTo(target, PlayerSheetAnimationSpec)
+                else animatable.snapTo(target)
+            }
         }
     }
     return state

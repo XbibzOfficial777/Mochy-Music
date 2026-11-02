@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify two signed build artifacts agree and generate the release SHA-256 list."""
+"""Verify three signed release artifacts agree and generate the release SHA-256 list."""
 
 import argparse
 import hashlib
@@ -7,7 +7,7 @@ import json
 import re
 from pathlib import Path
 
-from verify_release_native import EXPECTED, inspect_apk
+from verify_release_native import PACKAGES, inspect_apk
 
 
 def sha256(path: Path) -> str:
@@ -29,44 +29,44 @@ def main() -> None:
         raise ValueError("Invalid trusted certificate fingerprint")
 
     apks = sorted(directory.glob("*.apk"))
-    if len(apks) != len(EXPECTED):
-        raise ValueError(f"Expected exactly two APKs, found {len(apks)}")
+    if len(apks) != len(PACKAGES):
+        raise ValueError(f"Expected exactly {len(PACKAGES)} APKs, found {len(apks)}")
     metadata = {}
-    library_names = {}
-    for abi in EXPECTED:
-        matching = [apk for apk in apks if apk.name.endswith(f"-{abi}-gms.apk")]
+    all_library_names = {}
+    for package in PACKAGES:
+        matching = [apk for apk in apks if apk.name.endswith(f"-{package}-gms.apk")]
         if len(matching) != 1:
-            raise ValueError(f"Expected one {abi} APK, found {matching}")
+            raise ValueError(f"Expected one {package} APK, found {matching}")
         apk = matching[0]
-        data = json.loads((directory / f"metadata-{abi}.json").read_text())
-        if data.get("abi") != abi or data.get("applicationId") != "com.mochyy.mochymusic":
-            raise ValueError(f"Invalid {abi} metadata")
+        data = json.loads((directory / f"metadata-{package}.json").read_text())
+        if data.get("abi") != package or data.get("applicationId") != "com.mochyy.mochymusic":
+            raise ValueError(f"Invalid {package} metadata")
         if data.get("signerSha256", "").lower() != trusted_certificate:
-            raise ValueError(f"{abi} signing certificate is not the trusted Bibz release key")
-        if data.get("minSdk") != 24:
-            raise ValueError(f"{abi} minimum Android API is not 24")
+            raise ValueError(f"{package} signing certificate is not the trusted Bibz release key")
+        if data.get("minSdk") != 24 or data.get("targetSdk") != 36 or data.get("debuggable") is not False:
+            raise ValueError(f"Invalid SDK or debuggable metadata for {package}")
         version = data.get("versionName", "")
         if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z._+-]*", version):
-            raise ValueError(f"Invalid version name for {abi}")
-        if apk.name != f"Mochy-Music-v{version}-{abi}-gms.apk":
-            raise ValueError(f"{abi} APK filename does not match its embedded version")
+            raise ValueError(f"Invalid version name for {package}")
+        if apk.name != f"Mochy-Music-v{version}-{package}-gms.apk":
+            raise ValueError(f"{package} APK filename does not match its embedded version")
         if args.tag and args.tag != f"v{version}":
             raise ValueError(f"Tag {args.tag} does not match version {version}")
         if not isinstance(data.get("versionCode"), int) or data["versionCode"] <= 0:
-            raise ValueError(f"Invalid version code for {abi}")
-        lines = (directory / f"SHA256SUMS-{abi}.txt").read_text().splitlines()
+            raise ValueError(f"Invalid version code for {package}")
+        lines = (directory / f"SHA256SUMS-{package}.txt").read_text().splitlines()
         if len(lines) != 1 or lines[0] != f"{sha256(apk)}  {apk.name}":
-            raise ValueError(f"{abi} artifact checksum does not match the APK")
-        library_names[abi] = inspect_apk(apk, abi)
-        metadata[abi] = {key: value for key, value in data.items() if key != "abi"}
+            raise ValueError(f"{package} artifact checksum does not match the APK")
+        for abi, names in inspect_apk(apk, package).items():
+            all_library_names[f"{package}/{abi}"] = frozenset(names)
+        metadata[package] = {key: value for key, value in data.items() if key != "abi"}
 
-    a, b = EXPECTED
-    if metadata[a] != metadata[b]:
-        raise ValueError("APK package, version, minSdk or signer metadata differ between ABIs")
-    if library_names[a] != library_names[b]:
-        raise ValueError(f"Native libraries differ between ABIs: {library_names}")
+    if len({json.dumps(data, sort_keys=True) for data in metadata.values()}) != 1:
+        raise ValueError("APK package, version, SDK, debuggability or signer metadata differ between builds")
+    if len(set(all_library_names.values())) != 1:
+        raise ValueError(f"Native libraries differ between builds: {all_library_names}")
     (directory / "SHA256SUMS.txt").write_text("".join(f"{sha256(apk)}  {apk.name}\n" for apk in apks))
-    print(f"Both APKs have matching metadata and native library sets: {metadata[a]}")
+    print(f"All three APKs have matching metadata and native library sets: {next(iter(metadata.values()))}")
     print((directory / "SHA256SUMS.txt").read_text(), end="")
 
 

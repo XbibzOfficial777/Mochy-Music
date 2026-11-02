@@ -22,7 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.derivedStateOf
@@ -73,18 +74,30 @@ fun PlayingIndicator(
         }
     }
 
-    LaunchedEffect(levels) {
-        levels.forEach { level ->
-            launch {
-                while (true) {
-                    if (held.value) snapshotFlow { held.value }.first { !it }
-                    level.animateTo(
-                        targetValue = 0.22f + Random.nextFloat() * 0.78f,
-                        animationSpec = tween(
-                            durationMillis = 150 + Random.nextInt(140),
-                            easing = FastOutSlowInEasing,
-                        ),
-                    )
+    val motionAllowed = com.mochyy.mochymusic.ui.utils.rememberMotionAllowed()
+    LaunchedEffect(levels, motionAllowed) {
+        if (!motionAllowed) {
+            // An unmistakable playing indicator without a perpetual loop, even at system scale 0.
+            levels.forEachIndexed { index, level -> level.snapTo(0.35f + (index % 3) * 0.15f) }
+            return@LaunchedEffect
+        }
+        // Cancel an in-flight bar immediately when its page becomes obscured, not up to 290 ms
+        // later. Start from its last height when that page becomes visible again.
+        snapshotFlow { held.value }.collectLatest { isHeld ->
+            if (isHeld) return@collectLatest
+            coroutineScope {
+                levels.forEach { level ->
+                    launch {
+                        while (true) {
+                            level.animateTo(
+                                targetValue = 0.22f + Random.nextFloat() * 0.78f,
+                                animationSpec = tween(
+                                    durationMillis = 150 + Random.nextInt(140),
+                                    easing = FastOutSlowInEasing,
+                                ),
+                            )
+                        }
+                    }
                 }
             }
         }

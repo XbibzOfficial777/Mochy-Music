@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -48,6 +49,7 @@ import com.mochyy.mochymusic.playback.PlayerConnection
 import com.mochyy.mochymusic.ui.player.models.QueueItemData
 import com.mochyy.mochymusic.ui.player.models.QueueState
 import com.mochyy.mochymusic.ui.player.models.TrackInfo
+import com.mochyy.mochymusic.ui.utils.AppMotion
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -271,8 +273,13 @@ class SongCarousel internal constructor(private val scope: CoroutineScope) {
             var lastNanos = 0L
             var resting = false
             while (!resting) {
+                // This hand-stepped spring does not get Compose's animation scale automatically.
+                // Snapping must still run the pending skip/cleanup below, or a swipe can be lost.
+                val scale = coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
+                if (!AppMotion.enabled || scale <= 0f) break
                 resting = withFrameNanos { now ->
-                    val dt = if (lastNanos == 0L) 1f / 120f else ((now - lastNanos) / 1_000_000_000f).coerceIn(0f, MaxFrameSec)
+                    val frameDt = if (lastNanos == 0L) 1f / 120f else ((now - lastNanos) / 1_000_000_000f).coerceIn(0f, MaxFrameSec)
+                    val dt = frameDt / scale
                     lastNanos = now
                     val y = position - to
                     val e = exp(-SettleOmega * dt)

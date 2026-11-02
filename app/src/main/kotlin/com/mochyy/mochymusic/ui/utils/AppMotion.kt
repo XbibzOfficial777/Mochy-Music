@@ -10,14 +10,29 @@ package com.mochyy.mochymusic.ui.utils
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.navigation.NavBackStackEntry
+import androidx.compose.ui.MotionDurationScale
 
 object AppMotion {
     /** false: pages swap without sliding or fading, and the lyrics' per-line blur is off */
     var enabled by mutableStateOf(true)
+}
+
+/**
+ * Long-running decorative motion must honor both the app switch and Android's animator scale.
+ * The recomposer's MotionDurationScale is snapshot state, so changing the system setting while
+ * this screen is open updates the result without polling or an extra settings observer.
+ */
+@Composable
+fun rememberMotionAllowed(): Boolean {
+    val scope = rememberCoroutineScope()
+    val scale = scope.coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
+    return AppMotion.enabled && scale > 0f
 }
 
 /** [transition], or no transition at all while animations are switched off */

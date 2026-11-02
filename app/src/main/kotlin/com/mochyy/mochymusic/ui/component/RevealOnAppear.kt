@@ -4,6 +4,8 @@ package com.mochyy.mochymusic.ui.component
 
 import android.os.SystemClock
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
@@ -106,12 +108,15 @@ fun <T : Any> RevealWhenLoaded(
     content: @Composable (T) -> Unit,
 ) {
     val slidePx = with(LocalDensity.current) { RevealSlideDistance.roundToPx() }
+    val motionAllowed = com.mochyy.mochymusic.ui.utils.rememberMotionAllowed()
 
     AnimatedContent(
         targetState = data,
         contentKey = { it != null },
         transitionSpec = {
-            if (targetState != null) {
+            if (!motionAllowed) {
+                EnterTransition.None.togetherWith(ExitTransition.None).using(SizeTransform(clip = false))
+            } else if (targetState != null) {
                 val delay = BonesFadeOutMs + RevealGapMs
                 (fadeIn(tween(RevealFadeInMs, delayMillis = delay, easing = RevealEasing)) +
                     slideInVertically(tween(RevealFadeInMs, delayMillis = delay, easing = RevealEasing)) { slidePx })
@@ -147,12 +152,17 @@ fun Modifier.revealOnAppear(
     if (alreadySeen) return this
 
     val progress = remember(key) { Animatable(0f) }
-    LaunchedEffect(key, enabled) {
+    val motionAllowed = com.mochyy.mochymusic.ui.utils.rememberMotionAllowed()
+    LaunchedEffect(key, enabled, motionAllowed) {
         if (!enabled) return@LaunchedEffect
         // marked up front: a fast fling that disposes the row mid-animation shouldn't replay it later
         seenState.markSeen(key)
-        val wait = delayMillis + if (cascade) seenState.nextBurstDelay() else 0
-        progress.animateTo(1f, tween(RevealFadeInMs, delayMillis = wait, easing = RevealEasing))
+        if (!motionAllowed) {
+            progress.snapTo(1f)
+        } else {
+            val wait = delayMillis + if (cascade) seenState.nextBurstDelay() else 0
+            progress.animateTo(1f, tween(RevealFadeInMs, delayMillis = wait, easing = RevealEasing))
+        }
     }
 
     val slidePx = with(LocalDensity.current) { RevealSlideDistance.toPx() }
@@ -172,18 +182,22 @@ fun BonesHost(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val wave = rememberInfiniteTransition(label = "bones")
-    val phase = wave.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(BonesWaveMs, easing = LinearEasing)),
-        label = "bonesPhase",
-    )
+    val motionAllowed = com.mochyy.mochymusic.ui.utils.rememberMotionAllowed()
+    val obscured = com.mochyy.mochymusic.LocalAppContentObscured.current.value
+    val phase = if (motionAllowed && !obscured) {
+        val wave = rememberInfiniteTransition(label = "bones")
+        wave.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(BonesWaveMs, easing = LinearEasing)),
+            label = "bonesPhase",
+        )
+    } else null
 
-    Column(
-        modifier = modifier
+    val waveModifier = if (phase != null) {
+        Modifier
             .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-            // the wave never stops, so keep its repaints to these bones instead of the whole window and its glass
+            // bound the animated wave's damage; the static bones need no offscreen layer
             .damageBoundary()
             .drawWithContent {
                 drawContent()
@@ -200,9 +214,9 @@ fun BonesHost(
                     ),
                     blendMode = BlendMode.DstIn,
                 )
-            },
-        content = content,
-    )
+            }
+    } else Modifier
+    Column(modifier = modifier.then(waveModifier), content = content)
 }
 
 @Composable
