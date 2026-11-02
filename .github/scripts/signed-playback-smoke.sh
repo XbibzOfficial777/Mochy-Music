@@ -156,6 +156,21 @@ print(f'{path}: {expected_title} is {name}')
 PY
 }
 
+# A track change can briefly report BUFFERING, especially on a loaded CI emulator.
+# Require the requested title and stable state within a bounded interval.
+await_session() {
+  local output="$1" title="$2" state="$3"
+  for attempt in $(seq 1 15); do
+    adb shell dumpsys media_session > "$output"
+    if check_session "$output" "$title" "$state" >/dev/null 2>&1; then
+      check_session "$output" "$title" "$state"
+      return 0
+    fi
+    sleep 1
+  done
+  check_session "$output" "$title" "$state"
+}
+
 echo '=== Open the real library and play the synthetic two-track queue ==='
 tap content-desc 'Your Library'
 scroll_to text 'Songs'
@@ -163,8 +178,7 @@ tap text 'Songs'
 scroll_to text 'MotionAuditA'
 tap text 'MotionAuditA'
 sleep 5
-adb shell dumpsys media_session > language-playback-first.txt
-check_session language-playback-first.txt MotionAuditA playing
+await_session language-playback-first.txt MotionAuditA playing
 # Tap the mini player's title (bottom-most matching label), then exercise a real queue skip.
 tap text 'MotionAuditA' bottom
 sleep 3
@@ -177,8 +191,7 @@ adb exec-out screencap -p > language-playback-player-open.png
 # is not installed on all Google APIs emulator images.
 adb shell input keyevent 87  # KEYCODE_MEDIA_NEXT
 sleep 2
-adb shell dumpsys media_session > language-playback-next.txt
-check_session language-playback-next.txt MotionAuditB playing
+await_session language-playback-next.txt MotionAuditB playing
 # System reduced motion: the hand-stepped carousel still completes a previous-track change.
 adb shell settings put global animator_duration_scale 0
 adb shell input keyevent 88  # KEYCODE_MEDIA_PREVIOUS
@@ -190,16 +203,14 @@ if ! grep -Fq 'MotionAuditA' language-playback-previous.txt; then
   sleep 1
   adb shell dumpsys media_session > language-playback-previous.txt
 fi
-check_session language-playback-previous.txt MotionAuditA playing
+await_session language-playback-previous.txt MotionAuditA playing
 adb exec-out screencap -p > language-playback-reduced.png
 adb shell input keyevent 127  # KEYCODE_MEDIA_PAUSE
 sleep 2
-adb shell dumpsys media_session > language-playback-paused.txt
-check_session language-playback-paused.txt MotionAuditA paused
+await_session language-playback-paused.txt MotionAuditA paused
 adb shell input keyevent 126  # KEYCODE_MEDIA_PLAY
 sleep 2
-adb shell dumpsys media_session > language-playback-resumed.txt
-check_session language-playback-resumed.txt MotionAuditA playing
+await_session language-playback-resumed.txt MotionAuditA playing
 adb logcat -d -v threadtime > language-playback-logcat.txt
 python3 - <<'PY'
 from pathlib import Path
