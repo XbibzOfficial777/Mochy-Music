@@ -168,29 +168,35 @@ check_session language-playback-first.txt MotionAuditA playing
 # Tap the mini player's title (bottom-most matching label), then exercise a real queue skip.
 tap text 'MotionAuditA' bottom
 sleep 3
+dump
+if grep -q 'Viewing full screen' language-playback-ui.xml; then
+  xy="$(node text 'Got it')"; adb shell input tap $xy; sleep 2
+fi
 adb exec-out screencap -p > language-playback-player-open.png
-adb shell media dispatch next
+# input key events exercise the real MediaSession; the standalone `media` binary
+# is not installed on all Google APIs emulator images.
+adb shell input keyevent 87  # KEYCODE_MEDIA_NEXT
 sleep 2
 adb shell dumpsys media_session > language-playback-next.txt
 check_session language-playback-next.txt MotionAuditB playing
 # System reduced motion: the hand-stepped carousel still completes a previous-track change.
 adb shell settings put global animator_duration_scale 0
-adb shell media dispatch previous
+adb shell input keyevent 88  # KEYCODE_MEDIA_PREVIOUS
 sleep 1
 adb shell dumpsys media_session > language-playback-previous.txt
 # A late previous command can restart the current track instead of changing it.
 if ! grep -Fq 'MotionAuditA' language-playback-previous.txt; then
-  adb shell media dispatch previous
+  adb shell input keyevent 88  # KEYCODE_MEDIA_PREVIOUS
   sleep 1
   adb shell dumpsys media_session > language-playback-previous.txt
 fi
 check_session language-playback-previous.txt MotionAuditA playing
 adb exec-out screencap -p > language-playback-reduced.png
-adb shell media dispatch pause
+adb shell input keyevent 127  # KEYCODE_MEDIA_PAUSE
 sleep 2
 adb shell dumpsys media_session > language-playback-paused.txt
 check_session language-playback-paused.txt MotionAuditA paused
-adb shell media dispatch play
+adb shell input keyevent 126  # KEYCODE_MEDIA_PLAY
 sleep 2
 adb shell dumpsys media_session > language-playback-resumed.txt
 check_session language-playback-resumed.txt MotionAuditA playing
