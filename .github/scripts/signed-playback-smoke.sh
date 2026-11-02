@@ -71,13 +71,18 @@ sleep 30
 for suffix in A B; do
   file="MotionAudit${suffix}.wav"
   adb push "language-$file" "/sdcard/Music/$file" >/dev/null
-  adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file:///sdcard/Music/$file" >/dev/null
+  adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE --receiver-include-background -d "file:///sdcard/Music/$file" >/dev/null
   id=''
   for attempt in $(seq 1 15); do
     result="$(adb shell content query --uri content://media/external/audio/media --projection _id:_display_name 2>&1 | tr -d '\r' || true)"
     printf '%s\n' "$result" > "language-playback-media-index-$suffix.txt"
     id="$(printf '%s\n' "$result" | grep -F "_display_name=$file" | sed -n 's/.*_id=\([0-9][0-9]*\).*/\1/p' | head -1 || true)"
     [ -n "$id" ] && break
+    # Some API 30 images do not deliver the deprecated scan-file broadcast.
+    if [ "$attempt" = 4 ]; then
+      timeout 30s adb shell content call --method scan_volume --uri content://media --arg external_primary \
+        > "language-playback-rescan-$suffix.txt" 2>&1 || true
+    fi
     sleep 2
   done
   if ! [[ "$id" =~ ^[0-9]+$ ]]; then
@@ -133,6 +138,24 @@ scroll_to() {
   echo "Could not find $1=$2" >&2; return 1
 }
 
+check_session() {
+  python3 - "$1" "$2" "$3" <<'PY'
+from pathlib import Path
+import re, sys
+path, expected_title, expected_state = sys.argv[1:]
+text=Path(path).read_text(errors='replace')
+blocks=re.split(r'\n(?=    [^\s])', text)
+blocks=[b for b in blocks if re.search(r'\n\s+package=com\.mochyy\.mochymusic\s*\n', b)]
+if len(blocks) != 1: raise SystemExit(f'Expected exactly one app MediaSession, found {len(blocks)} in {path}')
+block=blocks[0]
+if expected_title not in block: raise SystemExit(f'{path}: expected title {expected_title!r}')
+name, number={'playing': ('PLAYING', '3'), 'paused': ('PAUSED', '2')}[expected_state]
+if not re.search(r'state=PlaybackState\s*\{state=(?:' + name + r'\(' + number + r'\)|' + number + r')(?=[,\s])', block):
+    raise SystemExit(f'{path}: expected {name} state')
+print(f'{path}: {expected_title} is {name}')
+PY
+}
+
 echo '=== Open the real library and play the synthetic two-track queue ==='
 tap content-desc 'Your Library'
 scroll_to text 'Songs'
@@ -141,8 +164,7 @@ scroll_to text 'MotionAuditA'
 tap text 'MotionAuditA'
 sleep 5
 adb shell dumpsys media_session > language-playback-first.txt
-grep -F 'MotionAuditA' language-playback-first.txt
-grep -E 'state=PlaybackState \{state=3|state=3,' language-playback-first.txt
+check_session language-playback-first.txt MotionAuditA playing
 # Tap the mini player's title (bottom-most matching label), then exercise a real queue skip.
 tap text 'MotionAuditA' bottom
 sleep 3
@@ -150,22 +172,28 @@ adb exec-out screencap -p > language-playback-player-open.png
 adb shell media dispatch next
 sleep 2
 adb shell dumpsys media_session > language-playback-next.txt
-grep -F 'MotionAuditB' language-playback-next.txt
+check_session language-playback-next.txt MotionAuditB playing
 # System reduced motion: the hand-stepped carousel still completes a previous-track change.
 adb shell settings put global animator_duration_scale 0
 adb shell media dispatch previous
-sleep 2
+sleep 1
 adb shell dumpsys media_session > language-playback-previous.txt
-grep -F 'MotionAuditA' language-playback-previous.txt
+# A late previous command can restart the current track instead of changing it.
+if ! grep -Fq 'MotionAuditA' language-playback-previous.txt; then
+  adb shell media dispatch previous
+  sleep 1
+  adb shell dumpsys media_session > language-playback-previous.txt
+fi
+check_session language-playback-previous.txt MotionAuditA playing
 adb exec-out screencap -p > language-playback-reduced.png
 adb shell media dispatch pause
 sleep 2
 adb shell dumpsys media_session > language-playback-paused.txt
-grep -E 'state=PlaybackState \{state=2|state=2,' language-playback-paused.txt
+check_session language-playback-paused.txt MotionAuditA paused
 adb shell media dispatch play
 sleep 2
 adb shell dumpsys media_session > language-playback-resumed.txt
-grep -E 'state=PlaybackState \{state=3|state=3,' language-playback-resumed.txt
+check_session language-playback-resumed.txt MotionAuditA playing
 adb logcat -d -v threadtime > language-playback-logcat.txt
 python3 - <<'PY'
 from pathlib import Path
