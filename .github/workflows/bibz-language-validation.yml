@@ -89,12 +89,7 @@ jobs:
           arch: ${{ matrix.emulator_arch }}
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: |
-            if [ "$SCENARIO" = playback ]; then
-              bash .github/scripts/signed-playback-smoke.sh
-            else
-              bash .github/scripts/dual-abi-smoke.sh
-            fi
+          script: bash -c 'if [ "$SCENARIO" = playback ]; then bash .github/scripts/signed-playback-smoke.sh; else bash .github/scripts/dual-abi-smoke.sh; fi'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
