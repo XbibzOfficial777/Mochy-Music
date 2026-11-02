@@ -10,6 +10,11 @@ on:
         type: choice
         options: [all, arm64, armv7, universal]
         default: all
+      scenario:
+        description: 'Language upgrade or offline playback'
+        type: choice
+        options: [language, playback]
+        default: language
 permissions:
   contents: read
   actions: read
@@ -77,17 +82,23 @@ jobs:
           RUNTIME_ABI: ${{ matrix.runtime }}
           OLD_ABI: ${{ matrix.oldabi }}
           EMULATOR_API: ${{ matrix.api }}
+          SCENARIO: ${{ inputs.scenario }}
         with:
           api-level: ${{ matrix.api }}
           target: google_apis
           arch: ${{ matrix.emulator_arch }}
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: bash .github/scripts/dual-abi-smoke.sh
+          script: |
+            if [ "$SCENARIO" = playback ]; then
+              bash .github/scripts/signed-playback-smoke.sh
+            else
+              bash .github/scripts/dual-abi-smoke.sh
+            fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: signed-motion-evidence-${{ matrix.abi }}-api-${{ matrix.api }}-${{ matrix.emulator_arch }}
+          name: signed-motion-${{ inputs.scenario }}-evidence-${{ matrix.abi }}-api-${{ matrix.api }}-${{ matrix.emulator_arch }}
           path: |
             language-*.txt
             language-*.xml
