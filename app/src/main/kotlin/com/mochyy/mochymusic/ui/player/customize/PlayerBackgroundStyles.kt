@@ -23,6 +23,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -80,7 +81,9 @@ fun PlayerBackgroundPreview(
             style = style,
             thumbnailUrl = thumbnailUrl,
             pureBlack = false,
-            modifier = modifier,
+            // Blobs can orbit past the canvas edge; a small selector/studio preview must not
+            // paint over its neighbours. The full player already clips its outer sheet.
+            modifier = modifier.clipToBounds(),
             animate = animate,
         )
         return

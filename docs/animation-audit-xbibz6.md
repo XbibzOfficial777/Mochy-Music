@@ -9,7 +9,8 @@ animation in the application has been rewritten or that a particular device can 
   audited programmatic sheet movements and hand-stepped carousel while keeping gestures usable.
 - Apple Music preview backgrounds respect their `animate` flag. Live poster backgrounds stop when
   the player is hidden or fully covered; the flagship also stops its colour drift when the colour
-  backdrop is effectively invisible. Static/disabled previews do not create an infinite clock.
+  backdrop is effectively invisible. Static/disabled previews do not create an infinite clock,
+  and preview drawing is clipped to its own bounds.
 - The six Apple blobs use cached, origin-centred radial brushes translated at draw time, rather
   than constructing shaders for each drift frame. Palette animation state is read during drawing,
   not each-frame composition. Orbits use complete revolutions over a 72-second cycle, so the loop

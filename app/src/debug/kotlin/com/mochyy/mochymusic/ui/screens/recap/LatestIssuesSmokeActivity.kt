@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
@@ -270,9 +271,9 @@ private fun BackdropMotionFixture() {
         // Render the old centre-in-shader method and the cached translated shader at the same
         // phase/size/colours. Pixel comparison checks the optimisation does not change the art.
         Row {
-            Box(Modifier.size(145.dp).semantics { contentDescription = "Cached shader specimen" }
+            Box(Modifier.size(145.dp).clipToBounds().semantics { contentDescription = "Cached shader specimen" }
                 .background(Color(0xFF9C3341)).drawColorBlobs(colors) { 2.1f })
-            Box(Modifier.size(145.dp).semantics { contentDescription = "Original shader specimen" }
+            Box(Modifier.size(145.dp).clipToBounds().semantics { contentDescription = "Original shader specimen" }
                 .background(Color(0xFF9C3341)).originalColorBlobs(colors.map { it.value }, 2.1f))
         }
     }
