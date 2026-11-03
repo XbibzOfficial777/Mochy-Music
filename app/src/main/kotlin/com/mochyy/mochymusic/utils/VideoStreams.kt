@@ -17,9 +17,23 @@ data class VideoStreams(
     // every size can be fetched in small pieces, so the player can switch between them as the connection changes
     val chunked: Boolean get() = tracks.isNotEmpty() && tracks.all { it.chunked }
 
-    // the largest track whose short side fits in shortSide, or the smallest when none does
-    fun trackFor(shortSide: Int): VideoTrack? =
-        tracks.lastOrNull { it.shortSide <= shortSide } ?: tracks.firstOrNull()
+    /**
+     * Pick one decoder family for DASH. Prefer the highest supported size under the user's
+     * ceiling, then H.264 for a tie. A 4K VP9/AV1 family can therefore beat 1080p H.264,
+     * while a 720p choice keeps the efficient H.264 track when it is available.
+     */
+    fun tracksFor(shortSide: Int): List<VideoTrack> = tracks
+        .filter { it.shortSide in 1..shortSide }
+        .groupBy { videoFamily(it.codecs, it.mimeType) }
+        .values
+        .sortedWith(compareByDescending<List<VideoTrack>> { family -> family.maxOf { it.shortSide } }
+            .thenBy { family -> videoFamilyRank(family.first().codecs) })
+        .firstOrNull()
+        ?.sortedBy { it.shortSide }
+        .orEmpty()
+
+    // The chosen size is a ceiling, never an instruction to download a bigger track.
+    fun trackFor(shortSide: Int): VideoTrack? = tracksFor(shortSide).lastOrNull()
 }
 
 data class VideoTrack(
@@ -54,19 +68,45 @@ internal fun PlayerResponse.StreamingData.Format.ByteRange.toLongRange(): LongRa
     return if (last >= first) first..last else null
 }
 
-// h264 has a hardware decoder on every phone, so it wins; vp9 and av1 only stand in for a video that has no h264
-private val CodecFamilies = listOf("avc1", "vp9", "vp09", "av01")
-
-// the picture-only formats of one codec, one per size, smallest first; 30fps beats 60 at the same size, it's half the decoding behind lyrics
-internal fun pickVideoFamily(formats: List<PlayerResponse.StreamingData.Format>): List<PlayerResponse.StreamingData.Format> {
-    val pictures = formats.filter { !it.isAudio && (it.width ?: 0) > 0 && (it.height ?: 0) > 0 && it.bitrate > 0 }
-    for (family in CodecFamilies) {
-        val inFamily = pictures.filter { it.codecs().startsWith(family) }
-        if (inFamily.isEmpty()) continue
-        return inFamily
-            .groupBy { minOf(it.width!!, it.height!!) }
-            .map { (_, sameSize) -> sameSize.minWith(compareBy({ it.fps ?: 30 }, { it.bitrate })) }
-            .sortedBy { minOf(it.width!!, it.height!!) }
+// Families must remain separate in the DASH manifest. Profiles of a family can coexist;
+// MIME is also part of the key so WebM and MP4 are never put in the same adaptation set.
+internal fun videoFamily(codecs: String, container: String): String {
+    val codec = codecs.lowercase()
+    val name = when {
+        codec.startsWith("avc1") || codec.startsWith("avc3") -> "avc"
+        codec.startsWith("vp9") || codec.startsWith("vp09") -> "vp9"
+        codec.startsWith("av01") -> "av1"
+        codec.startsWith("hvc1") || codec.startsWith("hev1") -> "hevc"
+        codec.startsWith("vp8") || codec.startsWith("vp08") -> "vp8"
+        else -> codec.substringBefore('.').ifBlank { "unknown" }
     }
-    return emptyList()
+    return "$name:${container.lowercase()}"
 }
+
+internal fun videoFamilyRank(codecs: String): Int = when (videoFamily(codecs, "").substringBefore(':')) {
+    "avc" -> 0
+    "vp9" -> 1
+    "av1" -> 2
+    "hevc" -> 3
+    "vp8" -> 4
+    else -> 5
+}
+
+/**
+ * Keep alternate codecs and sizes, not just the first H.264 family. Multiple formats at one
+ * size remain candidates so the resolver can try another if a signed URL cannot be obtained.
+ * The decoder predicate is injected for deterministic tests and is checked on the real device.
+ */
+internal fun videoFormatCandidateGroups(
+    formats: List<PlayerResponse.StreamingData.Format>,
+    supported: (PlayerResponse.StreamingData.Format) -> Boolean = { true },
+): List<List<PlayerResponse.StreamingData.Format>> = formats.asSequence()
+    .filter { !it.isAudio && (it.width ?: 0) > 0 && (it.height ?: 0) > 0 && it.bitrate > 0 }
+    .filter { !it.url.isNullOrBlank() || !it.signatureCipher.isNullOrBlank() || !it.cipher.isNullOrBlank() }
+    .filter(supported)
+    .distinctBy { it.itag }
+    .groupBy { videoFamily(it.codecs(), it.containerType()) to minOf(it.width!!, it.height!!) }
+    .values
+    .map { sameSize -> sameSize.sortedWith(compareBy<PlayerResponse.StreamingData.Format> { it.fps ?: 30 }.thenByDescending { it.bitrate }) }
+    .sortedWith(compareBy<List<PlayerResponse.StreamingData.Format>> { minOf(it.first().width!!, it.first().height!!) }
+        .thenBy { videoFamilyRank(it.first().codecs()) })

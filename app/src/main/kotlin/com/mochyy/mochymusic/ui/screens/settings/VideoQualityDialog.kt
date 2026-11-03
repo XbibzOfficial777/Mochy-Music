@@ -46,7 +46,7 @@ internal fun VideoQualityDialog(
         buttons = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
         horizontalAlignment = Alignment.Start,
     ) {
-        val maxHeight = (LocalConfiguration.current.screenHeightDp.dp - 200.dp).coerceIn(100.dp, 360.dp)
+        val maxHeight = (LocalConfiguration.current.screenHeightDp.dp - 240.dp).coerceIn(80.dp, 360.dp)
         Column(modifier = Modifier.fillMaxWidth().heightIn(max = maxHeight).verticalScroll(rememberScrollState()).selectableGroup()) {
             for (quality in VideoQuality.entries) {
                 Row(

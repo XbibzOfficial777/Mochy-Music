@@ -41,3 +41,7 @@ internal fun videoSampleMime(mimeType: String): String? {
 /** After a decoder/network failure, don't retry the same resolution indefinitely. */
 internal fun nextLowerVideoLimit(failedHeight: Int, currentLimit: Int): Int? =
     VideoQuality.entries.map { it.shortSide }.filter { it > 0 && it < minOf(failedHeight, currentLimit) }.maxOrNull()
+
+/** Stay below both the failed stream and the current cap, using sizes actually offered. */
+internal fun nextAvailableVideoLimit(failedSide: Int, currentLimit: Int, available: Iterable<Int>): Int? =
+    available.filter { it > 0 && it < minOf(failedSide, currentLimit) }.maxOrNull()

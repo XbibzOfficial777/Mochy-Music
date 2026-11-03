@@ -36,6 +36,7 @@ import com.mochyy.mochymusic.utils.PlaybackLogLevel
 import com.mochyy.mochymusic.utils.PlaybackLogManager
 import com.music.innertube.models.IpVersion
 import io.ktor.client.plugins.ResponseException
+import kotlinx.coroutines.ensureActive
 import okhttp3.Dns
 import okhttp3.OkHttpClient
 import timber.log.Timber
@@ -681,8 +682,9 @@ object YTPlayerUtils {
         WEB,
     )
 
-    // every size of the video's picture from the first client whose links really serve the whole file
-    suspend fun resolveVideoStreams(videoId: String): Result<VideoStreams> = runCatching {
+    // Keep all supported codec families; try another client if it offers a closer size below
+    // the user's ceiling. Links still have to serve the whole file, as in upstream.
+    suspend fun resolveVideoStreams(videoId: String, preferredShortSide: Int = 1080): Result<VideoStreams> = runCatching {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             // without a visitorData the first client says UNPLAYABLE and the ones after it stop the video a few seconds in
             if (YouTube.cookie == null && YouTube.visitorData.isNullOrEmpty()) {
@@ -690,22 +692,29 @@ object YTPlayerUtils {
                     .onFailure { Timber.tag(logTag).w(it, "resolveVideoStreams: no visitorData: ${it.message}") }
             }
             val signatureTimestamp: SignatureTimestampResult by lazy { getSignatureTimestampOrNull(videoId) }
-
+            val decoder = AndroidVideoDecoderProbe()
+            var best: VideoStreams? = null
+            var bestSide = -1
             for (client in VIDEO_BACKGROUND_CLIENTS) {
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
                 val streams = try {
-                    videoStreamsFrom(client, videoId) { signatureTimestamp.timestamp }
+                    videoStreamsFrom(client, videoId, decoder, preferredShortSide) { signatureTimestamp.timestamp }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     Timber.tag(logTag).d("resolveVideoStreams: client ${client.clientName} threw: ${e.message}")
                     null
+                } ?: continue
+                val side = streams.tracks.asSequence().map { it.shortSide }
+                    .filter { it <= preferredShortSide }.maxOrNull() ?: 0
+                if (side > bestSide) {
+                    best = streams
+                    bestSide = side
                 }
-                if (streams != null) {
-                    Timber.tag(logTag).d("resolveVideoStreams: ${streams.tracks.size} sizes via ${client.clientName}")
-                    return@withContext streams
-                }
+                Timber.tag(logTag).d("resolveVideoStreams: ${streams.tracks.size} tracks via ${client.clientName}, best ${side}p")
+                if (side >= preferredShortSide) break
             }
-            throw Exception("Could not resolve a playable video stream for videoId=$videoId after trying ${VIDEO_BACKGROUND_CLIENTS.size} clients")
+            best ?: throw Exception("Could not resolve a playable video stream for videoId=$videoId after trying ${VIDEO_BACKGROUND_CLIENTS.size} clients")
         }
     }
 
@@ -713,6 +722,8 @@ object YTPlayerUtils {
     private suspend fun videoStreamsFrom(
         client: YouTubeClient,
         videoId: String,
+        decoder: AndroidVideoDecoderProbe,
+        preferredShortSide: Int,
         signatureTimestamp: () -> Int?,
     ): VideoStreams? {
         val timestamp = if (client.useSignatureTimestamp) signatureTimestamp() else null
@@ -722,26 +733,50 @@ object YTPlayerUtils {
             return null
         }
         val streaming = response.streamingData ?: return null
-        val tracks = pickVideoFamily(streaming.adaptiveFormats).mapNotNull { format ->
-            var url = runCatching { findUrlOrNull(format, videoId, response, skipNewPipe = false) }.getOrNull()
-                ?: return@mapNotNull null
-            if (client.useWebPoTokens) {
-                url = runCatching { EjsNTransformSolver.transformNParamInUrl(url) }.getOrDefault(url)
-            }
-            VideoTrack(
-                itag = format.itag,
-                url = url,
-                mimeType = format.containerType(),
-                codecs = format.codecs(),
-                width = format.width ?: 0,
-                height = format.height ?: 0,
-                fps = format.fps ?: 30,
-                bitrate = format.bitrate,
-                initRange = format.initRange?.toLongRange(),
-                indexRange = format.indexRange?.toLongRange(),
-                contentLength = format.contentLength,
-            )
+        val tracks = mutableListOf<VideoTrack>()
+        // A later quality choice performs a new, ceiling-keyed lookup. Avoid resolving larger
+        // formats now, which would waste decoder queries and signed-URL work on ordinary 720p.
+        val underCap = streaming.adaptiveFormats.filter { format ->
+            minOf(format.width ?: 0, format.height ?: 0) <= preferredShortSide
         }
+        for (group in videoFormatCandidateGroups(underCap, decoder::supports)) {
+            // One usable stream per codec and size; if its URL cannot be resolved, try the
+            // other variants instead of dropping that size or the whole client.
+            for (format in group) {
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                var url = try {
+                    findUrlOrNull(format, videoId, response, skipNewPipe = false)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                } ?: continue
+                if (client.useWebPoTokens) {
+                    url = try {
+                        EjsNTransformSolver.transformNParamInUrl(url)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        url
+                    }
+                }
+                tracks += VideoTrack(
+                    itag = format.itag,
+                    url = url,
+                    mimeType = format.containerType(),
+                    codecs = format.codecs(),
+                    width = format.width ?: 0,
+                    height = format.height ?: 0,
+                    fps = format.fps ?: 30,
+                    bitrate = format.bitrate,
+                    initRange = format.initRange?.toLongRange(),
+                    indexRange = format.indexRange?.toLongRange(),
+                    contentLength = format.contentLength,
+                )
+                break
+            }
+        }
+        tracks.sortBy { it.shortSide }
         if (tracks.isEmpty()) {
             Timber.tag(logTag).d("resolveVideoStreams: client ${client.clientName} had no video format")
             return null

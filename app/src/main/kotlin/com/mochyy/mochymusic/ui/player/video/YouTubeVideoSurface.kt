@@ -85,6 +85,7 @@ fun DriveYouTubeVideo(
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val (quality) = rememberEnumPreference(VideoQualityKey, VideoQuality.Q720)
+    val preferredShortSide by rememberUpdatedState(if (quality == VideoQuality.AUTO) autoCap else quality.shortSide)
     // nothing to show with the app in the background, so the picture stops there too
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val running by rememberUpdatedState(isPlaying && lifecycle.isAtLeast(Lifecycle.State.STARTED))
@@ -105,7 +106,7 @@ fun DriveYouTubeVideo(
     LaunchedEffect(session) {
         snapshotFlow { session.failures }.filter { it in 1..MaxRefreshes }.collectLatest { count ->
             delay(1_000L * count * count)
-            YTPlayerUtils.resolveVideoStreams(session.videoId).getOrNull()?.let { streams = it }
+            YTPlayerUtils.resolveVideoStreams(session.videoId, preferredShortSide).getOrNull()?.let { streams = it }
         }
     }
 

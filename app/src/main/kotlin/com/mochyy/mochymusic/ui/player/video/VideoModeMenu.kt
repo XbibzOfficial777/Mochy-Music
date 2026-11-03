@@ -41,6 +41,7 @@ import com.mochyy.mochymusic.constants.VideoQuality
 import com.mochyy.mochymusic.constants.VideoModeWholeVideoKey
 import com.mochyy.mochymusic.constants.VideoQualityKey
 import com.mochyy.mochymusic.ui.component.AppSwitch
+import com.mochyy.mochymusic.ui.screens.settings.videoQualityName
 import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.ui.component.SheetActionCard
 import com.mochyy.mochymusic.ui.component.SheetActionCardRow
@@ -255,7 +256,7 @@ private fun TrailingValue(text: String) {
 // what the quality reads as: "Auto · 720p" while auto is playing a size, otherwise the size itself
 @Composable
 internal fun qualityLabel(quality: VideoQuality, session: YouTubeVideoSession?): String {
-    if (quality != VideoQuality.AUTO) return stringResource(R.string.video_quality_size, quality.shortSide)
+    if (quality != VideoQuality.AUTO) return videoQualityName(quality)
     val playing = session?.playingShortSide ?: 0
     return if (playing > 0) {
         stringResource(R.string.video_quality_auto_now, stringResource(R.string.video_quality_size, playing))
@@ -264,16 +265,13 @@ internal fun qualityLabel(quality: VideoQuality, session: YouTubeVideoSession?):
     }
 }
 
-// auto, then every size this video really comes in (all of them until it has loaded)
+// Auto plus every selectable ceiling; another client may provide a size the current one lacks.
 @Composable
 internal fun VideoQualitySheet(session: YouTubeVideoSession?, onDismiss: () -> Unit) {
     val (quality, setQuality) = rememberEnumPreference(VideoQualityKey, VideoQuality.Q720)
     val sizes = session?.sizes.orEmpty()
-    val options = remember(sizes) {
-        listOf(VideoQuality.AUTO) + VideoQuality.entries.filter {
-            it != VideoQuality.AUTO && (sizes.isEmpty() || it.shortSide in sizes)
-        }
-    }
+    // A higher quality may be available from another client even if the current one lacks it.
+    val options = VideoQuality.entries
     MenuSheetSurface(onDismiss = onDismiss, wrapHeight = true) { _ ->
         val close = LocalMenuSheetClose.current
         Column(
@@ -296,7 +294,7 @@ internal fun VideoQualitySheet(session: YouTubeVideoSession?, onDismiss: () -> U
                     title = if (option == VideoQuality.AUTO) {
                         qualityLabel(VideoQuality.AUTO, session)
                     } else {
-                        stringResource(R.string.video_quality_size, option.shortSide)
+                        videoQualityName(option)
                     },
                     description = when {
                         option == VideoQuality.AUTO -> stringResource(R.string.video_quality_auto_desc)

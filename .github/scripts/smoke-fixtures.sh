@@ -4,7 +4,14 @@ set -euo pipefail
 package="$(cat smoke-package.txt)"
 activity="$package/com.mochyy.mochymusic.ui.screens.recap.IssueSmokeActivity"
 export APP_PACKAGE="$package"
-trap 'adb logcat -d -v threadtime > smoke-fixtures-logcat.txt || true; adb exec-out screencap -p > smoke-fixtures-screen.png || true' EXIT
+cleanup() {
+  adb logcat -d -v threadtime > smoke-fixtures-logcat.txt || true
+  adb exec-out screencap -p > smoke-fixtures-screen.png || true
+  # Never leak a small-screen override into the other smoke fixtures, even on failure.
+  adb shell wm size reset >/dev/null 2>&1 || true
+  adb shell wm density reset >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
 
 start_fixture() {
   adb shell am start -W -n "$activity" --es screen "$1" | tee "smoke-$1-start.txt"
@@ -53,6 +60,36 @@ start_fixture quality
 tap_node text '2160p (4K)'
 dump_ui
 find_node text 'Selected: 2160p (4K)' >/dev/null
+
+# The full list must also be scrollable on a compact 320 x 480 dp screen. The first and last
+# quality choices both need to remain reachable, including with the new 4K entries.
+adb shell am force-stop "$package"
+adb shell wm size 640x960
+adb shell wm density 320
+start_fixture quality
+dump_ui
+read -r sx sy ey < <(python3 - <<'PY_SCROLL'
+import re, xml.etree.ElementTree as ET
+for node in ET.parse('smoke-ui.xml').iter('node'):
+    if node.get('scrollable') == 'true':
+        b = [int(x) for x in re.findall(r'\d+', node.get('bounds', ''))]
+        if len(b) == 4 and b[3] - b[1] > 80:
+            print((b[0] + b[2]) // 2, b[3] - 15, b[1] + 15)
+            break
+else:
+    raise SystemExit('Video quality dialog does not expose a scrollable list')
+PY_SCROLL
+)
+adb shell input swipe "$sx" "$sy" "$sx" "$ey" 400
+sleep 1
+adb shell input swipe "$sx" "$sy" "$sx" "$ey" 400
+sleep 1
+tap_node text '144p'
+dump_ui
+find_node text 'Selected: 144p' >/dev/null
+adb shell wm size reset
+adb shell wm density reset
+sleep 2
 
 # The disabled upstream AI card now has an editable, session-only configuration. No network call.
 start_fixture ai

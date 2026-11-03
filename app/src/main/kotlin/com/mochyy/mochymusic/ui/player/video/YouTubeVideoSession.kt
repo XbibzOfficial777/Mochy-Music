@@ -27,9 +27,12 @@ import androidx.media3.exoplayer.dash.DashMediaSource
 import androidx.media3.exoplayer.dash.manifest.DashManifestParser
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.VideoQuality
+import com.mochyy.mochymusic.ui.component.TopToaster
 import com.mochyy.mochymusic.utils.VideoStreams
 import com.mochyy.mochymusic.utils.followAppProxy
+import com.mochyy.mochymusic.utils.nextAvailableVideoLimit
 import okhttp3.OkHttpClient
 import kotlin.math.abs
 
@@ -45,6 +48,9 @@ private const val MaxNudge = 0.12f
 
 // a seek that hasn't finished loading by now is forgotten, so the next tick may try again
 private const val SeekGiveUpMs = 9_000L
+
+// If a decoder or a network stream hangs without an error, keep audio playing and try lower.
+private const val VideoBufferTimeoutMs = 25_000L
 
 // how far ahead of the song a seek may aim to make up for the time the picture takes to load
 private const val MaxLeadMs = 3_000L
@@ -115,8 +121,11 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
     private val surfaces = HashMap<SurfaceTexture, Surface>()
     private var owner: SurfaceTexture? = null
     private var streams: VideoStreams? = null
-    private var quality = VideoQuality.AUTO
+    private var quality = VideoQuality.Q720
     private var autoCap = 1080
+    // A fallback only affects this session, not the user's saved quality.
+    private var fallbackCap: Int? = null
+    private var bufferingSince = 0L
     // the size a whole-file video was loaded at; 0 when the player picks sizes itself
     private var wholeFileSide = 0
     private var seekStartedAt = 0L
@@ -152,7 +161,8 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            main.post { failures += 1 }
+            val p = player
+            if (p == null) main.post { failures += 1 } else tryLowerOrRefresh(p)
         }
     }
 
@@ -162,14 +172,12 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
         sizes = streams.tracks.map { it.shortSide }.distinct().sortedDescending()
         handler.post {
             if (released) return@post
+            if (this.quality != quality || this.autoCap != autoCap) fallbackCap = null
             this.streams = streams
             this.quality = quality
             this.autoCap = autoCap
             val p = player ?: buildPlayer().also { player = it }
-            applyQuality(p)
-            seekStartedAt = SystemClock.elapsedRealtime()
-            p.setMediaSource(mediaSourceFor(streams), startMs.coerceAtLeast(0L))
-            p.prepare()
+            prepareAt(p, streams, startMs)
         }
     }
 
@@ -177,15 +185,13 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
         if (released || (this.quality == quality && this.autoCap == autoCap)) return@post
         this.quality = quality
         this.autoCap = autoCap
+        fallbackCap = null
+        main.post { failures = 0 }
         val p = player ?: return@post
-        applyQuality(p)
         val s = streams ?: return@post
-        // a whole-file video can't change size by itself: load the other size right where the picture is
-        if (wholeFileSide != 0 && s.trackFor(capShortSide())?.shortSide != wholeFileSide) {
-            seekStartedAt = SystemClock.elapsedRealtime()
-            p.setMediaSource(mediaSourceFor(s), p.currentPosition)
-            p.prepare()
-        }
+        // The requested ceiling can choose a different codec family (for example VP9 for 4K).
+        // Rebuild a single-family, under-cap source and resume at the current position.
+        prepareAt(p, s, p.currentPosition)
     }
 
     // where the song says the picture should be (null: wherever it is), read on the main thread just now
@@ -250,7 +256,57 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
                 addListener(listener)
             }
 
-    private fun capShortSide() = if (quality == VideoQuality.AUTO) autoCap else quality.shortSide
+    private fun capShortSide(): Int {
+        val requested = if (quality == VideoQuality.AUTO) autoCap else quality.shortSide
+        return minOf(requested, fallbackCap ?: requested)
+    }
+
+    private fun prepareAt(p: ExoPlayer, allStreams: VideoStreams, positionMs: Long) {
+        bufferingSince = 0L
+        val family = allStreams.tracksFor(capShortSide())
+        if (family.isEmpty()) {
+            // Do not silently exceed the user's ceiling. Audio is a separate player and continues.
+            p.stop()
+            wholeFileSide = 0
+            main.post {
+                hasFrame = false
+                playingShortSide = 0
+                isStalled = false
+                TopToaster.show(appContext.getString(R.string.bibz_video_unavailable))
+            }
+            return
+        }
+        val selected = allStreams.copy(tracks = family)
+        applyQuality(p)
+        seekStartedAt = SystemClock.elapsedRealtime()
+        p.setMediaSource(mediaSourceFor(selected), positionMs.coerceAtLeast(0L))
+        p.prepare()
+    }
+
+    // Decoder errors and a bounded stall both walk actual lower sizes without touching the
+    // preference. Once exhausted, upstream's bounded link-refresh path gets a chance to recover.
+    private fun tryLowerOrRefresh(p: ExoPlayer) {
+        if (released) return
+        bufferingSince = 0L
+        val s = streams ?: return
+        val format = p.videoFormat
+        val reported = format?.let { minOf(it.width, it.height) }?.takeIf { it > 0 }
+        val failed = reported ?: wholeFileSide.takeIf { it > 0 } ?: capShortSide()
+        val lower = nextAvailableVideoLimit(failed, capShortSide(), s.tracks.map { it.shortSide })
+        main.post { hasFrame = false; playingShortSide = 0 }
+        if (lower != null) {
+            fallbackCap = lower
+            main.post { TopToaster.show(appContext.getString(R.string.bibz_video_try_lower, lower)) }
+            prepareAt(p, s, p.currentPosition)
+        } else {
+            p.stop()
+            main.post {
+                isStalled = false
+                failures += 1
+                TopToaster.show(appContext.getString(R.string.bibz_video_unavailable))
+            }
+        }
+    }
 
     private fun applyQuality(p: ExoPlayer) {
         val s = streams ?: return
@@ -274,7 +330,7 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
             return DashMediaSource.Factory(dataSource).createMediaSource(manifest, item)
         }
         // youtube only serves this one whole: one size, picked by the quality setting
-        val track = s.trackFor(capShortSide()) ?: s.tracks.first()
+        val track = requireNotNull(s.trackFor(capShortSide()))
         wholeFileSide = track.shortSide
         return ProgressiveMediaSource.Factory(dataSource).createMediaSource(MediaItem.fromUri(track.url))
     }
@@ -282,12 +338,21 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
     private fun syncNow(targetMs: Long?, songSpeed: Float, playing: Boolean, sampledAt: Long) {
         val p = player ?: return
         if (p.playWhenReady != playing) p.playWhenReady = playing
+        val now = SystemClock.elapsedRealtime()
+        if (playing && p.playbackState == Player.STATE_BUFFERING) {
+            if (bufferingSince == 0L) bufferingSince = now
+            else if (now - bufferingSince >= VideoBufferTimeoutMs) {
+                tryLowerOrRefresh(p)
+                return
+            }
+        } else {
+            bufferingSince = 0L
+        }
         val duration = p.duration
         if (targetMs == null || duration <= 0L) {
             setSpeed(p, songSpeed)
             return
         }
-        val now = SystemClock.elapsedRealtime()
         val expected = targetMs + if (playing) ((now - sampledAt) * songSpeed).toLong() else 0L
         // the song's own intro or outro, past either end of the video: it just keeps playing
         if (expected !in 0..duration) {

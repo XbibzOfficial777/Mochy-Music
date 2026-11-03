@@ -18,4 +18,6 @@
     <string name="bibz_video_quality_detail">Resolusi yang lebih tinggi menggunakan lebih banyak data dan bergantung pada video serta dekoder perangkat.</string>
     <string name="bibz_video_quality_dialog">Resolusi maksimum video pemutar. Ketersediaan dan dukungan perangkat berbeda-beda; kualitas lebih tinggi menggunakan lebih banyak data. Audio tetap diputar jika video tidak tersedia.</string>
     <string name="bibz_quality_4k">2160p (4K)</string>
+    <string name="bibz_video_try_lower">Video tersendat · mencoba hingga %1$dp</string>
+    <string name="bibz_video_unavailable">Video tidak tersedia · audio tetap diputar</string>
 </resources>

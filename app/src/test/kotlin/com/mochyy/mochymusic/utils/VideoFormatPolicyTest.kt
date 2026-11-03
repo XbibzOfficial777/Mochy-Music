@@ -52,6 +52,12 @@ class VideoFormatPolicyTest {
         assertNull(videoSampleMime("video/mp4; codecs=\"futureCodec\""))
     }
 
+    @Test fun failedVideoUsesOnlyActuallyAvailableLowerSizes() {
+        assertEquals(1080, nextAvailableVideoLimit(2160, 2160, listOf(360, 720, 1080, 2160)))
+        assertEquals(360, nextAvailableVideoLimit(720, 2160, listOf(144, 360, 720, 2160)))
+        assertNull(nextAvailableVideoLimit(144, 144, listOf(144, 720)))
+    }
+
     @Test fun failedVideoFallsBackWithoutRetryLoop() {
         assertEquals(1440, nextLowerVideoLimit(2160, 2160))
         assertEquals(480, nextLowerVideoLimit(720, 2160))

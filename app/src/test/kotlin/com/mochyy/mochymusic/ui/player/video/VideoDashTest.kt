@@ -3,7 +3,7 @@ package com.mochyy.mochymusic.ui.player.video
 import com.mochyy.mochymusic.ui.player.videoCropTransform
 import com.mochyy.mochymusic.utils.VideoStreams
 import com.mochyy.mochymusic.utils.VideoTrack
-import com.mochyy.mochymusic.utils.pickVideoFamily
+import com.mochyy.mochymusic.utils.videoFormatCandidateGroups
 import com.music.innertube.models.response.PlayerResponse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -55,7 +55,7 @@ class VideoDashTest {
         VideoStreams("abc", tracks.toList(), emptyMap(), Long.MAX_VALUE, durationMs)
 
     @Test
-    fun `h264 wins over vp9 and audio, one per size, the steadier frame rate first`() {
+    fun `keep supported codec candidates and exclude audio, with steadier frame rate first`() {
         val formats = listOf(
             format(251, "audio/webm; codecs=\"opus\"", null, null),
             format(248, "video/webm; codecs=\"vp9\"", 1920, 1080),
@@ -63,8 +63,8 @@ class VideoDashTest {
             format(299, "video/mp4; codecs=\"avc1.64002a\"", 1920, 1080, fps = 60),
             format(136, "video/mp4; codecs=\"avc1.4d401f\"", 1280, 720),
         )
-        val picked = pickVideoFamily(formats)
-        assertEquals(listOf(136, 137), picked.map { it.itag })
+        val groups = videoFormatCandidateGroups(formats)
+        assertEquals(listOf(listOf(136), listOf(137, 299), listOf(248)), groups.map { group -> group.map { it.itag } })
     }
 
     @Test
@@ -73,7 +73,7 @@ class VideoDashTest {
             format(247, "video/webm; codecs=\"vp9\"", 1280, 720),
             format(244, "video/webm; codecs=\"vp9\"", 854, 480),
         )
-        assertEquals(listOf(244, 247), pickVideoFamily(formats).map { it.itag })
+        assertEquals(listOf(244, 247), videoFormatCandidateGroups(formats).map { it.first().itag })
     }
 
     @Test
@@ -93,11 +93,37 @@ class VideoDashTest {
     }
 
     @Test
-    fun `a picked size falls to the nearest one under it, or the smallest`() {
+    fun `a picked size falls to the nearest one under it and never exceeds the cap`() {
         val s = streams(track(134, 360), track(136, 720), track(137, 1080))
         assertEquals(720, s.trackFor(800)?.shortSide)
-        assertEquals(360, s.trackFor(144)?.shortSide)
+        assertNull(s.trackFor(144))
         assertEquals(1080, s.trackFor(1080)?.shortSide)
+    }
+
+    @Test
+    fun `4k selects supported vp9 while lower ties prefer h264`() {
+        val h264_720 = track(136, 720)
+        val h264_1080 = track(137, 1080)
+        val vp9_720 = track(247, 720).copy(mimeType = "video/webm", codecs = "vp09.00.31")
+        val vp9_4k = track(313, 2160).copy(mimeType = "video/webm", codecs = "vp09.00.51")
+        val s = streams(h264_720, vp9_720, h264_1080, vp9_4k)
+        assertEquals(136, s.trackFor(720)?.itag)
+        assertEquals(137, s.trackFor(1080)?.itag)
+        assertEquals(313, s.trackFor(2160)?.itag)
+        assertEquals(listOf(247, 313), s.tracksFor(2160).map { it.itag })
+        assertNull(s.trackFor(144))
+        assertTrue(VideoDash.manifest(s.copy(tracks = s.tracksFor(2160)))!!.contains("id=\"313\""))
+    }
+
+    @Test
+    fun `unsupported codec is filtered and another URL at that size can be tried`() {
+        val formats = listOf(
+            format(136, "video/mp4; codecs=\"avc1.4d401f\"", 1280, 720, bitrate = 500),
+            format(298, "video/mp4; codecs=\"avc1.4d401f\"", 1280, 720, bitrate = 1000),
+            format(313, "video/webm; codecs=\"vp9\"", 3840, 2160),
+        )
+        val groups = videoFormatCandidateGroups(formats) { !it.mimeType.contains("vp9") }
+        assertEquals(listOf(listOf(298, 136)), groups.map { group -> group.map { it.itag } })
     }
 
     @Test
