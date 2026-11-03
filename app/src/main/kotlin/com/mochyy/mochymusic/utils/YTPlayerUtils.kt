@@ -47,7 +47,6 @@ import java.net.ProxySelector
 import java.net.SocketAddress
 import java.net.URI
 import java.io.IOException
-import kotlinx.coroutines.ensureActive
 
 object YTPlayerUtils {
     private const val logTag = "YTPlayerUtils"
@@ -162,6 +161,8 @@ object YTPlayerUtils {
         val streamExpiresInSeconds: Int,
         val streamClient: String = "unknown",
         val streamHeaders: Map<String, String> = emptyMap(),
+        // youtube refused the song, so this is its music video's sound
+        val fromMusicVideo: Boolean = false,
     )
 
     /**
@@ -200,6 +201,7 @@ object YTPlayerUtils {
         connectivityManager: ConnectivityManager,
     ): Result<PlaybackData> {
         val firstAttempt = resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager)
+            .orStandIn(videoId, audioQuality, connectivityManager)
 
         // a rate limit is the whole network, not the session: rotating asks YouTube again and
         // retrying walks every client again, which only keeps the limit in place
@@ -211,12 +213,41 @@ object YTPlayerUtils {
             BotDetectionMitigator.rotateGuestSession()
             val retryResult = resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager)
             retryResult.onSuccess { BotDetectionMitigator.notifyPlaybackSuccess() }
-            return retryResult
+            return retryResult.unwrapRefusal()
         }
 
         firstAttempt.onSuccess { BotDetectionMitigator.notifyPlaybackSuccess() }
-        return firstAttempt
+        return firstAttempt.unwrapRefusal()
     }
+
+    // youtube turns a few uploads away from every client we have ("please sign in"), but the artist's other upload of the song usually plays
+    private suspend fun Result<PlaybackData>.orStandIn(
+        videoId: String,
+        audioQuality: AudioQuality,
+        connectivityManager: ConnectivityManager,
+    ): Result<PlaybackData> {
+        val details = (exceptionOrNull() as? UploadRefusedException)?.videoDetails ?: return this
+        val title = details.title ?: return this
+        val artist = details.author ?: return this
+        val length = details.lengthSeconds.toIntOrNull() ?: return this
+
+        for (standIn in SongVersions.otherUploads(videoId, title, artist, length).take(MAX_STAND_INS)) {
+            val attempt = resolvePlaybackData(standIn.id, null, audioQuality, connectivityManager)
+            if (attempt.exceptionOrNull() is YouTubeRateLimitedException) return attempt
+            val data = attempt.getOrNull() ?: continue
+            Timber.tag(logTag).i("YouTube refused $videoId, playing its other upload ${standIn.id}")
+            PlaybackLogManager.log(PlaybackLogLevel.INFO, "Playing another upload", "$videoId -> ${standIn.id}")
+            // the song keeps its own details, and the play isn't reported as the stand-in's
+            return Result.success(
+                data.copy(videoDetails = details, playbackTracking = null, fromMusicVideo = standIn.isVideoSong),
+            )
+        }
+        return this
+    }
+
+    // the refusal only carried the song's details to the stand-in lookup, callers get the error it wraps
+    private fun Result<PlaybackData>.unwrapRefusal(): Result<PlaybackData> =
+        (exceptionOrNull() as? UploadRefusedException)?.let { Result.failure(it.failure) } ?: this
 
     private suspend fun resolvePlaybackData(
         videoId: String,
@@ -251,6 +282,8 @@ object YTPlayerUtils {
 
         // why each client couldn't play, in the order tried: what the error says when none can
         val failures = mutableListOf<String>()
+        // false to the end means youtube refused the upload itself, not just how we asked for it
+        var anyClientServed = false
 
         var poToken: PoTokenResult? = null
         val sessionId = if (isLoggedIn) YouTube.dataSyncId else YouTube.visitorData
@@ -412,6 +445,7 @@ object YTPlayerUtils {
             }
 
             if (streamPlayerResponse?.playabilityStatus?.status == "OK") {
+                anyClientServed = true
                 Timber.tag(logTag).d("Player response status OK for client: ${if (clientIndex == -1) MAIN_CLIENT.clientName else STREAM_FALLBACK_CLIENTS[clientIndex].clientName}")
                 PlaybackLogManager.log(PlaybackLogLevel.INFO, "Player response OK", if (clientIndex == -1) MAIN_CLIENT.clientName else STREAM_FALLBACK_CLIENTS[clientIndex].clientName)
 
@@ -573,10 +607,16 @@ object YTPlayerUtils {
             }
             val summary = failureSummary(failures)
             val last = streamPlayerResponse
-            if (last != null && last.playabilityStatus.status != "OK") {
-                throw PlaybackException(summary, null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
+            val failure = if (last != null && last.playabilityStatus.status != "OK") {
+                PlaybackException(summary, null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
+            } else {
+                Exception(summary)
             }
-            throw Exception(summary)
+            // a user's own upload is never swapped for someone else's copy
+            if (!anyClientServed && !isUploadedTrack && !isPrivateTrack) {
+                throw UploadRefusedException(failure, mainPlayerResponse.videoDetails)
+            }
+            throw failure
         }
 
         if (streamPlayerResponse == null) {
@@ -641,72 +681,88 @@ object YTPlayerUtils {
         WEB,
     )
 
-    /** A playable URL and the client headers YouTube expects with that URL. */
-    data class ResolvedVideoStream(
-        val url: String,
-        val height: Int,
-        val headers: Map<String, String>,
-        val expiresInSeconds: Int,
-    )
+    // every size of the video's picture from the first client whose links really serve the whole file
+    suspend fun resolveVideoStreams(videoId: String): Result<VideoStreams> = runCatching {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            // without a visitorData the first client says UNPLAYABLE and the ones after it stop the video a few seconds in
+            if (YouTube.cookie == null && YouTube.visitorData.isNullOrEmpty()) {
+                YouTube.refreshVisitorData()
+                    .onFailure { Timber.tag(logTag).w(it, "resolveVideoStreams: no visitorData: ${it.message}") }
+            }
+            val signatureTimestamp: SignatureTimestampResult by lazy { getSignatureTimestampOrNull(videoId) }
 
-    /**
-     * Find the best supported stream under the user's ceiling. A client's nearest URL can be
-     * ciphered or unavailable, so try the other formats rather than discarding that client.
-     * Continue to other clients when the first one only offers a lower resolution.
-     */
-    suspend fun resolveVideoStream(videoId: String, maxHeight: Int): Result<ResolvedVideoStream> = runCatching {
-        val signatureTimestamp = getSignatureTimestampOrNull(videoId)
-        val decoder = AndroidVideoDecoderProbe()
-        var best: ResolvedVideoStream? = null
-        var bestBitrate = -1
-
-        for (client in VIDEO_BACKGROUND_CLIENTS) {
-            kotlinx.coroutines.currentCoroutineContext().ensureActive()
-            val response = try {
-                YouTube.player(videoId, null, client, signatureTimestamp.timestamp, null).getOrNull()
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Timber.tag(logTag).d("resolveVideoStream: client ${client.clientName} failed: ${e.message}")
-                null
-            } ?: continue
-
-            if (response.playabilityStatus.status != "OK") continue
-            val streaming = response.streamingData ?: continue
-            val formats = (streaming.adaptiveFormats + streaming.formats.orEmpty()).distinctBy { it.itag }
-            val candidates = rankVideoFormats(
-                formats = formats,
-                maxHeight = maxHeight,
-                width = { it.width },
-                height = { it.height },
-                bitrate = { it.bitrate },
-                hasUrl = { !it.url.isNullOrBlank() || !it.signatureCipher.isNullOrBlank() || !it.cipher.isNullOrBlank() },
-                supported = decoder::supports,
-            )
-            for (format in candidates) {
-                kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                val shortEdge = minOf(format.width!!, format.height!!)
-                if (shortEdge < (best?.height ?: 0)) break
-                val url = try {
-                    findUrlOrNull(format, videoId, response, skipNewPipe = false)
+            for (client in VIDEO_BACKGROUND_CLIENTS) {
+                val streams = try {
+                    videoStreamsFrom(client, videoId) { signatureTimestamp.timestamp }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    Timber.tag(logTag).d("resolveVideoStream: ${client.clientName} format ${format.itag} failed: ${e.message}")
+                    Timber.tag(logTag).d("resolveVideoStreams: client ${client.clientName} threw: ${e.message}")
                     null
-                } ?: continue
-
-                if (shortEdge > (best?.height ?: 0) || (shortEdge == best?.height && format.bitrate > bestBitrate)) {
-                    best = ResolvedVideoStream(url, shortEdge, client.streamHeaders(), streaming.expiresInSeconds)
-                    bestBitrate = format.bitrate
                 }
-                // The best resolvable format for this client is enough; other clients may offer more.
-                break
+                if (streams != null) {
+                    Timber.tag(logTag).d("resolveVideoStreams: ${streams.tracks.size} sizes via ${client.clientName}")
+                    return@withContext streams
+                }
             }
-            if (best?.height == maxHeight) break
+            throw Exception("Could not resolve a playable video stream for videoId=$videoId after trying ${VIDEO_BACKGROUND_CLIENTS.size} clients")
         }
+    }
 
-        best ?: throw Exception("No supported video stream at or below ${maxHeight}p for videoId=$videoId")
+    // one client's sizes, or null when it can't play the video or its links stop early
+    private suspend fun videoStreamsFrom(
+        client: YouTubeClient,
+        videoId: String,
+        signatureTimestamp: () -> Int?,
+    ): VideoStreams? {
+        val timestamp = if (client.useSignatureTimestamp) signatureTimestamp() else null
+        val response = YouTube.player(videoId, null, client, timestamp, null).getOrNull() ?: return null
+        if (response.playabilityStatus.status != "OK") {
+            Timber.tag(logTag).d("resolveVideoStreams: client ${client.clientName} not OK: ${response.playabilityStatus.status}")
+            return null
+        }
+        val streaming = response.streamingData ?: return null
+        val tracks = pickVideoFamily(streaming.adaptiveFormats).mapNotNull { format ->
+            var url = runCatching { findUrlOrNull(format, videoId, response, skipNewPipe = false) }.getOrNull()
+                ?: return@mapNotNull null
+            if (client.useWebPoTokens) {
+                url = runCatching { EjsNTransformSolver.transformNParamInUrl(url) }.getOrDefault(url)
+            }
+            VideoTrack(
+                itag = format.itag,
+                url = url,
+                mimeType = format.containerType(),
+                codecs = format.codecs(),
+                width = format.width ?: 0,
+                height = format.height ?: 0,
+                fps = format.fps ?: 30,
+                bitrate = format.bitrate,
+                initRange = format.initRange?.toLongRange(),
+                indexRange = format.indexRange?.toLongRange(),
+                contentLength = format.contentLength,
+            )
+        }
+        if (tracks.isEmpty()) {
+            Timber.tag(logTag).d("resolveVideoStreams: client ${client.clientName} had no video format")
+            return null
+        }
+        val headers = client.streamHeaders()
+        // checked at the end of the file: a link that only serves its first ~786 KB froze the picture three seconds in
+        val probe = tracks.minBy { kotlin.math.abs(it.shortSide - 720) }
+        if (!validateStatus(probe.url, headers, probe.contentLength)) {
+            Timber.tag(logTag).d("resolveVideoStreams: client ${client.clientName} cuts the video off")
+            return null
+        }
+        val durationMs = streaming.adaptiveFormats.firstNotNullOfOrNull { it.approxDurationMs?.toLongOrNull() }
+            ?: response.videoDetails?.lengthSeconds?.toLongOrNull()?.times(1000L)
+            ?: 0L
+        return VideoStreams(
+            videoId = videoId,
+            tracks = tracks,
+            headers = headers,
+            expiresAtMs = System.currentTimeMillis() + streaming.expiresInSeconds * 1000L,
+            durationMs = durationMs,
+        )
     }
 
     suspend fun playerResponseForMetadata(
@@ -972,6 +1028,15 @@ object YTPlayerUtils {
 
     /** Past the ~786 KB an untokened url serves; probed when the song's length isn't known. */
     private const val UNTOKENED_WINDOW_PROBE_BYTE = 1_048_576L
+
+    // each stand-in costs another walk through every client, so only the closest few are tried
+    private const val MAX_STAND_INS = 2
+
+    // no client got as far as a stream, so another upload of the song is worth a try before failing
+    private class UploadRefusedException(
+        val failure: Exception,
+        val videoDetails: PlayerResponse.VideoDetails?,
+    ) : Exception(failure.message, failure)
 
     /** One line for the notification: the first client's reason, which is the main client's. */
     private fun failureSummary(failures: List<String>): String {

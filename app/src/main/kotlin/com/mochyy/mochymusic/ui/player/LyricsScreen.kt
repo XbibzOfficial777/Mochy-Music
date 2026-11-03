@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -68,14 +67,15 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import com.mochyy.mochymusic.ui.player.share.LyricsShareHost
 import com.mochyy.mochymusic.ui.player.share.LyricsShareSession
+import com.mochyy.mochymusic.ui.player.share.song.LyricsSongShare
 import com.mochyy.mochymusic.ui.player.share.ShareFlightSource
 import com.mochyy.mochymusic.ui.player.share.fullBoundsInWindow
 import com.mochyy.mochymusic.ui.player.share.ShareSong
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -116,7 +116,6 @@ import com.mochyy.mochymusic.constants.LyricsRomanizePunjabiKey
 import com.mochyy.mochymusic.constants.LyricsRomanizeRussianKey
 import com.mochyy.mochymusic.constants.LyricsRomanizeSerbianKey
 import com.mochyy.mochymusic.constants.LyricsRomanizeUkrainianKey
-import com.mochyy.mochymusic.constants.LyricsWaveAnimationKey
 import com.mochyy.mochymusic.constants.TranslateLanguageKey
 import com.mochyy.mochymusic.constants.TranslateLyricsKey
 import com.mochyy.mochymusic.constants.TranslateSourceLanguageKey
@@ -134,6 +133,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.mochyy.mochymusic.ui.utils.stableStatusBarsPadding
 
 private const val ActiveLineViewportFraction = 0.055f
 
@@ -180,7 +180,7 @@ internal val LyricsRecenterEasing = CubicBezierEasing(0.5f, 0.45f, 0f, 1f)
 internal val LyricsSmoothRecenterEasing = CubicBezierEasing(0.42f, 0f, 0.16f, 1f)
 
 internal fun recenterEasingFor(style: com.mochyy.mochymusic.constants.LyricsMotionStyle) =
-    if (style == com.mochyy.mochymusic.constants.LyricsMotionStyle.MOTION) LyricsSmoothRecenterEasing else LyricsRecenterEasing
+    if (style.risesWords) LyricsSmoothRecenterEasing else LyricsRecenterEasing
 
 private const val ScrollDirectionThresholdPx = 6L
 
@@ -195,6 +195,9 @@ private const val TopFadeFraction = 0.10f
  */
 private val LineAnchorX = LyricsHeaderArtX
 private val LineAnchorY = 16.dp + 20.dp
+
+// the card isn't showing a gap; the intro's gap is -1, so this can't be a row's index
+private const val NoCardGap = Int.MIN_VALUE
 
 private fun androidx.compose.ui.unit.Dp.toPx(density: androidx.compose.ui.unit.Density) =
     with(density) { this@toPx.toPx() }
@@ -307,23 +310,7 @@ fun LyricsScreen(
     }
 
     val anchorIndex by remember(lines, unsynced) {
-        derivedStateOf {
-            if (unsynced) return@derivedStateOf -1
-            var i = LyricsUtils.findCurrentLineIndex(lines, progress.position + lyricsOffsetMs)
-            // findCurrentLineIndex returns lines.size once playback is past the final line. Don't
-            // walk back from there looking for an anchor — there is no active line to anchor.
-            if (i <= 0 || i >= lines.size) return@derivedStateOf i
-            while (i > 0) {
-                val previous = i - 1
-                val endMs = lines[previous].words
-                    ?.lastOrNull()
-                    ?.let { (it.endTime * 1000).toLong() }
-                    ?: return@derivedStateOf i
-                if (endMs <= progress.position + lyricsOffsetMs) return@derivedStateOf i
-                i = previous
-            }
-            i
-        }
+        derivedStateOf { if (unsynced) -1 else lyricAnchorIndex(lines, progress.position + lyricsOffsetMs) }
     }
 
     // Every instrumental gap in the song, as its own list row. Building these up front — rather
@@ -343,7 +330,7 @@ fun LyricsScreen(
         com.mochyy.mochymusic.constants.LyricsMotionStyleKey,
         defaultValue = com.mochyy.mochymusic.constants.LyricsMotionStyle.MOTION,
     )
-    val cascade = motionStyle == com.mochyy.mochymusic.constants.LyricsMotionStyle.MOTION
+    val cascade = motionStyle.risesWords
 
     // Opens already on the playing line. Starting at the top and scrolling down to it fought the
     // open transition - the line the card grows into would still be moving.
@@ -354,14 +341,17 @@ fun LyricsScreen(
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialRow)
     var followPlayback by remember { mutableStateOf(true) }
 
-    // The line the card is showing: the page's copy of it is what the card's line grows into.
-    val cardLine by remember(lines) { derivedStateOf { cardLyricLineIndex(lines, progress.position + lyricsOffsetMs) } }
+    // What the card is showing: the page's copy of it (a line, or the dots of a gap) is what the card grows into.
+    val cardSlot by remember(lines) { derivedStateOf { tickerSlot(lines, progress.position + lyricsOffsetMs) } }
+    val cardLine by remember { derivedStateOf { if (cardSlot.kind == TickerSlot.LINE) cardSlot.index else -1 } }
+    val cardGap by remember { derivedStateOf { if (cardSlot.kind == TickerSlot.GAP) cardSlot.index else NoCardGap } }
     // its row, read only inside layers so the card moving on doesn't recompose every row
     val cardLineRow by remember(rowOfLine) { derivedStateOf { rowOfLine.getOrNull(cardLine) ?: -1 } }
     if (morph != null) {
         LaunchedEffect(morph, lines) {
-            snapshotFlow { cardLine }.collect {
-                if (it < 0) morph.pageLyricAnchor = androidx.compose.ui.geometry.Offset.Unspecified
+            // a line or a gap row claims the anchor itself as it's placed; clearing it then raced that claim and lost the flight
+            snapshotFlow { cardSlot.kind == TickerSlot.LINE || cardSlot.kind == TickerSlot.GAP }.collect { claimed ->
+                if (!claimed) morph.pageLyricAnchor = androidx.compose.ui.geometry.Offset.Unspecified
             }
         }
     }
@@ -491,15 +481,7 @@ fun LyricsScreen(
 
     /** Which gap, if any, is happening right now. [NoInterlude] when a line is being sung. */
     val activeInterlude by remember(lines, rows) {
-        derivedStateOf {
-            val position = progress.position + lyricsOffsetMs
-            // Ends with the same lead-in the next line starts with, so the dots collapse on the
-            // very frame that line takes over and the recenter scroll can account for it.
-            rows.firstOrNull {
-                it is LyricRow.Interlude && position >= it.startMs &&
-                    position + LyricsUtils.LineLeadInMs < it.endMs
-            }?.let { (it as LyricRow.Interlude).afterIndex } ?: NoInterlude
-        }
+        derivedStateOf { activeInterludeOf(rows, progress.position + lyricsOffsetMs) }
     }
 
     // Only honour {agent:v1}/{agent:v2} when the song actually has more than one voice. A solo
@@ -510,18 +492,13 @@ fun LyricsScreen(
     // singer implicit — saw a single distinct agent and fell back to all-left, which is exactly
     // the case where left/right matters most. Background vocals are excluded because they are
     // centred regardless and would otherwise fake a second voice on a solo track.
-    val useAgentAlignment = remember(lines) {
-        lines.filter { !it.isBackground }
-            .map { it.agent ?: "v1" }
-            .distinct()
-            .size > 1
-    }
+    val useAgentAlignment = remember(lines) { usesAgentAlignment(lines) }
+    val mirrored = rememberLyricsMirrored(lines)
 
-    val (lyricsWaveAnimation) = rememberPreference(LyricsWaveAnimationKey, defaultValue = true)
-    // the lines' blur by their distance from the sung one is an element blur: off with blur turned
-    // off (Settings > Appearance > Disable blur), and with animations turned off (#10)
-    val (disableBlur) = rememberPreference(com.mochyy.mochymusic.constants.DisableBlurKey, defaultValue = false)
-    val lineBlurAllowed = !disableBlur && com.mochyy.mochymusic.ui.utils.AppMotion.enabled
+    // the boring and plain styles are styles 1 and 2 with the shader left out
+    val lyricsWaveAnimation = motionStyle.shaded
+    // the lines' blur by their distance from the sung one is an element blur, the glass blur switch doesn't touch it
+    val (lineBlurAllowed) = rememberPreference(com.mochyy.mochymusic.constants.ElementBlurKey, defaultValue = true)
     val (lyricsHighBloom) = rememberPreference(LyricsHighBloomKey, defaultValue = true)
 
     // Drives the per-line loading dots and lifts the readings out of the way. The button that
@@ -549,6 +526,7 @@ fun LyricsScreen(
         shareSession = LyricsShareSession(
             song = ShareSong(meta.title, meta.artists.joinToString { it.name }, meta.thumbnailUrl),
             lines = shareable.map { it.second },
+            entries = shareable.map { lines[it.first] },
             held = held,
             flightSource = bounds()?.let {
                 ShareFlightSource(
@@ -571,7 +549,7 @@ fun LyricsScreen(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
+                .stableStatusBarsPadding()
                 .padding(horizontal = LyricsHeaderArtX)
                 // Matches where the morph layer actually draws the cover, so the hitbox sits on
                 // the artwork and the menu centres against it.
@@ -653,25 +631,62 @@ fun LyricsScreen(
                         contentType = { _, row -> if (row is LyricRow.Interlude) "interlude" else "lyric" },
                     ) { listIndex, row ->
                         when (row) {
-                            is LyricRow.Interlude -> LyricsInterludeDots(
-                                modifier = Modifier.graphicsLayer {
-                                    translationY = stagger.lagOf(listIndex)
-                                    applyPageRowEnter(enterProgressProvider(), listIndex - cardLineRow.coerceAtLeast(0))
-                                },
-                                startMs = row.startMs,
-                                endMs = row.endMs,
-                                // A provider, not the position itself: passing the value would
-                                // recompose this row on every playback tick.
-                                positionProvider = positionProvider,
-                                accentColor = accent,
-                                visible = activeInterlude == row.afterIndex,
-                                collapseEasing = recenterEasingFor(motionStyle),
-                                // The gap belongs to whoever sings next, so it waits on that
-                                // singer's side rather than always sitting down the middle.
-                                alignment = lines.getOrNull(row.afterIndex + 1)
-                                    ?.let { alignmentFor(it, useAgentAlignment) }
-                                    ?: LyricsAlignment.CENTER,
-                            )
+                            is LyricRow.Interlude -> {
+                                // the card's dots grow into these when it's showing this gap
+                                val growsFromCard by remember(row, morph) {
+                                    derivedStateOf { morph != null && cardGap == row.afterIndex }
+                                }
+                                val dotsStart = remember { floatArrayOf(Float.NaN, Float.NaN) }
+                                LyricsInterludeDots(
+                                    modifier = Modifier
+                                        .then(
+                                            if (growsFromCard) {
+                                                Modifier.onGloballyPositioned { coords ->
+                                                    if (dotsStart[0].isNaN()) return@onGloballyPositioned
+                                                    // before the row's own layer, so the flight doesn't move the point it flies to
+                                                    val origin = coords.positionInRoot()
+                                                    morph!!.pageLyricAnchor = androidx.compose.ui.geometry.Offset(
+                                                        origin.x + dotsStart[0],
+                                                        origin.y + dotsStart[1],
+                                                    )
+                                                }
+                                            } else {
+                                                Modifier
+                                            }
+                                        )
+                                        .graphicsLayer {
+                                            translationY = stagger.lagOf(listIndex)
+                                            val e = enterProgressProvider()
+                                            // the card draws its dots at half size, the same as its line, so the line's scale fits them
+                                            val flew = growsFromCard && !dotsStart[0].isNaN() && applyCardFlight(
+                                                e = e,
+                                                cardAnchor = morph!!.cardLyricAnchor,
+                                                pageAnchor = morph.pageLyricAnchor,
+                                                localAnchor = androidx.compose.ui.geometry.Offset(dotsStart[0], dotsStart[1]),
+                                                cardToPage = CardToPageLyricScale,
+                                            )
+                                            if (!flew) applyPageRowEnter(e, listIndex - cardLineRow.coerceAtLeast(0))
+                                        },
+                                    onDotsStart = if (growsFromCard) {
+                                        { at -> dotsStart[0] = at.x; dotsStart[1] = at.y }
+                                    } else {
+                                        null
+                                    },
+                                    startMs = row.startMs,
+                                    endMs = row.endMs,
+                                    // A provider, not the position itself: passing the value would
+                                    // recompose this row on every playback tick.
+                                    positionProvider = positionProvider,
+                                    accentColor = accent,
+                                    visible = activeInterlude == row.afterIndex,
+                                    collapseEasing = recenterEasingFor(motionStyle),
+                                    // The gap belongs to whoever sings next, so it waits on that
+                                    // singer's side rather than always sitting down the middle.
+                                    alignment = lines.getOrNull(row.afterIndex + 1)
+                                        ?.let { alignmentFor(it, useAgentAlignment, mirrored) }
+                                        ?: LyricsAlignment.CENTER,
+                                )
+                            }
 
                             is LyricRow.Line -> {
                                 val index = row.index
@@ -690,14 +705,18 @@ fun LyricsScreen(
                                 val ruby by entry.rubyFlow.collectAsState()
                                 val translated by entry.translatedTextFlow.collectAsState()
                                 val rowIndex = rowOfLine[index]
-                                val lineAlignment = alignmentFor(entry, useAgentAlignment)
-                                // Only a start-aligned line has its text where the card's starts.
-                                val growsFromCard by remember(index, lines, lineAlignment, morph) {
-                                    derivedStateOf {
-                                        morph != null && index == cardLine && lineAlignment == LyricsAlignment.START
-                                    }
+                                val lineAlignment = alignmentFor(entry, useAgentAlignment, mirrored)
+                                // any alignment grows from the card: a centred or right-aligned line measures where its words start
+                                val growsFromCard by remember(index, lines, morph) {
+                                    derivedStateOf { morph != null && index == cardLine }
                                 }
+                                val textStart = remember { floatArrayOf(Float.NaN) }
                                 LyricsGlowLine(
+                                    onTextStart = if (growsFromCard) {
+                                        { x -> textStart[0] = x }
+                                    } else {
+                                        null
+                                    },
                                     modifier = Modifier
                                         .then(
                                             if (growsFromCard) {
@@ -705,8 +724,9 @@ fun LyricsScreen(
                                                     // Before this row's own layer, so the flight
                                                     // below doesn't move the point it flies to.
                                                     val origin = coords.positionInRoot()
+                                                    val startX = textStart[0].takeUnless { it.isNaN() } ?: LineAnchorX.toPx(density)
                                                     morph!!.pageLyricAnchor = androidx.compose.ui.geometry.Offset(
-                                                        origin.x + LineAnchorX.toPx(density),
+                                                        origin.x + startX,
                                                         origin.y + LineAnchorY.toPx(density),
                                                     )
                                                 }
@@ -725,7 +745,7 @@ fun LyricsScreen(
                                                 },
                                                 pageAnchor = morph.pageLyricAnchor,
                                                 localAnchor = androidx.compose.ui.geometry.Offset(
-                                                    LineAnchorX.toPx(),
+                                                    textStart[0].takeUnless { it.isNaN() } ?: LineAnchorX.toPx(),
                                                     LineAnchorY.toPx(),
                                                 ),
                                                 cardToPage = CardToPageLyricScale,
@@ -803,16 +823,51 @@ fun LyricsScreen(
 
     }
 
-    shareSession?.let { LyricsShareHost(it, onDismiss = { shareSession = null }) }
+    // holding a line opens the song share on its line picker, the same share the menus open
+    shareSession?.let { pick ->
+        mediaMetadata?.let { song -> LyricsSongShare(song, pick, lines, onDismiss = { shareSession = null }) }
+    }
 }
 
 /** Sentinel for "no instrumental gap is playing right now". */
-private const val NoInterlude = Int.MIN_VALUE
+internal const val NoInterlude = Int.MIN_VALUE
+
+// the line the list rests on: the sung one, or an earlier one whose words are still running into it
+internal fun lyricAnchorIndex(lines: List<LyricsEntry>, positionMs: Long): Int {
+    var i = LyricsUtils.findCurrentLineIndex(lines, positionMs)
+    // findCurrentLineIndex returns lines.size once playback is past the final line. Don't
+    // walk back from there looking for an anchor — there is no active line to anchor.
+    if (i <= 0 || i >= lines.size) return i
+    while (i > 0) {
+        val previous = i - 1
+        val endMs = lines[previous].words
+            ?.lastOrNull()
+            ?.let { (it.endTime * 1000).toLong() }
+            ?: return i
+        if (endMs <= positionMs) return i
+        i = previous
+    }
+    return i
+}
+
+// the gap playing right now, or NoInterlude; it ends with the same lead-in the next line starts with, so the dots collapse on the very frame that line takes over
+internal fun activeInterludeOf(rows: List<LyricRow>, positionMs: Long): Int =
+    rows.firstOrNull {
+        it is LyricRow.Interlude && positionMs >= it.startMs &&
+            positionMs + LyricsUtils.LineLeadInMs < it.endMs
+    }?.let { (it as LyricRow.Interlude).afterIndex } ?: NoInterlude
+
+// left and right only mean something when the song really has more than one voice; untagged lines count as the lead, background ones don't count
+internal fun usesAgentAlignment(lines: List<LyricsEntry>): Boolean =
+    lines.filter { !it.isBackground }
+        .map { it.agent ?: "v1" }
+        .distinct()
+        .size > 1
 
 // how a line looks right now: its state, and how blurred it is by its distance from the sung line
-private data class LineLook(val state: LyricsLineState, val blurStage: Int)
+internal data class LineLook(val state: LyricsLineState, val blurStage: Int)
 
-private fun lineLook(index: Int, current: Int, anchor: Int, unsynced: Boolean, interlude: Boolean): LineLook {
+internal fun lineLook(index: Int, current: Int, anchor: Int, unsynced: Boolean, interlude: Boolean): LineLook {
     // no timing: every line is equally current, so all of them read at full strength
     if (unsynced) return LineLook(LyricsLineState.ACTIVE, 0)
     val distance = when {
@@ -841,7 +896,7 @@ private fun lineLook(index: Int, current: Int, anchor: Int, unsynced: Boolean, i
  * a lyric line grows when the playhead reaches it — see the comment at the [buildLyricRows] call
  * site for why that matters to scrolling.
  */
-private sealed interface LyricRow {
+internal sealed interface LyricRow {
     /** Stable across the life of the song, so LazyColumn never re-creates a row. */
     val key: Long
 
@@ -858,7 +913,7 @@ private sealed interface LyricRow {
     }
 }
 
-private fun buildLyricRows(lines: List<LyricsEntry>): List<LyricRow> {
+internal fun buildLyricRows(lines: List<LyricsEntry>): List<LyricRow> {
     if (lines.isEmpty()) return emptyList()
     val rows = ArrayList<LyricRow>(lines.size + 4)
 
@@ -882,13 +937,46 @@ private fun buildLyricRows(lines: List<LyricsEntry>): List<LyricRow> {
 /**
  * Maps a line's `{agent:…}` tag onto a side of the screen. `v1` leads on the left, `v2` answers on
  * the right, `v1000` is a group/chorus line and sits centred; background vocals centre as well.
+ * [mirrored] swaps the sides, for lyrics written the other way round from the app (see [rememberLyricsMirrored]).
  */
-private fun alignmentFor(entry: LyricsEntry, useAgentAlignment: Boolean): LyricsAlignment = when {
-    !useAgentAlignment -> LyricsAlignment.START
-    entry.isBackground -> LyricsAlignment.CENTER
-    entry.agent == "v2" -> LyricsAlignment.END
-    entry.agent == "v1000" -> LyricsAlignment.CENTER
-    else -> LyricsAlignment.START
+internal fun alignmentFor(entry: LyricsEntry, useAgentAlignment: Boolean, mirrored: Boolean = false): LyricsAlignment {
+    val side = when {
+        !useAgentAlignment -> LyricsAlignment.START
+        entry.isBackground -> LyricsAlignment.CENTER
+        entry.agent == "v2" -> LyricsAlignment.END
+        entry.agent == "v1000" -> LyricsAlignment.CENTER
+        else -> LyricsAlignment.START
+    }
+    if (!mirrored) return side
+    return when (side) {
+        LyricsAlignment.START -> LyricsAlignment.END
+        LyricsAlignment.END -> LyricsAlignment.START
+        LyricsAlignment.CENTER -> LyricsAlignment.CENTER
+    }
+}
+
+// arabic, hebrew, persian... lyrics read from the right edge, like every other player shows them (#141)
+@Composable
+internal fun rememberLyricsMirrored(lines: List<LyricsEntry>): Boolean {
+    val appRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val lyricsRtl = remember(lines) { lyricsReadRtl(lines) }
+    return lyricsRtl != appRtl
+}
+
+// the whole song goes one way, so a latin line in an arabic song doesn't jump to the other side
+internal fun lyricsReadRtl(lines: List<LyricsEntry>): Boolean {
+    var rtl = 0
+    var ltr = 0
+    for (line in lines) {
+        for (ch in line.text) {
+            when (Character.getDirectionality(ch)) {
+                Character.DIRECTIONALITY_RIGHT_TO_LEFT,
+                Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC -> { rtl++; break }
+                Character.DIRECTIONALITY_LEFT_TO_RIGHT -> { ltr++; break }
+            }
+        }
+    }
+    return rtl > ltr
 }
 
 @Composable

@@ -3,6 +3,7 @@
 package com.mochyy.mochymusic.importer
 
 import android.content.Context
+import com.mochyy.mochymusic.constants.YtExcludeImportsKey
 import com.mochyy.mochymusic.db.MusicDatabase
 import com.mochyy.mochymusic.db.entities.ImportSessionSong
 import com.mochyy.mochymusic.db.entities.ImportedPlaylist
@@ -11,6 +12,8 @@ import com.mochyy.mochymusic.db.entities.PlaylistEntity
 import com.mochyy.mochymusic.db.entities.PlaylistSongMap
 import com.mochyy.mochymusic.extensions.isUserLoggedIn
 import com.mochyy.mochymusic.models.toMediaMetadata
+import com.mochyy.mochymusic.utils.dataStore
+import com.mochyy.mochymusic.utils.get
 import com.music.innertube.YouTube
 import com.music.innertube.models.SongItem
 import kotlinx.coroutines.CancellationException
@@ -51,7 +54,8 @@ internal class ImportSteps(
     suspend fun runImport(parsed: ParsedImport, options: ImportOptions) {
         val matcher = newMatcher()
         val signedIn = context.isUserLoggedIn()
-        val mirror = options.mirrorToYouTube && signedIn
+        val keepOffYouTube = context.dataStore.get(YtExcludeImportsKey, false)
+        val mirror = options.mirrorToYouTube && signedIn && !keepOffYouTube
 
         if (parsed.likedSongs.isNotEmpty()) importLiked(matcher, parsed.likedSongs, mirror)
         if (parsed.librarySongs.isNotEmpty()) importLibrarySongs(matcher, parsed.librarySongs)
@@ -235,7 +239,8 @@ internal class ImportSteps(
             songIds.distinct().forEach { id ->
                 val song = getSongById(id)?.song ?: return@forEach
                 val adding = song.inLibrary == null
-                if (adding) update(song.copy(inLibrary = addedAt[id] ?: now))
+                // imported on purpose, so its album shows in Albums even when a like put it in first
+                if (adding || song.addedByLike) update(song.copy(inLibrary = song.inLibrary ?: addedAt[id] ?: now, addedByLike = false))
                 insert(ImportedSong(songId = id, source = from, importedAt = now))
                 // the first step to touch a song records it; a later one finds it already in
                 if (session != null) insert(ImportSessionSong(session, id, addedToLibrary = adding, liked = false))

@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -70,6 +69,7 @@ import com.mochyy.mochymusic.ui.utils.resize
 import kotlinx.coroutines.delay
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import com.mochyy.mochymusic.ui.utils.stableStatusBarsPadding
 
 private val RowArtSize = 44.dp
 
@@ -129,6 +129,8 @@ fun QueueScreen(
     morph: CardMorphState? = null,
     /** Scrolling down the list hides the player's controls, like the lyrics; scrolling up shows them. */
     onImmersiveChange: (Boolean) -> Unit = {},
+    // off where the queue sits in a pane with no cover above it (the full video mode)
+    showHeader: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -255,11 +257,11 @@ fun QueueScreen(
         // Same box as the lyrics header: the cover is drawn here by the morph layer, so this only
         // holds its hitbox. The like button moved up here from the button column, which carries
         // shuffle and autoplay on this page.
-        Row(
+        if (showHeader) Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
+                .stableStatusBarsPadding()
                 .padding(start = LyricsHeaderArtX, end = PlayerHorizontalPadding)
                 .padding(top = LyricsHeaderArtTopFromStatusBar, bottom = 10.dp),
         ) {

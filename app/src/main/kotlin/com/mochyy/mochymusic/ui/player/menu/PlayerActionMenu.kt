@@ -88,6 +88,10 @@ fun PlayerActionMenu(
     fromLyrics: Boolean = false,
 
     onReveal: ((Float) -> Unit)? = null,
+    // turns the player into the full video mode; no row without it
+    onFullVideo: (() -> Unit)? = null,
+    // opens the equalizer page; no row without it
+    onEqualizer: (() -> Unit)? = null,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val trackInfo by playerConnection.uiState.trackInfo.collectAsState()
@@ -104,6 +108,9 @@ fun PlayerActionMenu(
         if (songId != null) downloadUtil.getDownload(songId) else flowOf(null)
     }.collectAsState(initial = null)
     val librarySong by remember(database, songId) { database.song(songId) }.collectAsState(initial = null)
+    // only a song autoplay picked is ours to stop recommending, a song you chose yourself stays as it is
+    val queue by playerConnection.queueSnapshot.collectAsState()
+    val isAutoplaySong = queue.items.getOrNull(queue.currentIndex)?.isAutoplay == true
 
     var showChoosePlaylistDialog by remember { mutableStateOf(false) }
     var showSleepTimer by remember { mutableStateOf(false) }
@@ -269,6 +276,18 @@ fun PlayerActionMenu(
                     )
                 }
 
+                if (onFullVideo != null) {
+                    Spacer(modifier = Modifier.height(SectionGap))
+                    MenuRow(
+                        icon = R.drawable.fullscreen,
+                        title = androidx.compose.ui.res.stringResource(R.string.video_mode),
+                        onClick = {
+                            onDismiss()
+                            onFullVideo()
+                        },
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(SectionGap))
 
                 DeviceVolumeRow()
@@ -288,6 +307,17 @@ fun PlayerActionMenu(
                     title = "Playback speed and tempo",
                     onClick = { showPlaybackSpeed = true },
                 )
+                if (onEqualizer != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    MenuRow(
+                        icon = R.drawable.equalizer,
+                        title = androidx.compose.ui.res.stringResource(R.string.player_menu_equalizer),
+                        onClick = {
+                            onDismiss()
+                            onEqualizer()
+                        },
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(SectionGap))
 
@@ -305,13 +335,29 @@ fun PlayerActionMenu(
                     onClick = { playerConnection.toggleLibrary() },
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                // Share stays greyed out for now.
+                // opens the song share over everything: a card, its lyrics, a video with the song, or the link
                 MenuRow(
                     icon = R.drawable.share,
-                    title = "share song",
-                    enabled = false,
-                    onClick = {},
+                    title = androidx.compose.ui.res.stringResource(R.string.song_share_menu),
+                    enabled = currentMetadata != null,
+                    onClick = {
+                        currentMetadata?.let { metadata ->
+                            onDismiss()
+                            com.mochyy.mochymusic.ui.player.share.song.SongShare.open(metadata)
+                        }
+                    },
                 )
+                if (isAutoplaySong) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    MenuRow(
+                        icon = R.drawable.thumb_down,
+                        title = androidx.compose.ui.res.stringResource(R.string.not_recommended_menu),
+                        onClick = {
+                            onDismiss()
+                            playerConnection.stopRecommendingCurrent()
+                        },
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(SectionGap))
 
@@ -375,7 +421,7 @@ fun PlayerActionMenu(
 private val SectionGap = 16.dp
 
 @Composable
-private fun MenuRow(
+internal fun MenuRow(
     icon: Int,
     title: String,
     onClick: () -> Unit,

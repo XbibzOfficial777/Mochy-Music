@@ -67,7 +67,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
@@ -110,12 +109,14 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
 import com.mochyy.mochymusic.ui.player.menu.MenuSurface
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import com.mochyy.mochymusic.ui.utils.stableStatusBars
 
 /**
  * Backing state for a popup sheet stack. Three composition-local instances of this exist
@@ -672,7 +673,7 @@ private fun BoxWithConstraintsScope.sheetSizeModifier(isTablet: Boolean): Modifi
     } else {
         // On short screens 86% reaches the status bar once a covered sheet rises to peek above
         // this one; keep the whole stack, peek strip included, below it.
-        val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val statusBar = WindowInsets.stableStatusBars.asPaddingValues().calculateTopPadding()
         val belowStatusBar = maxHeight - statusBar - StatusBarGap - PeekHeight
         Modifier
             .fillMaxWidth()
@@ -681,6 +682,9 @@ private fun BoxWithConstraintsScope.sheetSizeModifier(isTablet: Boolean): Modifi
 
 /** Space kept between the status bar and the highest a sheet's peek strip can reach. */
 private val StatusBarGap = 6.dp
+
+// how tall the handle row is, so a full-bleed sheet can paint its art up behind it
+val PopupSheetHandleHeight = 32.dp
 
 /**
  * Handle + content at the top, the button bar pinned to the bottom. The two only separate when
@@ -716,8 +720,10 @@ private fun SheetBody(
                 )
                 Box(
                     modifier = Modifier
+                        // drawn after the content, so art painted up into this row stays under the handle
+                        .zIndex(1f)
                         .fillMaxWidth()
-                        .height(32.dp)
+                        .height(PopupSheetHandleHeight)
                         .then(dragHandle),
                     contentAlignment = Alignment.Center,
                 ) {

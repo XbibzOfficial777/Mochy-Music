@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -36,6 +35,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -70,9 +71,26 @@ import com.mochyy.mochymusic.ui.screens.audiolab.LabCard
 import com.mochyy.mochymusic.ui.screens.audiolab.LabColors
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.constants.PlayerSwipeDownAnywhereKey
+import com.mochyy.mochymusic.constants.PlayerSwipeUpFollowsKey
 import com.mochyy.mochymusic.ui.screens.audiolab.LabToggleRow
 import com.mochyy.mochymusic.utils.rememberEnumPreference
 import com.mochyy.mochymusic.utils.rememberPreference
+import com.mochyy.mochymusic.ui.utils.stableStatusBars
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.drawscope.Stroke
+import com.mochyy.mochymusic.ui.component.SettingsHighlight
+import com.mochyy.mochymusic.ui.component.SubSettingsSearchBar
+import com.mochyy.mochymusic.ui.screens.settings.BottomBarHighlightKey
+import com.mochyy.mochymusic.ui.screens.settings.TopBarHighlightKey
+import kotlinx.coroutines.delay
 
 private val CardPadding = 20.dp
 
@@ -90,24 +108,45 @@ private val PageTitleStyle = TextStyle(
 @Composable
 fun GestureScreen(navController: NavController) = CustomisationScreen(navController)
 
-// settings > customisation: cover rounding, playlist/player/home style pickers, and song swipe gestures
+// the customize page's parts in order, with what a search or a settings result can find each one by
+private enum class CustomiseSection(@StringRes val titleRes: Int, val keys: List<String>, val words: String) {
+    THEME(R.string.theme, listOf("Theme"), "theme liquid glass frosted pure black chrome tema"),
+    ICONS(R.string.customise_icons, listOf("Icons", "App icon"), "icon icons app launcher home screen mochy outline anime material you white black dark transparent"),
+    ROUNDING(R.string.customise_cover_rounding, listOf("Cover rounding"), "cover rounding corner radius square rounded art"),
+    PLAYLIST(R.string.customise_playlist_styles, listOf("Playlist styles"), "playlist styles flow classic minimal header"),
+    PLAYER(R.string.customise_player_styles, listOf("Player styles"), "player styles flagship turntable ipod poster timeline lyrics editor customize"),
+    COVER_TRANSITION(R.string.bibz_cover_animation, listOf("Cover animation"), "cover animation artwork fade slide transition animasi sampul"),
+    HOME(R.string.customise_home_styles, listOf("Home styles"), "home styles mochyy listen now hop in hero"),
+    BLUR(R.string.appearance_blur, listOf("Blur", "Progressive blur", "Blur quality", "Blur strength"), "blur glass frosted progressive flat quality low high strength px"),
+    ELEMENT_BLUR(R.string.customise_element_blur, listOf("Element blur"), "element blur lyrics lines cover zoom titles menus page swipes"),
+    ANIMATION(R.string.appearance_animation, listOf("Animation", "Animation speed"), "animation speed motion transitions off faster slower"),
+    LYRICS(R.string.appearance_lyrics_animation, listOf("Lyrics animation"), "lyrics animation style 1 2 boring plain shader glow wave"),
+    TOP_BAR(R.string.customise_top_bar, listOf(TopBarHighlightKey), "top bar status bar player clock battery icons hide"),
+    BOTTOM_BAR(R.string.customise_bottom_bar, listOf(BottomBarHighlightKey), "bottom bar navigation bar nav buttons gesture handle back home recents player hide"),
+    GESTURE(R.string.customise_gesture, listOf("Gesture", "Swipe right", "Swipe left", "Swipe down anywhere to close"), "gesture swipe left right slide songs player close down");
+
+    // launcher icons only switch on android 8+, where launchers draw adaptive icons
+    val available: Boolean get() = this != ICONS || android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+
+    // every word typed has to show up in the section's english words, its names, or its title in the app's language
+    fun matches(query: String, shownTitle: String): Boolean {
+        val words = query.trim().lowercase().split(' ').filter { it.isNotBlank() }
+        if (words.isEmpty()) return true
+        val haystack = (this.words + " " + keys.joinToString(" ") + " " + shownTitle).lowercase()
+        return words.all { it in haystack }
+    }
+}
+
+// settings > customisation: cover rounding, style pickers, blur, animation, lyrics, the player's top and bottom bars and song swipe gestures
 @Composable
 fun CustomisationScreen(navController: NavController) {
-    val context = LocalContext.current
-    val playerConnection = LocalPlayerConnection.current
-    val playerSheetState = LocalPlayerBottomSheetState.current
-
-    val (coverRadiusPx, onCoverRadiusChange) = rememberPreference(ThumbnailCornerRadiusKey, defaultValue = 25f)
-    val (playlistStyle, onPlaylistStyleChange) = rememberEnumPreference(PlaylistStyleKey, defaultValue = PlaylistStyle.FLOW)
-    val playerStyle by rememberEnumPreference(PlayerStyleKey, defaultValue = PlayerStyle.DEFAULT)
-    val (homeStyle, onHomeStyleChange) = rememberEnumPreference(HomeStyleKey, defaultValue = HomeStyle.MOCHYY)
-    val (right, setRight) = rememberEnumPreference(SwipeRightActionKey, defaultValue = DefaultSwipeRight)
-    val (left, setLeft) = rememberEnumPreference(SwipeLeftActionKey, defaultValue = DefaultSwipeLeft)
-
-    val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    var query by remember { mutableStateOf("") }
+    val statusTop = WindowInsets.stableStatusBars.asPaddingValues().calculateTopPadding()
     val bottomInset = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding()
+    val titles = CustomiseSection.entries.associateWith { stringResource(it.titleRes) }
+    val shown = CustomiseSection.entries.filter { it.available && it.matches(query, titles.getValue(it)) }
 
-    // a plain black page like the mock: back button, the title, then the cards
+    // a plain black page like the mock: back button, the title, the search, then the cards
     Box(
         contentAlignment = Alignment.TopCenter,
         modifier = Modifier
@@ -124,9 +163,38 @@ fun CustomisationScreen(navController: NavController) {
         ) {
             LabBackButton(onBack = { navController.navigateUp() })
             Spacer(Modifier.height(14.dp))
-            Text(text = "Customize", style = PageTitleStyle, color = Color.White)
+            Text(text = stringResource(R.string.customise_title), style = PageTitleStyle, color = Color.White)
             Spacer(Modifier.height(16.dp))
+            SubSettingsSearchBar(query = query, onQueryChange = { query = it })
+            Spacer(Modifier.height(18.dp))
 
+            if (shown.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.customise_nothing_matches, query),
+                    fontFamily = InterFontFamily,
+                    fontSize = 15.sp,
+                    color = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 12.dp),
+                )
+            }
+            shown.forEachIndexed { index, section ->
+                if (index > 0) SectionRule()
+                Box(Modifier.highlightTarget(section.keys)) {
+                    CustomiseSectionContent(section)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CustomiseSectionContent(section: CustomiseSection) {
+    val pagerBleed = Modifier.bleedHorizontally(CustomisePageMargin)
+    when (section) {
+        CustomiseSection.THEME -> BibzThemeSection()
+        CustomiseSection.ICONS -> IconsSection()
+        CustomiseSection.ROUNDING -> {
+            val (coverRadiusPx, onCoverRadiusChange) = rememberPreference(ThumbnailCornerRadiusKey, defaultValue = 25f)
             CoverRoundingSection(
                 radiusPx = coverRadiusPx,
                 onRadiusChange = { next ->
@@ -134,77 +202,129 @@ fun CustomisationScreen(navController: NavController) {
                     HomeCardCornerRadius = next.dp
                 },
             )
-
-            SectionRule()
-
+        }
+        CustomiseSection.PLAYLIST -> {
+            val (coverRadiusPx) = rememberPreference(ThumbnailCornerRadiusKey, defaultValue = 25f)
+            val (playlistStyle, onPlaylistStyleChange) = rememberEnumPreference(PlaylistStyleKey, defaultValue = PlaylistStyle.FLOW)
             StylePagerSection(
-                category = "Playlist styles",
+                category = stringResource(R.string.customise_playlist_styles),
                 styles = PlaylistStyle.entries,
                 selected = playlistStyle,
                 nameOf = { it.displayName },
                 onSelect = onPlaylistStyleChange,
-                modifier = Modifier.bleedHorizontally(CustomisePageMargin),
+                modifier = pagerBleed,
             ) { PlaylistStylePreview(style = it, coverRadius = coverRadiusPx.dp) }
-
-            SectionRule()
-
-            PlayerStyleCard(
-                selected = playerStyle,
-                onOpenEditor = {
-                    val hasMedia = playerConnection?.player?.currentMediaItem != null
-                    if (hasMedia) {
-                        playerSheetState?.expandSoft()
-                        playerConnection?.requestPlayerStudio()
-                    } else {
-                        Toast.makeText(context, "Play a song first to open player customisation", Toast.LENGTH_SHORT).show()
-                    }
-                },
-            )
-
-            SectionRule()
-
+        }
+        CustomiseSection.PLAYER -> PlayerSection()
+        CustomiseSection.COVER_TRANSITION -> BibzCoverTransitionSection()
+        CustomiseSection.HOME -> {
+            val (coverRadiusPx) = rememberPreference(ThumbnailCornerRadiusKey, defaultValue = 25f)
+            val (homeStyle, onHomeStyleChange) = rememberEnumPreference(HomeStyleKey, defaultValue = HomeStyle.MOCHYY)
             StylePagerSection(
-                category = "Home styles",
+                category = stringResource(R.string.customise_home_styles),
                 styles = HomeStyle.entries,
                 selected = homeStyle,
                 nameOf = { it.displayName },
                 onSelect = onHomeStyleChange,
-                modifier = Modifier.bleedHorizontally(CustomisePageMargin),
+                modifier = pagerBleed,
             ) { HomeStylePreview(style = it, coverRadius = coverRadiusPx.dp) }
-
-            SectionRule()
-
-            Text(
-                text = "Gesture",
-                style = TextStyle(
-                    fontFamily = InterFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 24.sp,
-                    letterSpacing = (-0.05).em,
-                ),
-                color = Color.White,
-            )
-            Spacer(Modifier.height(14.dp))
-
-            SwipeCard(
-                title = "Swipe right",
-                subtitle = "Slide a song in any list to the right",
-                toRight = true,
-                action = right,
-                onPick = setRight,
-            )
-            Spacer(Modifier.height(14.dp))
-            SwipeCard(
-                title = "Swipe left",
-                subtitle = "Slide a song in any list to the left",
-                toRight = false,
-                action = left,
-                onPick = setLeft,
-            )
-            Spacer(Modifier.height(14.dp))
-            PlayerGestureCard()
         }
+        CustomiseSection.BLUR -> BlurSection()
+        CustomiseSection.ELEMENT_BLUR -> ElementBlurSection()
+        CustomiseSection.ANIMATION -> AnimationSection()
+        CustomiseSection.LYRICS -> LyricsStyleSection(modifier = pagerBleed)
+        CustomiseSection.TOP_BAR -> TopBarSection()
+        CustomiseSection.BOTTOM_BAR -> BottomBarSection()
+        CustomiseSection.GESTURE -> GestureSection()
     }
+}
+
+// the player has its own editor, so its card opens that on the player itself
+@Composable
+private fun PlayerSection() {
+    val context = LocalContext.current
+    val playerConnection = LocalPlayerConnection.current
+    val playerSheetState = LocalPlayerBottomSheetState.current
+    val playerStyle by rememberEnumPreference(PlayerStyleKey, defaultValue = PlayerStyle.FLAGSHIP)
+    val playFirst = stringResource(R.string.customise_play_first)
+    PlayerStyleCard(
+        selected = playerStyle,
+        onOpenEditor = {
+            val hasMedia = playerConnection?.player?.currentMediaItem != null
+            if (hasMedia) {
+                playerSheetState?.expandSoft()
+                playerConnection?.requestPlayerStudio()
+            } else {
+                Toast.makeText(context, playFirst, Toast.LENGTH_SHORT).show()
+            }
+        },
+    )
+}
+
+@Composable
+private fun GestureSection() {
+    val (right, setRight) = rememberEnumPreference(SwipeRightActionKey, defaultValue = DefaultSwipeRight)
+    val (left, setLeft) = rememberEnumPreference(SwipeLeftActionKey, defaultValue = DefaultSwipeLeft)
+    Column {
+        Text(
+            text = stringResource(R.string.customise_gesture),
+            style = TextStyle(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 24.sp,
+                letterSpacing = (-0.05).em,
+            ),
+            color = Color.White,
+        )
+        Spacer(Modifier.height(14.dp))
+        SwipeCard(
+            title = stringResource(R.string.customise_swipe_right),
+            subtitle = stringResource(R.string.customise_swipe_right_desc),
+            toRight = true,
+            action = right,
+            onPick = setRight,
+        )
+        Spacer(Modifier.height(14.dp))
+        SwipeCard(
+            title = stringResource(R.string.customise_swipe_left),
+            subtitle = stringResource(R.string.customise_swipe_left_desc),
+            toRight = false,
+            action = left,
+            onPick = setLeft,
+        )
+        Spacer(Modifier.height(14.dp))
+        PlayerGestureCard()
+    }
+}
+
+// a section a search result or a related row points at scrolls into view and its outline flashes once
+@Composable
+private fun Modifier.highlightTarget(keys: List<String>): Modifier {
+    val requester = remember { BringIntoViewRequester() }
+    val flash = remember { Animatable(0f) }
+    LaunchedEffect(SettingsHighlight.pending) {
+        val pending = SettingsHighlight.pending ?: return@LaunchedEffect
+        if (pending !in keys) return@LaunchedEffect
+        SettingsHighlight.pending = null
+        // let the page finish opening first, or it scrolls while still sliding in
+        delay(320)
+        requester.bringIntoView()
+        flash.animateTo(1f, tween(220))
+        flash.animateTo(0f, tween(900))
+    }
+    return this
+        .bringIntoViewRequester(requester)
+        .drawWithContent {
+            drawContent()
+            val a = flash.value
+            if (a > 0f) {
+                drawRoundRect(
+                    color = Color.White.copy(alpha = 0.9f * a),
+                    cornerRadius = CornerRadius(22.dp.toPx()),
+                    style = Stroke(width = 2.dp.toPx()),
+                )
+            }
+        }
 }
 
 @Composable
@@ -336,9 +456,10 @@ private fun ActionOptionBadge(action: SongSwipeAction) {
 @Composable
 private fun PlayerGestureCard() {
     val (anywhere, setAnywhere) = rememberPreference(PlayerSwipeDownAnywhereKey, defaultValue = false)
+    val (follows, setFollows) = rememberPreference(PlayerSwipeUpFollowsKey, defaultValue = true)
     LabCard(padding = CardPadding) {
         Text(
-            "Player",
+            stringResource(R.string.customise_player_gestures),
             fontFamily = InterFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 20.sp,
@@ -346,7 +467,7 @@ private fun PlayerGestureCard() {
             color = LabColors.Primary,
         )
         Text(
-            "How the open player answers your swipes",
+            stringResource(R.string.customise_player_gestures_desc),
             fontFamily = InterFontFamily,
             fontWeight = FontWeight.Medium,
             fontSize = 13.sp,
@@ -355,10 +476,16 @@ private fun PlayerGestureCard() {
         )
         Spacer(Modifier.height(14.dp))
         LabToggleRow(
-            title = "Swipe down anywhere to close",
-            subtitle = "Otherwise only from the top of the player and its cover",
+            title = stringResource(R.string.customise_swipe_down_anywhere),
+            subtitle = stringResource(R.string.customise_swipe_down_anywhere_desc),
             checked = anywhere,
             onCheckedChange = setAnywhere,
+        )
+        LabToggleRow(
+            title = stringResource(R.string.customise_swipe_up_follows),
+            subtitle = stringResource(R.string.customise_swipe_up_follows_desc),
+            checked = follows,
+            onCheckedChange = setFollows,
         )
     }
 }

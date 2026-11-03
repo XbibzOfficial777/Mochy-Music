@@ -59,7 +59,7 @@ import com.mochyy.mochymusic.core.updater.GithubRepoUrl
 import com.mochyy.mochymusic.ui.component.PopupSheetState
 import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
-import com.mochyy.mochymusic.ui.screens.donate.showDonateSheet
+import com.mochyy.mochymusic.ui.screens.donate.showSupportSheet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -229,6 +229,15 @@ private val Licenses = listOf(
     ),
 )
 
+//  this guy promote the app
+private val ExtraContributors = listOf(
+    ContributorEntry(
+        login = "swtstvn",
+        avatarUrl = githubAvatarUrl("swtstvn"),
+        profileUrl = "https://github.com/swtstvn",
+    ),
+)
+
 private val FallbackContributors = listOf(
     ContributorEntry(
         login = "realidkroo",
@@ -240,7 +249,7 @@ private val FallbackContributors = listOf(
         avatarUrl = githubAvatarUrl("realkeichi"),
         profileUrl = "https://github.com/realkeichi",
     ),
-)
+) + ExtraContributors
 
 // kept in memory for the session so reopening the about sheet never hits github twice
 @Volatile
@@ -274,7 +283,10 @@ private suspend fun fetchContributors(): List<ContributorEntry> {
                         val html = obj.optString("html_url").ifBlank { "https://github.com/$login" }
                         add(ContributorEntry(login = login, avatarUrl = avatar, profileUrl = html))
                     }
-                }.ifEmpty { FallbackContributors }.also { cachedContributors = it }
+                }.ifEmpty { FallbackContributors }
+                    .plus(ExtraContributors)
+                    .distinctBy { it.login.lowercase() }
+                    .also { cachedContributors = it }
             } finally {
                 conn.disconnect()
             }
@@ -405,7 +417,7 @@ private fun ColumnScope.AboutSheetContent(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AboutPillRow(
                     text = "Support me please :3 \u2192",
-                    onClick = { popup.showDonateSheet() },
+                    onClick = { popup.showSupportSheet() },
                 )
                 AboutPillRow(
                     text = "Mochy Music github \u2192",

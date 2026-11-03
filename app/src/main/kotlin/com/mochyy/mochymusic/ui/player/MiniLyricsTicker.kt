@@ -64,7 +64,6 @@ import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.constants.LyricsHighBloomKey
 import com.mochyy.mochymusic.constants.LyricsMotionStyle
 import com.mochyy.mochymusic.constants.LyricsMotionStyleKey
-import com.mochyy.mochymusic.constants.LyricsWaveAnimationKey
 import com.mochyy.mochymusic.lyrics.LyricsEntry
 import com.mochyy.mochymusic.lyrics.RubyToken
 import com.mochyy.mochymusic.lyrics.LyricsUtils
@@ -75,6 +74,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.combine
 import kotlin.math.roundToInt
+import com.mochyy.mochymusic.ui.utils.AppMotion
 
 private val TickerFontSize = 17.sp
 private val TickerLineHeight = 22.sp
@@ -154,7 +154,7 @@ private fun risesFromList(lines: List<LyricsEntry>, from: TickerSlot, to: Ticker
 
 /** What the card is showing. Equal slots are the same content, so nothing re-animates. */
 @Immutable
-private data class TickerSlot(val kind: Int, val index: Int) {
+internal data class TickerSlot(val kind: Int, val index: Int) {
     companion object {
         const val EMPTY = 0
         const val LINE = 1
@@ -165,7 +165,7 @@ private data class TickerSlot(val kind: Int, val index: Int) {
     }
 }
 
-private fun tickerSlot(lines: List<LyricsEntry>, position: Long): TickerSlot {
+internal fun tickerSlot(lines: List<LyricsEntry>, position: Long): TickerSlot {
     if (lines.isEmpty()) return TickerSlot(TickerSlot.EMPTY, -1)
     val index = LyricsUtils.findCurrentLineIndex(lines, position)
     if (index >= lines.size) return TickerSlot(TickerSlot.END, lines.lastIndex)
@@ -185,12 +185,6 @@ private fun tickerSlot(lines: List<LyricsEntry>, position: Long): TickerSlot {
         }
     }
     return TickerSlot(TickerSlot.LINE, index)
-}
-
-/** The line the card is showing at [position], or -1 while it shows something else (a gap). */
-internal fun cardLyricLineIndex(lines: List<LyricsEntry>, position: Long): Int {
-    val slot = tickerSlot(lines, position)
-    return if (slot.kind == TickerSlot.LINE) slot.index else -1
 }
 
 /**
@@ -229,7 +223,7 @@ internal fun MiniLyricsTicker(
     }.collectAsState(initial = tickerSlot(lines, positionProvider()))
 
     val (motionStyle) = rememberEnumPreference(LyricsMotionStyleKey, defaultValue = LyricsMotionStyle.MOTION)
-    val (waveEnabled) = rememberPreference(LyricsWaveAnimationKey, defaultValue = true)
+    val waveEnabled = motionStyle.shaded
     val (highBloom) = rememberPreference(LyricsHighBloomKey, defaultValue = true)
 
     // Still looking the lyrics up is its own state, so the dots hand over to the first line (or to
@@ -483,7 +477,7 @@ private fun UpcomingLine(text: String, alpha: Float, blur: Dp) {
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier
             .graphicsLayer { this.alpha = shownAlpha.value }
-            .blur(blur, BlurredEdgeTreatment.Unbounded),
+            .blur(if (AppMotion.elementBlur) blur else 0.dp, BlurredEdgeTreatment.Unbounded),
     )
 }
 

@@ -33,7 +33,6 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -294,7 +293,12 @@ private fun SongLines(
         val facts by remember(mediaId) {
             playerConnection.streamFacts(mediaId)
         }.collectAsState(initial = null)
-        val badge = if (showFormatBadge) streamBadgeText(facts, showSampleRate) else null
+        val larping = rememberLarpMode()
+        val badge = when {
+            larping -> larpBadgeText()
+            showFormatBadge -> streamBadgeText(facts, showSampleRate)
+            else -> null
+        }
         // what the badge said, so it can still say it while it leaves
         val lastBadge = remember { arrayOfNulls<String>(1) }
         if (badge != null) lastBadge[0] = badge
@@ -429,40 +433,46 @@ fun PressScaleActionButton(
             )
     ) {
         Box(
-            contentAlignment = Alignment.Center,
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer { scaleX = scale; scaleY = scale }
-                .then(
-                    if (hasShadow) Modifier.shadow(elevation = 6.dp, shape = CircleShape, clip = false)
-                    else Modifier
-                )
-                .clip(CircleShape)
-                .background(containerColor)
         ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(
+                        if (hasShadow) Modifier.shadow(elevation = 6.dp, shape = CircleShape, clip = false)
+                        else Modifier
+                    )
+                    .clip(CircleShape)
+                    .background(containerColor)
+            ) {
 
-            if (boldIcon) {
+                if (boldIcon) {
+                    androidx.compose.foundation.Image(
+                        painter = painterResource(icon),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(tint),
+                        modifier = Modifier
+                            .size(18.dp)
+                            .offset(x = 0.45.dp)
+                    )
+                }
                 androidx.compose.foundation.Image(
                     painter = painterResource(icon),
                     contentDescription = null,
                     colorFilter = ColorFilter.tint(tint),
-                    modifier = Modifier
-                        .size(18.dp)
-                        .offset(x = 0.45.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
-            androidx.compose.foundation.Image(
-                painter = painterResource(icon),
-                contentDescription = null,
-                colorFilter = ColorFilter.tint(tint),
-                modifier = Modifier.size(18.dp)
-            )
+            // outside the round clip, sitting on the rim: inside it the circle cut the 1 in half
             if (badgeText != null) {
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .offset(x = 1.dp, y = 1.dp)
+                        .offset(x = 2.dp, y = 2.dp)
                         .size(12.dp)
                         .clip(RoundedCornerShape(50))
                         .background(tint)

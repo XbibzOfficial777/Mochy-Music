@@ -22,6 +22,7 @@ import com.mochyy.mochymusic.constants.VideoQuality
 import com.mochyy.mochymusic.lyrics.AiTranslationSession
 import com.mochyy.mochymusic.ui.player.menu.AiTranslationSettingsSheet
 import com.mochyy.mochymusic.ui.screens.settings.VideoQualityDialog
+import com.mochyy.mochymusic.ui.screens.settings.videoQualityName
 import java.time.LocalDate
 
 /** Synthetic fixtures for CI only. Never included in a release variant. */
@@ -32,10 +33,10 @@ class IssueSmokeActivity : ComponentActivity() {
         setContent {
             when (screen) {
                 "quality" -> {
-                    var selected by remember { mutableStateOf(VideoQuality.P720) }
+                    var selected by remember { mutableStateOf(VideoQuality.Q720) }
                     var visible by remember { mutableStateOf(true) }
                     Box(Modifier.fillMaxSize().background(Color(0xFF252528))) {
-                        Text("Selected: ${selected.label}", color = Color.White)
+                        Text("Selected: ${videoQualityName(selected)}", color = Color.White)
                         if (visible) VideoQualityDialog(
                             selected = selected,
                             onSelect = { selected = it; visible = false },

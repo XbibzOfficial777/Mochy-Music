@@ -20,6 +20,10 @@ data class MusixmatchSong(
     /** the song's page on musixmatch, for the "provided by" link */
     val pageUrl: String? = null,
     val lengthSeconds: Int? = null,
+    /** the song page has been read, so the meaning, moods and themes are final (and null means it has none) */
+    val pageRead: Boolean = false,
+    /** other copies musixmatch keeps of this song, tried in order when this page says nothing about it */
+    val alternatePages: List<String> = emptyList(),
 )
 
 data class MusixmatchArtist(

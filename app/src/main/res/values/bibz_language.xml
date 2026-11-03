@@ -17,4 +17,5 @@
     <string name="bibz_video_quality_desc">Maximum resolution for player videos</string>
     <string name="bibz_video_quality_detail">Higher resolutions use more data and depend on the video and this device\'s decoder.</string>
     <string name="bibz_video_quality_dialog">Maximum resolution for player videos. Availability and device support vary; higher quality uses more data. Audio continues if video is unavailable.</string>
+    <string name="bibz_quality_4k">2160p (4K)</string>
 </resources>

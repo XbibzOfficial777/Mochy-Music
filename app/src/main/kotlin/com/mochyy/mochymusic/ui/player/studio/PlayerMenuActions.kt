@@ -23,7 +23,11 @@ enum class PlayerMenuAction(val label: String, @param:DrawableRes val icon: Int)
     LYRICS("Lyrics", R.drawable.lyrics),
     QUEUE("Queue", R.drawable.queue_music),
     SPEED("Playback speed", R.drawable.speed),
+    // the equalizer page, the player stepping down out of its way
+    EQUALIZER("Equalizer", R.drawable.equalizer),
     OUTPUT("Device output", R.drawable.cast),
+    // the player turned sideways around the song's youtube video
+    FULL_VIDEO("Full video", R.drawable.fullscreen),
 
     // the ones below are worked by PlayerMenuExtras
     KEEP_AWAKE("Keep screen on", R.drawable.lock_open),

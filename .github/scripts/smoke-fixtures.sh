@@ -50,9 +50,6 @@ hide_keyboard_if_visible() {
 
 # The quality picker must expose 4K and preserve the selected choice.
 start_fixture quality
-read -r width height < <(adb shell wm size | sed -n 's/.*: \([0-9]*\)x\([0-9]*\).*/\1 \2/p' | tail -1)
-adb shell input swipe "$((width/2))" "$((height*3/4))" "$((width/2))" "$((height*2/5))" 450
-sleep 2
 tap_node text '2160p (4K)'
 dump_ui
 find_node text 'Selected: 2160p (4K)' >/dev/null

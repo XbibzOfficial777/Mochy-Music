@@ -62,11 +62,7 @@ import com.mochyy.mochymusic.ui.component.CastDevicesSection
 import com.mochyy.mochymusic.utils.rememberPreference
 import kotlinx.coroutines.flow.MutableStateFlow
 
-/**
- * "Change playback": the phone and music volumes, then every output the song can go to. Picking
- * one moves the playing song there on the spot (each player follows it, crossmix's and crossfade's
- * too); cast receivers on the network play it from there instead.
- */
+/** "change playback": both volumes, then every output; picking one moves the song there, cast receivers play it themselves */
 @Composable
 fun DeviceOutputSheet(onDismiss: () -> Unit) {
     val context = LocalContext.current
@@ -93,6 +89,10 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
     val isCasting by remember { cast?.isCasting ?: MutableStateFlow(false) }.collectAsState()
     val (passthrough) = rememberPreference(UsbPassthroughKey, false)
     val anyChosen = devices.any { it.isChosen }
+    // larping, whatever is really playing turns into a wadax fed straight from mochy
+    val larping = com.mochyy.mochymusic.ui.player.rememberLarpMode()
+    val larpName = androidx.compose.ui.res.stringResource(R.string.larp_dac_name)
+    val larpDetail = androidx.compose.ui.res.stringResource(R.string.larp_dac_detail)
 
     MenuSheetSurface(onDismiss = onDismiss, halfDetent = 0.66f, fullDetent = 0.92f) { _ ->
         Column(
@@ -143,10 +143,11 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
                     onClick = { service?.setPreferredAudioDevice(null) },
                 )
                 devices.forEach { device ->
+                    val larpRow = larping && device.isActive && !isCasting
                     DeviceRow(
-                        label = deviceLabel(device),
-                        detail = deviceDetail(device, passthrough),
-                        icon = device.kind.icon(),
+                        label = if (larpRow) larpName else deviceLabel(device),
+                        detail = if (larpRow) larpDetail else deviceDetail(device, passthrough),
+                        icon = if (larpRow) AudioOutputs.Kind.USB.icon() else device.kind.icon(),
                         selected = device.isChosen && !isCasting,
                         playing = device.isActive && !isCasting,
                         onClick = {
@@ -305,17 +306,18 @@ private fun DeviceRow(
                 text = label,
                 color = Color.White,
                 fontSize = 14.sp,
+                lineHeight = 18.sp,
                 fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (detail != null) {
+                // a dac's line (kind, rates, bit depth, passthrough) runs long: it wraps instead of losing its end
                 Text(
                     text = detail,
                     color = Color.White.copy(alpha = 0.5f),
                     fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 16.sp,
                 )
             }
         }

@@ -20,7 +20,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -49,8 +48,10 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -100,12 +101,15 @@ import com.mochyy.mochymusic.ui.utils.resize
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import com.mochyy.mochymusic.ui.component.BlurEffectCache
+import com.mochyy.mochymusic.ui.component.DownscaledBlur
 import com.mochyy.mochymusic.ui.component.rememberCoverBlurAvailable
 import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.roundToInt
+import com.mochyy.mochymusic.ui.player.flagship.AnimatedPlayGlyph
+import com.mochyy.mochymusic.ui.player.flagship.AnimatedSkipGlyph
+import com.mochyy.mochymusic.ui.player.flagship.SkipCycleState
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
@@ -120,18 +124,19 @@ import com.mochyy.mochymusic.constants.CanvasWifiOnlyKey
 import com.mochyy.mochymusic.constants.DisableBlurKey
 import com.mochyy.mochymusic.constants.ForceYtBackdropBlur1500Key
 import com.mochyy.mochymusic.constants.PlayVideoBackgroundKey
-import com.mochyy.mochymusic.constants.VideoQuality
-import com.mochyy.mochymusic.constants.VideoQualityKey
 import com.mochyy.mochymusic.constants.CoverTransition
 import com.mochyy.mochymusic.constants.CoverTransitionKey
 import com.mochyy.mochymusic.constants.DisableVideoAutoplayKey
-import com.mochyy.mochymusic.utils.YTPlayerUtils
 import com.mochyy.mochymusic.constants.PlayerBackgroundStyle
 import com.mochyy.mochymusic.constants.PlayerCoverStyle
-import com.mochyy.mochymusic.constants.YtVideoBackgroundLyricsSyncKey
 import com.mochyy.mochymusic.ui.player.customize.DiscCoverStack
 import com.mochyy.mochymusic.ui.player.customize.PlayerBackgroundContent
 import com.mochyy.mochymusic.ui.player.customize.CoverGradientBackdrop
+import com.mochyy.mochymusic.ui.player.flagship.AmbientBackdrop
+import com.mochyy.mochymusic.ui.player.flagship.AmbientColors
+import com.mochyy.mochymusic.ui.player.flagship.BlurredCoverPicture
+import com.mochyy.mochymusic.ui.player.flagship.CoverVeil
+import com.mochyy.mochymusic.ui.player.flagship.FollowPicture
 import com.mochyy.mochymusic.ui.player.customize.coverArtBox
 import com.mochyy.mochymusic.ui.player.customize.coverArtBoxF
 import com.mochyy.mochymusic.ui.player.customize.usesBoxedStage
@@ -151,8 +156,8 @@ import com.mochyy.mochymusic.ui.component.GlassState
 import com.mochyy.mochymusic.ui.component.glassRoot
 import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.utils.rememberEnumPreference
-import com.mochyy.mochymusic.utils.nextLowerVideoLimit
 import androidx.core.content.getSystemService
+import com.mochyy.mochymusic.ui.utils.stableStatusBars
 
 @Stable
 private class MorphEndpoints(
@@ -213,6 +218,8 @@ private class MorphEndpointsPx(
     val fullHeightPx: Float,
     /** the cover's box is a square stage, not the edge-to-edge region */
     val boxedStage: Boolean,
+    /** every cover but edge-to-edge travels at its mini size and only grows once it's nearly in place */
+    val growLate: Boolean,
     val statusTopPx: Float,
     /** 1dp in px */
     val dpPx: Float,
@@ -231,6 +238,9 @@ private class MorphEndpointsPx(
 private enum class MorphElement { ART, PLAY, SKIP, TEXT, BACKDROP }
 
 private const val PILL_FADE_END = 0.15f
+
+// past this much of the open the mini player's video gives the picture to the full video mode
+private const val MiniVideoUntil = 0.4f
 
 private val LyricsHeaderCornerRadius = 12.dp
 
@@ -255,11 +265,23 @@ private val TurntableDim = Color.Black.copy(alpha = 0.58f)
 private fun lerpF(start: Float, stop: Float, fraction: Float): Float =
     start + (stop - start) * fraction
 
+// a late-growing cover starts growing once the sheet is this far open
+private const val LateGrowFrom = 0.7f
+
+// how far the cover has grown at sheet progress p; a late one keeps its mini size until it's nearly in place
+private fun coverGrowth(p: Float, growLate: Boolean): Float =
+    if (growLate) smoothstep((p - LateGrowFrom) / (1f - LateGrowFrom)) else p
+
+// how far the cover's middle has travelled; a late one eases out, so it's almost there by the time it grows
+private fun coverTravel(p: Float, growLate: Boolean): Float =
+    if (growLate) 1f - (1f - p) * (1f - p) else p
+
 private fun discWeight(
     progressProvider: () -> Float,
     lyricsProgressProvider: () -> Float,
 ): Float {
-    val expanded = ((progressProvider() - 0.55f) / 0.30f).coerceIn(0f, 1f)
+    // a record is never edge-to-edge, so it shows as its cover grows rather than while the thumbnail is still travelling
+    val expanded = ((coverGrowth(progressProvider(), growLate = true) - 0.55f) / 0.30f).coerceIn(0f, 1f)
     val lyrics = ((lyricsProgressProvider() - 0.10f) / 0.40f).coerceIn(0f, 1f)
     return expanded * (1f - lyrics)
 }
@@ -267,10 +289,13 @@ private fun discWeight(
 // where the cover's box is (x, y, width, height) at sheet progress p and lyrics progress lp
 private fun MorphEndpointsPx.artRect(p: Float, hOffset: Float, lp: Float): FloatArray {
     val (fullX, fullY, fullW, fullH) = fullArt()
-    val artW = lerpF(miniArtWidthPx, fullW, p)
-    val artH = lerpF(miniArtHeightPx, fullH, p)
-    val artX = lerpF(miniArtXPx, fullX, p) + hOffset
-    val artY = lerpF(miniArtYPx, fullY, p)
+    val grow = coverGrowth(p, growLate)
+    val travel = coverTravel(p, growLate)
+    val artW = lerpF(miniArtWidthPx, fullW, grow)
+    val artH = lerpF(miniArtHeightPx, fullH, grow)
+    // the middle travels and the size grows round it; with both on p that's the same straight line edge-to-edge always had
+    val artX = lerpF(miniArtXPx + miniArtWidthPx / 2f, fullX + fullW / 2f, travel) - artW / 2f + hOffset
+    val artY = lerpF(miniArtYPx + miniArtHeightPx / 2f, fullY + fullH / 2f, travel) - artH / 2f
     if (lp <= 0f) return floatArrayOf(artX, artY, artW, artH)
     val lyricsX = lerpF(miniArtXPx, lyricsArtXPx, p) + hOffset
     val lyricsY = lerpF(miniArtYPx, lyricsArtYPx, p)
@@ -399,22 +424,31 @@ fun MorphingCover(
      * backdrop, canvas, video and their clocks don't run at all.
      */
     alternateStyle: Boolean = false,
+    // the full video mode: its video keeps playing in the mini player, as the flagship's does
+    miniVideo: Boolean = false,
     /**
      * How far the controls under the cover were moved, px down (up when negative): its region
      * ends where they start, so the cover zooms with them. Read while laying out only.
      */
     coverOffsetProvider: () -> Float = { 0f },
+    // told when a youtube video starts or stops showing on the cover, so the chevron can offer the full video mode
+    onVideoShowingChange: (Boolean) -> Unit = {},
+    // the new flagship's moving colours, fed from the picture, the video or the animated cover, and the backdrop when it's set to ambient
+    ambient: AmbientColors? = null,
+    // the new flagship's cover frosts into the backdrop by itself, so nothing is mirrored under it
+    frostedCover: Boolean = false,
 ) {
     val playerConnection = LocalPlayerConnection.current
     val density = LocalDensity.current
-    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val statusBarTop = WindowInsets.stableStatusBars.asPaddingValues().calculateTopPadding()
 
     val isDiscStyle = coverStyle.isDisc && !alternateStyle
 
     // Without blur the seam can't soften the edge-to-edge cover's bottom into the backdrop, so the
     // cover fades its own bottom edge out instead - picture, canvas and video alike.
     val coverBlur = rememberCoverBlurAvailable()
-    val fadeCoverEdge = !coverBlur && coverStyle == PlayerCoverStyle.EDGE_TO_EDGE
+    // the new flagship's sharp cover fades out at its bottom into a blurred copy of itself behind it
+    val fadeCoverEdge = (!coverBlur || frostedCover) && coverStyle == PlayerCoverStyle.EDGE_TO_EDGE
 
     val playVideoPref by rememberPreference(PlayVideoBackgroundKey, defaultValue = false)
     val disableVideoAutoplay by rememberPreference(DisableVideoAutoplayKey, defaultValue = false)
@@ -422,46 +456,36 @@ fun MorphingCover(
         .collectAsState()
     // a track that is a video itself (a music video or live row, the Videos search tab) plays that
     // video here on its own; songs only get one when the video background setting asks for it
-    val trackIsVideo = !disableVideoAutoplay &&
-        currentMetadata?.id == trackInfo.mediaId &&
-        currentMetadata?.isVideoSong == true
-    val playVideoBackground = !alternateStyle && (forceVideoBackground || playVideoPref || trackIsVideo)
     val coverTransition by rememberEnumPreference(CoverTransitionKey, defaultValue = CoverTransition.SLIDE)
-    val videoQuality by rememberEnumPreference(VideoQualityKey, defaultValue = VideoQuality.P720)
-    var maxVideoHeight by remember(trackInfo.mediaId, videoQuality, trackIsVideo) {
-        mutableIntStateOf(videoQuality.maxHeight)
-    }
-    var videoInfo by remember(trackInfo.mediaId, videoQuality, trackIsVideo) { mutableStateOf<OfficialMusicVideo?>(null) }
-    LaunchedEffect(trackInfo.mediaId, trackInfo.title, trackInfo.artist, playVideoBackground, trackIsVideo, maxVideoHeight) {
-        val mediaId = trackInfo.mediaId
-        val titleStr = trackInfo.title
-        val artistStr = trackInfo.artist
-        val requestedHeight = maxVideoHeight
-        videoInfo = null
-        if (!playVideoBackground || mediaId.isBlank()) return@LaunchedEffect
-
-        // Cache by track, source and quality; an expired URL or a failed request is never reused.
-        val cacheKey = YouTubeVideoUrlCache.key(mediaId, requestedHeight, trackIsVideo)
-        val cached = YouTubeVideoUrlCache.get(cacheKey)
-        if (cached != null) {
-            videoInfo = cached
-            return@LaunchedEffect
-        }
-        val resolved = if (trackIsVideo) {
-            // The audio is this very video, so its own stream lines up exactly and needs no search.
-            withContext(Dispatchers.IO) {
-                YTPlayerUtils.resolveVideoStream(mediaId, requestedHeight).getOrNull()
-                    ?.let { OfficialMusicVideo(mediaId, it) }
-            }
-        } else {
-            if (titleStr.isBlank() || artistStr.isBlank()) return@LaunchedEffect
-            withContext(Dispatchers.IO) { findOfficialMusicVideo(titleStr, artistStr, requestedHeight) }
-        }
-        YouTubeVideoUrlCache.put(cacheKey, resolved)
-        videoInfo = resolved
+    val songIsVideo = currentMetadata?.id == trackInfo.mediaId && currentMetadata?.isVideoSong == true
+    val trackIsVideo = !disableVideoAutoplay && songIsVideo
+    val playVideoBackground = if (alternateStyle) miniVideo else forceVideoBackground || playVideoPref || trackIsVideo
+    // the audio of a track that is a video is that very video, so its own stream lines up exactly and needs no search;
+    // the full video mode asked for the video itself, so it plays its own even with autoplay off, as the mode does
+    val videoInfo = rememberSongVideo(
+        mediaId = trackInfo.mediaId,
+        title = trackInfo.title,
+        artist = trackInfo.artist,
+        isVideoSong = if (miniVideo) songIsVideo else trackIsVideo,
+        enabled = playVideoBackground,
+    )
+    // with the full video mode opening over it, the mini player's copy steps aside so the mode takes the picture
+    val miniVideoShown by remember(alternateStyle) {
+        derivedStateOf { !alternateStyle || progressProvider() < MiniVideoUntil }
     }
 
     val isVideoActive = !isDiscStyle && playVideoBackground && videoInfo != null
+    // the ambient backdrop takes its colours from the video and the animated cover, so neither is mirrored under the cover then
+    val ambientBackdrop = ambient != null && !alternateStyle && backgroundStyle == PlayerBackgroundStyle.AMBIENT
+    // the new flagship keeps the moving mirrors: its veil washes them in the colours instead
+    val mirrorsOff = ambientBackdrop && !frostedCover
+    val feedsAmbient = ambient != null && !alternateStyle
+    if (feedsAmbient && ambient != null) {
+        FollowPicture(ambient, trackInfo.thumbnailUrl)
+        LaunchedEffect(isVideoActive) { if (!isVideoActive) ambient.endLive() }
+    }
+    val currentOnVideoShowing by androidx.compose.runtime.rememberUpdatedState(onVideoShowingChange)
+    LaunchedEffect(isVideoActive) { currentOnVideoShowing(isVideoActive) }
     val targetMiniArtWidth = if (isVideoActive) (48.dp * 16f / 9f) else 48.dp
     val animatedMiniArtWidth by animateDpAsState(
         targetValue = targetMiniArtWidth,
@@ -550,6 +574,7 @@ fun MorphingCover(
                 miniHeightPx = endpoints.miniHeight.toPx(),
                 fullHeightPx = endpoints.fullHeight.toPx(),
                 boxedStage = coverStyle.usesBoxedStage,
+                growLate = coverStyle != PlayerCoverStyle.EDGE_TO_EDGE,
                 statusTopPx = statusBarTop.toPx(),
                 dpPx = density.density,
                 coverOffset = { currentCoverOffset() },
@@ -594,66 +619,60 @@ fun MorphingCover(
     // Started and stopped from a flow, not keyed on a derived state: read in composition, its flip
     // recomposed all of this in the first frames of every open.
     val warpMotionAllowed = com.mochyy.mochymusic.ui.utils.rememberMotionAllowed()
-    LaunchedEffect(editMode, alternateStyle, backgroundStyle, warpShader, warpMotionAllowed) {
-        // No decorative frame clock for a solid/Apple background, unsupported shader, or reduced motion.
+    // The new flagship hides its backdrop under the edge-to-edge cover and mirror.
+    val backdropHidden = frostedCover && coverBlur && coverStyle == PlayerCoverStyle.EDGE_TO_EDGE
+    LaunchedEffect(editMode, alternateStyle, backgroundStyle, warpShader, warpMotionAllowed, backdropHidden) {
         if (!warpMotionAllowed || warpShader == null || backgroundStyle != PlayerBackgroundStyle.COVER_GRADIENT) return@LaunchedEffect
-        snapshotFlow { !alternateStyle && !editMode && progressProvider() > 0.02f && lyricsProgressProvider() < 0.6f }
+        snapshotFlow {
+            !alternateStyle && !editMode && progressProvider() > 0.02f && lyricsProgressProvider() < 0.6f &&
+                !(backdropHidden && progressProvider() >= 0.999f && lyricsProgressProvider() <= 0.001f)
+        }
             .collectLatest { active ->
                 if (!active) return@collectLatest
+                // it carries on from where it stopped, so pausing it never makes the backdrop jump when it shows again
+                var last = 0L
                 // ends when the flow moves on: collectLatest cancels this at the frame wait
                 while (true) {
                     androidx.compose.animation.core.withInfiniteAnimationFrameNanos { frameTimeNanos ->
-
-                        warpTimeState.floatValue = ((frameTimeNanos / 1_000_000f) * (100f / 100_000f)).mod(100f)
+                        if (last != 0L) {
+                            val seconds = (frameTimeNanos - last) / 1_000_000_000f
+                            warpTimeState.floatValue = (warpTimeState.floatValue + seconds.coerceAtMost(0.1f)).mod(100f)
+                        }
+                        last = frameTimeNanos
                     }
                 }
             }
     }
 
 
-    val lyricsSyncEnabled by rememberPreference(YtVideoBackgroundLyricsSyncKey, defaultValue = true)
-    val currentLyrics by playerConnection?.currentLyrics?.collectAsState(initial = null)
-        ?: androidx.compose.runtime.mutableStateOf(null)
-    // the video plays as soon as it loads, then moves into step with the song once its captions are lined up with the lyrics
-    var lyricVideoTimeline by remember(trackInfo.mediaId) { mutableStateOf<LyricVideoTimeline?>(null) }
-    LaunchedEffect(videoInfo?.videoId, currentLyrics?.lyrics, lyricsSyncEnabled) {
-        val mediaId = trackInfo.mediaId
-        val videoId = videoInfo?.videoId
-        val lyricsRaw = currentLyrics?.lyrics
-            ?.takeIf { it.isNotBlank() && it != com.mochyy.mochymusic.db.entities.LyricsEntity.LYRICS_NOT_FOUND }
-        // the track's own video is already in step with it; the timeline is for lining up a separate one
-        if (!lyricsSyncEnabled || videoId == null || videoId == mediaId || lyricsRaw == null) {
-            lyricVideoTimeline = null
-            return@LaunchedEffect
-        }
-        val key = "$mediaId|$videoId|${lyricsRaw.hashCode()}"
-        if (LyricVideoTimelineCache.contains(key)) {
-            lyricVideoTimeline = LyricVideoTimelineCache.get(key)
-            return@LaunchedEffect
-        }
-        val timeline = try {
-            buildLyricVideoTimeline(videoId, lyricsRaw)
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            null
-        }
-        LyricVideoTimelineCache.put(key, timeline)
-        lyricVideoTimeline = timeline
-    }
-    // the lyrics' own offset counts too: it's what puts the lyrics, and so the video, on the song
-    val videoPositionAt = remember(lyricVideoTimeline) {
-        lyricVideoTimeline?.let { timeline ->
-            { songMs: Long -> timeline.videoMsAt(songMs + (playerConnection?.lyricsOffsetMs?.value ?: 0)) }
-        }
-    }
-
     val videoGlassState = remember(trackInfo.mediaId) { GlassState() }
+
+    // the playing song's video or animated cover is up over its picture; once it has faded in the picture under it stops drawing
+    var liveVideoShown by remember(trackInfo.mediaId) { mutableStateOf(false) }
+    var liveCanvasShown by remember(trackInfo.mediaId) { mutableStateOf(false) }
+    val liveCovered by produceState(false, liveVideoShown || liveCanvasShown) {
+        if (liveVideoShown || liveCanvasShown) {
+            kotlinx.coroutines.delay(LiveCoverFadeInMs)
+            value = true
+        } else {
+            value = false
+        }
+    }
+    val currentThumbnail by androidx.compose.runtime.rememberUpdatedState(trackInfo.thumbnailUrl)
+    // read while drawing: the moment the player starts closing, a page opens or the row moves, the picture is back
+    val pictureHidden = { url: String? ->
+        liveCovered && url == currentThumbnail && !editMode && progressProvider() >= 0.999f &&
+            lyricsProgressProvider() <= 0.001f && kotlin.math.abs(carousel?.playingOffset ?: 0f) < 0.001f
+    }
+    // the row put back on its song whenever the player has finished opening, so a moving cover never sits a sliver aside
+    LaunchedEffect(carousel) {
+        snapshotFlow { coverSwipeEnabled }.collect { if (it) carousel?.ensureSettled() }
+    }
 
     // the playing canvas mirrored into the backdrop under the edge-to-edge cover, like the youtube video is
     val canvasMirror = remember { CanvasMirror() }
     LaunchedEffect(trackInfo.mediaId) { canvasMirror.ready = false }
-    val canvasMirrorWanted = coverBlur && coverStyle == PlayerCoverStyle.EDGE_TO_EDGE && !alternateStyle
+    val canvasMirrorWanted = coverBlur && coverStyle == PlayerCoverStyle.EDGE_TO_EDGE && !alternateStyle && !mirrorsOff
     val canvasMirrorOn = animateFloatAsState(
         targetValue = if (canvasMirrorWanted && canvasMirror.ready && !isVideoActive) 1f else 0f,
         animationSpec = tween(650, easing = FastOutSlowInEasing),
@@ -675,30 +694,6 @@ fun MorphingCover(
             pureBlack = pureBlack,
         )
 
-        SheetBackdrop(
-            progressProvider = progressProvider,
-            endpointsPx = endpointsPx,
-            trackInfo = trackInfo,
-            alternateStyle = alternateStyle,
-            backgroundStyle = backgroundStyle,
-            coverStyle = coverStyle,
-            pureBlack = pureBlack,
-            // The video's backdrop is its reflection under a full-width video, so only the
-            // edge-to-edge cover has one. The squared cover's reflection covered a strip below it,
-            // and the discs play no video at all - both faded the cover's colours out for a bare
-            // grey surface on every song with a video.
-            playVideoBackground = playVideoBackground && coverStyle == PlayerCoverStyle.EDGE_TO_EDGE,
-            videoInfo = videoInfo,
-            videoGlassState = videoGlassState,
-            canvasGlassState = canvasMirror.glass,
-            canvasMirrorAlpha = canvasMirrorAlpha,
-            maxWidth = maxWidth,
-            maxHeight = maxHeight,
-            warpShader = warpShader,
-            warpTimeState = warpTimeState,
-            lyricsProgressProvider = lyricsProgressProvider,
-        )
-
         val isEdgeToEdge = coverStyle == PlayerCoverStyle.EDGE_TO_EDGE
         // a record player stays put when paused: the record stops, the arm says where it is
         val targetPauseScale = when {
@@ -711,6 +706,38 @@ fun MorphingCover(
             animationSpec = tween(400, easing = FastOutSlowInEasing),
             label = "pauseScale"
         )
+        // the moving cover's blurred copy and mirror are drawn behind it zoomed the same, so they meet the sharp one exactly
+        val coverMagnify = remember { { animatedPauseScale } }
+
+        SheetBackdrop(
+            progressProvider = progressProvider,
+            endpointsPx = endpointsPx,
+            trackInfo = trackInfo,
+            alternateStyle = alternateStyle,
+            backgroundStyle = backgroundStyle,
+            coverStyle = coverStyle,
+            pureBlack = pureBlack,
+            // The video's backdrop is its reflection under a full-width video, so only the
+            // edge-to-edge cover has one. The squared cover's reflection covered a strip below it,
+            // and the discs play no video at all - both faded the cover's colours out for a bare
+            // grey surface on every song with a video.
+            playVideoBackground = playVideoBackground && !alternateStyle && coverStyle == PlayerCoverStyle.EDGE_TO_EDGE && !mirrorsOff,
+            ambient = if (ambientBackdrop) ambient else null,
+            // the new flagship's cover fades into its moving cover's blurred copy, drawn here with its mirror in one pass
+            uprightCopy = frostedCover && isEdgeToEdge && coverBlur,
+            magnify = coverMagnify,
+            coverRect = { endpointsPx.artRect(progressProvider(), horizontalOffsetProvider(), lyricsProgressProvider()) },
+            videoInfo = videoInfo,
+            videoGlassState = videoGlassState,
+            canvasGlassState = canvasMirror.glass,
+            canvasMirrorAlpha = canvasMirrorAlpha,
+            maxWidth = maxWidth,
+            maxHeight = maxHeight,
+            warpShader = warpShader,
+            warpTimeState = warpTimeState,
+            lyricsProgressProvider = lyricsProgressProvider,
+        )
+
         // kept between frames: a new shape and a new colour filter each frame cost the layer more than they should
         val artShape = remember { AnimatedCornerShape() }
         val pauseFilter = remember { SaturationFilterCache() }
@@ -759,10 +786,28 @@ fun MorphingCover(
                         magnify = magnify,
                         // a playing canvas has its own moving mirror in the backdrop, the still picture's would sit on top of it
                         alpha = { reflectionFade(progressProvider(), lyricsProgressProvider()) * reflectionKept.value * (1f - canvasMirrorAlpha()) },
+                        steady = frostedCover,
                         modifier = pictureModifier,
                     )
                 }
             }
+        }
+
+        // the new flagship's colour fade at the bottom, over the blurred mirror: each song's own, sliding with its cover
+        if (frostedCover && isEdgeToEdge && !alternateStyle && ambient != null) {
+            CoverVeil(
+                carousel = carousel,
+                playingUrl = trackInfo.thumbnailUrl,
+                live = ambient,
+                alpha = { reflectionFade(progressProvider(), lyricsProgressProvider()) },
+                modifier = Modifier.reflectionLayout(
+                    progressProvider = progressProvider,
+                    horizontalOffsetProvider = horizontalOffsetProvider,
+                    endpointsPx = endpointsPx,
+                    lyricsProgressProvider = lyricsProgressProvider,
+                    magnify = coverMagnify,
+                ),
+            )
         }
 
         // Behind another style the cover is only the mini player's thumbnail, faded out by 40% open,
@@ -809,7 +854,8 @@ fun MorphingCover(
                         } else {
                             0.dp
                         }
-                        val base = lerp(ThumbnailCornerRadius, expandedRadius, p)
+                        // the corners round with the size, so a cover still travelling small keeps its thumbnail corners
+                        val base = lerp(ThumbnailCornerRadius, expandedRadius, coverGrowth(p, endpointsPx.growLate))
                         artShape.radius = lerp(base, LyricsHeaderCornerRadius, lyricsProgressProvider())
                         shape = artShape
                     }
@@ -928,6 +974,31 @@ fun MorphingCover(
                     )
             ) {
 
+                // what the new flagship's sharp cover fades into: the same picture (or the playing video or animated cover) blurred, under it
+                if (frostedCover && isEdgeToEdge && coverBlur) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .coverMorphFade(
+                                sides = {
+                                    coverMorphSideFade(progressProvider()) * (1f - lyricsProgressProvider()).coerceIn(0f, 1f)
+                                },
+                                bottom = null,
+                            )
+                    ) {
+                        CarouselPictures(
+                            carousel = carousel,
+                            fallbackUrl = trackInfo.thumbnailUrl,
+                            modifier = Modifier.fillMaxSize(),
+                        ) { url, pictureModifier ->
+                            BlurredCoverPicture(
+                                url = url,
+                                modifier = pictureModifier.graphicsLayer { if (pictureHidden(url)) alpha = 0f },
+                            )
+                        }
+                    }
+                }
+
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -958,6 +1029,7 @@ fun MorphingCover(
                                     open * (1f - lyricsProgressProvider()).coerceIn(0f, 1f)
                                 }
                             } else null,
+                            bottomShare = if (frostedCover && coverBlur) FrostedEdgeFadeFraction else CoverEdgeFadeFraction,
                         )
                 ) {
 
@@ -971,7 +1043,8 @@ fun MorphingCover(
                 ) { url, pictureModifier ->
                     CoverPicture(
                         thumbnailUrl = url,
-                        modifier = if (squaredCards) pictureModifier.then(cardGreyFilter) else pictureModifier,
+                        modifier = (if (squaredCards) pictureModifier.then(cardGreyFilter) else pictureModifier)
+                            .graphicsLayer { if (pictureHidden(url)) alpha = 0f },
                     )
                 }
 
@@ -1019,31 +1092,19 @@ fun MorphingCover(
                                 // a squared card keeps its canvas the whole way down, it only fades as it lands in the mini player
                                 sheetFade = if (squaredCards) ::squaredCanvasSheetFade else ::canvasSheetFade,
                                 mirror = if (playing && canvasMirrorWanted) canvasMirror else null,
+                                // only the playing song's canvas feeds the colours, the one sliding away has had its turn
+                                onFrameColors = if (playing && feedsAmbient) ambient?.let { it::live } else null,
+                                onLiveEnd = if (playing && feedsAmbient) ambient?.let { it::endLive } else null,
+                                onShowingChange = if (playing) { shown -> liveCanvasShown = shown } else null,
                             )
 
-                            if (playing && !isDiscStyle && playVideoBackground && videoInfo != null) {
+                            if (playing && !isDiscStyle && playVideoBackground && videoInfo != null && miniVideoShown) {
                                 YouTubeVideoBackground(
-                                    streamUrl = videoInfo?.streamUrl,
-                                    streamHeaders = videoInfo?.stream?.headers.orEmpty(),
-                                    onVideoError = { failedUrl ->
-                                        val failed = videoInfo
-                                        if (failed?.streamUrl == failedUrl) {
-                                            val key = YouTubeVideoUrlCache.key(trackInfo.mediaId, maxVideoHeight, trackIsVideo)
-                                            YouTubeVideoUrlCache.remove(key)
-                                            videoInfo = null
-                                            val lower = nextLowerVideoLimit(failed.stream.height, maxVideoHeight)
-                                            if (lower != null) {
-                                                maxVideoHeight = lower
-                                                com.mochyy.mochymusic.ui.component.TopToaster.show("Video stalled · trying up to ${lower}p")
-                                            } else {
-                                                com.mochyy.mochymusic.ui.component.TopToaster.show("Video unavailable · audio continues")
-                                            }
-                                        }
-                                    },
+                                    video = videoInfo,
                                     isPlaying = isPlaying,
-                                    positionMsProvider = { playerConnection?.player?.currentPosition ?: 0L },
-                                    videoPositionAt = videoPositionAt,
-                                    glassState = videoGlassState,
+                                    glassState = if (mirrorsOff) null else videoGlassState,
+                                    onFrameColors = if (feedsAmbient) ambient?.let { it::live } else null,
+                                    onShowingChange = { shown -> liveVideoShown = shown },
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .graphicsLayer {
@@ -1103,12 +1164,22 @@ fun MorphingCover(
                     alpha = (1f - (p / 0.5f)).coerceIn(0f, 1f)
                 }
         ) {
-            MiniPlayerButton(
-                iconRes = if (playbackState == Player.STATE_ENDED) R.drawable.replay
-                else if (isPlaying) R.drawable.ic_untitled_pause
-                else R.drawable.ic_untitled_play,
-                onClick = { playerConnection?.togglePlayPause() },
-            )
+            MiniPlayerButton(onClick = { playerConnection?.togglePlayPause() }) {
+                val tint = MaterialTheme.colorScheme.onSurface
+                // replay pops in for a finished song; play and pause swap with the flagship's squash
+                AnimatedContent(
+                    targetState = playbackState == Player.STATE_ENDED,
+                    transitionSpec = { MiniIconSwap },
+                    contentAlignment = Alignment.Center,
+                    label = "miniPlayerIcon",
+                ) { ended ->
+                    if (ended) {
+                        Icon(painter = painterResource(R.drawable.replay), contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+                    } else {
+                        AnimatedPlayGlyph(playing = isPlaying, color = tint, height = MiniPlayHeight)
+                    }
+                }
+            }
         }
 
         Box(
@@ -1129,10 +1200,24 @@ fun MorphingCover(
                     alpha = (1f - (p / 0.5f)).coerceIn(0f, 1f)
                 }
         ) {
+            val skipScope = rememberCoroutineScope()
+            val skipCycle = remember { SkipCycleState() }
             MiniPlayerButton(
-                iconRes = R.drawable.ic_untitled_skip_next,
-                onClick = { playerConnection?.player?.seekToNext() },
-            )
+                onClick = {
+                    skipScope.launch { skipCycle.step() }
+                    playerConnection?.let { connection ->
+                        // through the same skip as every other button (its fade, the cast), with the row gliding first so the song change can't make it stutter
+                        val row = currentCarousel
+                        if (row == null) {
+                            connection.seekToNext()
+                        } else {
+                            row.skipToNext(connection.player, connection.service.transport.skipDelayMs()) { connection.seekToNext() }
+                        }
+                    }
+                },
+            ) {
+                AnimatedSkipGlyph(cycle = skipCycle, backwards = false, color = MaterialTheme.colorScheme.onSurface, width = MiniSkipWidth)
+            }
         }
     }
 }
@@ -1148,18 +1233,19 @@ private val MiniButtonHighlight = RoundedHighlight(
     color = ChromeHighlightColor,
 )
 
+// the old icons' size in their 20dp box: the play triangle nearly as tall, the skip pair nearly as wide
+private val MiniPlayHeight = 19.dp
+private val MiniSkipWidth = 19.dp
+
 /** Play turning into pause (and back) pops the new icon in from small as the old one shrinks away. */
 private val MiniIconSwap = (fadeIn(tween(160)) + scaleIn(tween(220, easing = FastOutSlowInEasing), initialScale = 0.6f)) togetherWith
     (fadeOut(tween(120)) + scaleOut(tween(160), targetScale = 0.6f))
 
-/**
- * One of the mini player's buttons. A round highlight comes up under the finger and the button
- * squishes with it, and a new icon pops in instead of swapping in a single frame.
- */
+// one of the mini player's buttons: a round highlight comes up under the finger and the button squishes with it
 @Composable
 private fun MiniPlayerButton(
-    iconRes: Int,
     onClick: () -> Unit,
+    icon: @Composable () -> Unit,
 ) {
     val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Box(
@@ -1173,19 +1259,7 @@ private fun MiniPlayerButton(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        AnimatedContent(
-            targetState = iconRes,
-            transitionSpec = { MiniIconSwap },
-            contentAlignment = Alignment.Center,
-            label = "miniPlayerIcon",
-        ) { res ->
-            Icon(
-                painter = painterResource(res),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(20.dp),
-            )
-        }
+        icon()
     }
 }
 
@@ -1302,7 +1376,11 @@ private fun PlayerBackdropCrossfade(
     backgroundStyle: PlayerBackgroundStyle,
     pureBlack: Boolean,
     playVideoBackground: Boolean,
-    videoInfo: OfficialMusicVideo?,
+    ambient: AmbientColors?,
+    uprightCopy: Boolean,
+    magnify: () -> Float,
+    coverRect: () -> FloatArray,
+    videoInfo: SongVideo?,
     videoGlassState: GlassState,
     canvasGlassState: GlassState,
     canvasMirrorAlpha: () -> Float,
@@ -1346,7 +1424,14 @@ private fun PlayerBackdropCrossfade(
                 .fillMaxSize()
                 .graphicsLayer { alpha = (1f - effectiveVideoAlpha()) * (1f - effectiveCanvasAlpha()) }
         ) {
-            if (backgroundStyle != PlayerBackgroundStyle.COVER_GRADIENT) {
+            if (ambient != null) {
+                // one for every song: its colours drift to the next song's by themselves, on the player's clock
+                AmbientBackdrop(
+                    colors = ambient,
+                    time = { warpTimeState.floatValue },
+                    modifier = Modifier.requiredSize(maxWidth, maxHeight),
+                )
+            } else if (backgroundStyle != PlayerBackgroundStyle.COVER_GRADIENT) {
                 // One instance for every song: these styles ease between songs themselves (the
                 // Apple Music blobs glide to the new colours), and a second copy built from scratch
                 // for the outgoing song has no colours yet - it showed as a dark flash.
@@ -1372,6 +1457,9 @@ private fun PlayerBackdropCrossfade(
         if (canvasShown) {
             VideoBackdropBlur(
                 glassState = canvasGlassState,
+                upright = uprightCopy,
+                magnify = magnify,
+                coverRect = coverRect,
                 modifier = Modifier
                     .requiredSize(maxWidth, maxHeight)
                     .graphicsLayer { alpha = effectiveCanvasAlpha() }
@@ -1382,6 +1470,9 @@ private fun PlayerBackdropCrossfade(
         if (videoShown) {
             VideoBackdropBlur(
                 glassState = videoGlassState,
+                upright = uprightCopy,
+                magnify = magnify,
+                coverRect = coverRect,
                 modifier = Modifier
                     .requiredSize(maxWidth, maxHeight)
                     .graphicsLayer { alpha = effectiveVideoAlpha() }
@@ -1425,6 +1516,11 @@ private fun CoverBackdropFade(
 private fun VideoBackdropBlur(
     glassState: GlassState,
     modifier: Modifier = Modifier,
+    // also the video itself, blurred where it plays, for a cover that fades into it; one pass with its mirror so they always meet
+    upright: Boolean = false,
+    magnify: () -> Float = { 1f },
+    // the cover's box on the sheet (x, y, width, height), where the upright copy goes
+    coverRect: () -> FloatArray = { FloatArray(4) },
 ) {
     val (disableBlur) = rememberPreference(DisableBlurKey, defaultValue = false)
     val (force1500pxBlur) = rememberPreference(ForceYtBackdropBlur1500Key, defaultValue = false)
@@ -1439,23 +1535,14 @@ private fun VideoBackdropBlur(
                 backdropPosInWindow = it.positionInWindow()
             }
     ) {
-        androidx.compose.foundation.Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    renderEffect = BlurEffectCache.get(
-                        if (force1500pxBlur) 1500f else 120f,
-                        android.graphics.Shader.TileMode.CLAMP,
-                        allowLargeRadius = true,
-                    )
-                }
-        ) {
+        // the video's mirror, flipped flush under its frame and scaled a touch to fill the backdrop without a gap
+        val drawMirror: androidx.compose.ui.graphics.drawscope.DrawScope.(androidx.compose.ui.geometry.Size) -> Unit = mirror@{ full ->
             val node = glassState.renderNode
-            if (node == null || android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) return@Canvas
-            if (!glassNodeHasContent(node)) return@Canvas
+            if (node == null || android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) return@mirror
+            if (!glassNodeHasContent(node)) return@mirror
             val nodeWidth = glassNodeWidth(node).toFloat()
             val nodeHeight = glassNodeHeight(node).toFloat()
-            if (nodeWidth <= 0f || nodeHeight <= 0f) return@Canvas
+            if (nodeWidth <= 0f || nodeHeight <= 0f) return@mirror
 
             val videoWindowX = glassState.rootPosition.x
             val videoWindowY = glassState.rootPosition.y
@@ -1464,12 +1551,37 @@ private fun VideoBackdropBlur(
             val videoLeft = if (hasValidRootPos) {
                 videoWindowX - backdropPosInWindow.x
             } else {
-                (size.width - nodeWidth) / 2f
+                (full.width - nodeWidth) / 2f
             }
             val videoTop = if (hasValidRootPos) {
                 videoWindowY - backdropPosInWindow.y
             } else {
-                (size.height * 0.35f) - (nodeHeight / 2f)
+                (full.height * 0.35f) - (nodeHeight / 2f)
+            }
+
+            if (upright) {
+                // placed from the cover's own box and zoomed about its centre like the cover, so it sits exactly under the sharp one;
+                // the mirror is that very copy flipped about its bottom edge, so the two always meet
+                val r = coverRect()
+                if (r[2] <= 0f || r[3] <= 0f) return@mirror
+                val m = magnify()
+                val centre = Offset(r[0] + r[2] / 2f, r[1] + r[3] / 2f)
+                val bottom = centre.y + r[3] * m / 2f
+                val placeCopy: androidx.compose.ui.graphics.drawscope.DrawTransform.() -> Unit = {
+                    scale(m, m, centre)
+                    translate(left = r[0], top = r[1])
+                    scale(r[2] / nodeWidth, r[3] / nodeHeight, Offset.Zero)
+                }
+                withTransform(placeCopy) {
+                    drawIntoCanvas { it.nativeCanvas.drawGlassNode(node) }
+                }
+                withTransform({
+                    scale(1f, -1f, Offset(0f, bottom))
+                    placeCopy()
+                }) {
+                    drawIntoCanvas { it.nativeCanvas.drawGlassNode(node) }
+                }
+                return@mirror
             }
 
             // Positioned flush at the bottom of the main video frame with slight overlap to prevent any sub-pixel gap
@@ -1483,8 +1595,28 @@ private fun VideoBackdropBlur(
                 drawIntoCanvas { it.nativeCanvas.drawGlassNode(node) }
             }
         }
+        if (force1500pxBlur) {
+            androidx.compose.foundation.Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        renderEffect = BlurEffectCache.get(1500f, android.graphics.Shader.TileMode.CLAMP, allowLargeRadius = true)
+                    },
+            ) { drawMirror(size) }
+        } else {
+            // blurred at a quarter of the size: the same picture, where a full-size 120px blur on every video frame was among the player's heaviest work
+            DownscaledBlur(
+                radius = { VideoMirrorBlur },
+                tileMode = android.graphics.Shader.TileMode.CLAMP,
+                mask = null,
+                modifier = Modifier.fillMaxSize(),
+            ) { fullSize -> drawMirror(fullSize) }
+        }
     }
 }
+
+// how soft the video's mirror is, in px
+private const val VideoMirrorBlur = 120f
 
 /**
  * Fades the cover into the backdrop: its sides by [sides], and its bottom edge by [bottom] (the
@@ -1493,7 +1625,12 @@ private fun VideoBackdropBlur(
  * while some fade shows. The masks are one gradient drawn scaled into place, so a frame of the
  * morph allocates nothing for them.
  */
-private fun Modifier.coverMorphFade(sides: () -> Float, bottom: (() -> Float)?): Modifier = this
+private fun Modifier.coverMorphFade(
+    sides: () -> Float,
+    bottom: (() -> Float)?,
+    // how much of the cover, from its bottom up, the bottom fade covers
+    bottomShare: Float = CoverEdgeFadeFraction,
+): Modifier = this
     .graphicsLayer {
         compositingStrategy = if (sides() > 0f || (bottom?.invoke() ?: 0f) > 0f) {
             CompositingStrategy.Offscreen
@@ -1518,7 +1655,7 @@ private fun Modifier.coverMorphFade(sides: () -> Float, bottom: (() -> Float)?):
             }
             if (b > 0f) {
                 // turned so the gradient runs up from the bottom edge
-                CoverFadeMask.erase(native, b) { translate(0f, h); rotate(-90f); scale(h * CoverEdgeFadeFraction, w) }
+                CoverFadeMask.erase(native, b) { translate(0f, h); rotate(-90f); scale(h * bottomShare, w) }
             }
         }
     }
@@ -1559,6 +1696,9 @@ private val NoCoverFade: () -> Float = { 0f }
 
 /** How much of the cover, from its bottom up, [coverMorphFade] fades without blur. */
 private const val CoverEdgeFadeFraction = 0.3f
+
+// the new flagship's sharp cover fades from the middle of the title down (this much of its bottom), into its blurred copy behind it
+private const val FrostedEdgeFadeFraction = 0.13f
 
 /** How much of the cover's width, at each side, [coverMorphFade] fades at the height of the morph. */
 private const val CoverSideFadeFraction = 0.2f
@@ -1695,7 +1835,12 @@ private fun SheetBackdrop(
     coverStyle: PlayerCoverStyle,
     pureBlack: Boolean,
     playVideoBackground: Boolean,
-    videoInfo: OfficialMusicVideo?,
+    // set when the backdrop is the ambient one, drawn from these colours
+    ambient: AmbientColors?,
+    uprightCopy: Boolean,
+    magnify: () -> Float,
+    coverRect: () -> FloatArray,
+    videoInfo: SongVideo?,
     videoGlassState: GlassState,
     canvasGlassState: GlassState,
     canvasMirrorAlpha: () -> Float,
@@ -1710,9 +1855,10 @@ private fun SheetBackdrop(
     // sheet started moving, it was a heavy frame among the spring's first, and had no picture to
     // draw for the first of them. The other styles run clocks of their own, so they're still built
     // as the sheet opens.
-    val composed by remember(alternateStyle, backgroundStyle) {
+    // the ambient one is built early too: it has nothing to load once the colours are in
+    val composed by remember(alternateStyle, backgroundStyle, ambient) {
         derivedStateOf {
-            (!alternateStyle && backgroundStyle == PlayerBackgroundStyle.COVER_GRADIENT) || progressProvider() > 0f
+            (!alternateStyle && (backgroundStyle == PlayerBackgroundStyle.COVER_GRADIENT || ambient != null)) || progressProvider() > 0f
         }
     }
     if (!composed) return
@@ -1739,6 +1885,10 @@ private fun SheetBackdrop(
                 backgroundStyle = backgroundStyle,
                 pureBlack = pureBlack,
                 playVideoBackground = playVideoBackground,
+                ambient = ambient,
+                uprightCopy = uprightCopy,
+                magnify = magnify,
+                coverRect = coverRect,
                 videoInfo = videoInfo,
                 videoGlassState = videoGlassState,
                 canvasGlassState = canvasGlassState,
@@ -1762,6 +1912,9 @@ private fun SheetBackdrop(
         }
     }
 }
+
+// a video or canvas fades in over this long, so the picture under it stays until it's fully there
+private const val LiveCoverFadeInMs = 450L
 
 /** The sheet progress the canvas is built at: the open spring all but at rest. */
 private const val CanvasMountAt = 0.995f
@@ -1796,6 +1949,11 @@ private fun CoverCanvasLayer(
     progressProvider: () -> Float,
     sheetFade: (Float) -> Float = ::canvasSheetFade,
     mirror: CanvasMirror? = null,
+    // the ambient backdrop following the canvas's colours, and told when it stops
+    onFrameColors: ((List<Color>) -> Unit)? = null,
+    onLiveEnd: (() -> Unit)? = null,
+    // told when the canvas's picture is up over the cover, and when it's gone
+    onShowingChange: ((Boolean) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val playerConnection = LocalPlayerConnection.current
@@ -1864,7 +2022,12 @@ private fun CoverCanvasLayer(
             fallbackUrl = null,
 
             isPlaying = playing,
-            onReadyChange = mirror?.let { target -> { ready -> target.ready = ready } },
+            onReadyChange = if (mirror == null && onLiveEnd == null && onShowingChange == null) null else { ready ->
+                mirror?.ready = ready
+                onShowingChange?.invoke(ready)
+                if (!ready) onLiveEnd?.invoke()
+            },
+            onFrameColors = onFrameColors,
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer { alpha = sheetFade(progressProvider()) }

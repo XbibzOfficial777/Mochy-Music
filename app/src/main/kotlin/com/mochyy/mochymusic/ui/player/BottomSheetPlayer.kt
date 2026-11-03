@@ -31,8 +31,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
@@ -83,6 +81,19 @@ import com.mochyy.mochymusic.constants.ShowPlayerBottomCardKey
 import com.mochyy.mochymusic.constants.PlayerBottomBarStyle
 import com.mochyy.mochymusic.constants.PlayerBottomBarStyleKey
 import com.mochyy.mochymusic.constants.InfiniteQueueKey
+import com.mochyy.mochymusic.constants.FlagshipBackgroundStyleKey
+import com.mochyy.mochymusic.constants.FlagshipBottomBarStyleKey
+import com.mochyy.mochymusic.constants.FlagshipTransportLayout
+import com.mochyy.mochymusic.constants.FlagshipTransportLayoutKey
+import com.mochyy.mochymusic.ui.player.flagship.FlagshipBarHeight
+import com.mochyy.mochymusic.ui.player.flagship.FlagshipBottomBar
+import com.mochyy.mochymusic.ui.player.flagship.FlagshipPillLook
+import com.mochyy.mochymusic.ui.player.flagship.FlagshipPillMorphSurface
+import com.mochyy.mochymusic.ui.player.flagship.FlagshipTransportRow
+import com.mochyy.mochymusic.ui.player.flagship.ControlsShade
+import com.mochyy.mochymusic.ui.player.flagship.CoverFrost
+import com.mochyy.mochymusic.ui.player.flagship.flagshipBarFootprint
+import com.mochyy.mochymusic.ui.player.flagship.rememberAmbientColors
 import androidx.activity.compose.BackHandler
 import com.mochyy.mochymusic.ui.component.BottomSheet
 import com.mochyy.mochymusic.ui.component.BottomSheetState
@@ -111,6 +122,7 @@ import com.mochyy.mochymusic.utils.rememberPreference
 import kotlin.math.abs
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
+import com.mochyy.mochymusic.ui.utils.stableStatusBars
 
 /**
  * How far the controls are pulled up over the artwork.
@@ -258,7 +270,14 @@ private fun PlayerSheet(
     val (showPlayerBottomCard) = rememberPreference(ShowPlayerBottomCardKey, defaultValue = true)
 
     // the player studio: the selector the player shrinks into, and the flagship's in-place editor
-    val studio = com.mochyy.mochymusic.ui.player.studio.rememberPlayerStudioState()
+    // a look module with a player of its own puts that style first in the selector, for as long as it's on
+    val hasModuleStyle = com.mochyy.mochymusic.modules.skin.ActiveSkin.current?.player != null
+    // the selector's columns, as indexes into PlayerStyle.entries: the flagship with its older layouts under it
+    val selectorColumns = remember(hasModuleStyle) {
+        val columns = if (hasModuleStyle) listOf(listOf(PlayerStyle.MODULE)) + PlayerStyle.selectorColumns else PlayerStyle.selectorColumns
+        columns.map { column -> column.map { it.ordinal } }
+    }
+    val studio = com.mochyy.mochymusic.ui.player.studio.rememberPlayerStudioState(selectorColumns)
     val studioAnchors = remember { com.mochyy.mochymusic.ui.player.studio.StudioAnchors() }
     val studioParts = com.mochyy.mochymusic.ui.player.studio.rememberStudioParts(studio, studioAnchors)
     val menuLayout = com.mochyy.mochymusic.ui.player.studio.rememberPlayerMenuLayout()
@@ -273,19 +292,14 @@ private fun PlayerSheet(
         studioParts.pieces = studioPieces
         studioParts.tweaks = layoutTweaks
     }
-    // what sits under the play buttons: the card deck, or the volume with its four buttons
-    val (barStyle, onBarStyle) = rememberEnumPreference(PlayerBottomBarStyleKey, PlayerBottomBarStyle.STACK)
-    StudioCameraEffect(studio, studioCapture, studioPieces, barStyle)
-    // while the bar is edited both its styles are built, each lifted off the player for the editor
-    val barLifted by remember { derivedStateOf { studioPieces.liftedPart == LiftedPart.BAR } }
-    val showDeck = showPlayerBottomCard && barStyle == PlayerBottomBarStyle.STACK
-    val showVolumeBar = barStyle == PlayerBottomBarStyle.VOLUME
     var showPlaybackSpeed by remember { mutableStateOf(false) }
     var showDeviceOutput by remember { mutableStateOf(false) }
     var showLyricsSource by remember { mutableStateOf(false) }
 
     var showExpandMenu by remember { mutableStateOf(false) }
     var seeVideo by remember { mutableStateOf(false) }
+    // a youtube video is playing on the cover, so the chevron offers the full video mode
+    var videoShowing by remember { mutableStateOf(false) }
     var showSleepTimer by remember { mutableStateOf(false) }
     // The title and artist's sheet: the artists, the album, about the song
     var showSongDetails by remember { mutableStateOf(false) }
@@ -302,20 +316,21 @@ private fun PlayerSheet(
     var coverStyle by rememberEnumPreference(PlayerCoverStyleKey, DefaultPlayerCoverStyle)
     val (savedPlayerStyle, savePlayerStyle) = rememberEnumPreference(
         com.mochyy.mochymusic.constants.PlayerStyleKey,
-        com.mochyy.mochymusic.constants.PlayerStyle.DEFAULT,
+        com.mochyy.mochymusic.constants.PlayerStyle.FLAGSHIP,
     )
     // A style picked in the studio shows at once. The saved one only comes back after the
     // settings file is written, which landed in the middle of the player growing back out of its
     // card - the old style grew, then the new one was built mid-spring, and the spring stuttered.
     var pickedPlayerStyle by remember { mutableStateOf<PlayerStyle?>(null) }
-    val playerStyle = pickedPlayerStyle ?: savedPlayerStyle
-    val (hideStatusBar) = rememberPreference(com.mochyy.mochymusic.constants.HidePlayerStatusBarKey, false)
-    // The iPod style already owns its status-bar behavior, including its preview lifecycle.
-    if (hideStatusBar && playerStyle != PlayerStyle.IPOD) HidePlayerStatusBar(state)
+    // the module style draws the look that's on; with none on, the flagship stands in
+    val playerStyle = (pickedPlayerStyle ?: savedPlayerStyle).let { if (it == PlayerStyle.MODULE && !hasModuleStyle) PlayerStyle.FLAGSHIP else it }
     LaunchedEffect(savedPlayerStyle) {
         if (savedPlayerStyle == pickedPlayerStyle) pickedPlayerStyle = null
     }
+    val (videoModeReturn, saveVideoModeReturn) = rememberPreference(com.mochyy.mochymusic.constants.VideoModeReturnStyleKey, "")
     val onPlayerStyleChange: (PlayerStyle) -> Unit = { style ->
+        // the style the full video mode goes back to when it's left
+        if (style == PlayerStyle.VIDEO && playerStyle != PlayerStyle.VIDEO) saveVideoModeReturn(playerStyle.name)
         pickedPlayerStyle = style
         savePlayerStyle(style)
     }
@@ -323,10 +338,32 @@ private fun PlayerSheet(
     val isTurntable = playerStyle == com.mochyy.mochymusic.constants.PlayerStyle.TURNTABLE
     val shownCoverStyle = if (isTurntable) PlayerCoverStyle.TURNTABLE else coverStyle
     val controlsDrawShift = if (shownCoverStyle == PlayerCoverStyle.EDGE_TO_EDGE) ControlsDrawShift else 0.dp
-    var backgroundStyle by rememberEnumPreference(
-        PlayerBackgroundStyleKey,
-        PlayerBackgroundStyle.COVER_GRADIENT,
-    )
+    // the new flagship: its own buttons and bottom bar, the cover frosting into moving colours
+    val isFlagship = playerStyle == PlayerStyle.FLAGSHIP
+    // each flagship keeps its own background, the new one starting on the moving colours it was made with
+    var classicBackground by rememberEnumPreference(PlayerBackgroundStyleKey, PlayerBackgroundStyle.COVER_GRADIENT)
+    var flagshipBackground by rememberEnumPreference(FlagshipBackgroundStyleKey, PlayerBackgroundStyle.AMBIENT)
+    val backgroundStyle = if (isFlagship) flagshipBackground else classicBackground
+    var transportLayout by rememberEnumPreference(FlagshipTransportLayoutKey, FlagshipTransportLayout.THREE)
+    // the colours the new flagship's backdrop and cover fade drift between
+    val ambient = rememberAmbientColors()
+    // what sits under the play buttons: the card deck or the volume bar, again each flagship with its own
+    val (classicBarStyle, onClassicBarStyle) = rememberEnumPreference(PlayerBottomBarStyleKey, PlayerBottomBarStyle.STACK)
+    val (flagshipBarStyle, onFlagshipBarStyle) = rememberEnumPreference(FlagshipBottomBarStyleKey, PlayerBottomBarStyle.STACK)
+    // the Turntable is built on the new flagship, so it takes the new bottom bar rather than the classic's
+    val newBottomBar = isFlagship || isTurntable
+    // the card under the buttons: the classic's glass, or the new flagship's faint outlined one
+    val cardLook = if (newBottomBar) FlagshipCardLook else ClassicCardLook
+    val barStyle = if (newBottomBar) flagshipBarStyle else classicBarStyle
+    val onBarStyle: (PlayerBottomBarStyle) -> Unit = if (newBottomBar) onFlagshipBarStyle else onClassicBarStyle
+    StudioCameraEffect(studio, studioCapture, studioPieces, barStyle)
+    // while the bar is edited both its styles are built, each lifted off the player for the editor
+    val barLifted by remember { derivedStateOf { studioPieces.liftedPart == LiftedPart.BAR } }
+    val showDeck = showPlayerBottomCard && barStyle == PlayerBottomBarStyle.STACK
+    val showVolumeBar = barStyle == PlayerBottomBarStyle.VOLUME
+    // the flagship's bar has no card to grow a page from, so the page grows out of the pill's lyrics or queue half
+    val pillMorph = newBottomBar && showVolumeBar
+    val pageLook = if (pillMorph) FlagshipPillLook else cardLook
     // a style stored by the ones these replaced lands on its successor
     val (storedPlayerStyle, onStoredPlayerStyle) = rememberPreference(com.mochyy.mochymusic.constants.PlayerStyleKey, "")
     LaunchedEffect(storedPlayerStyle) {
@@ -340,7 +377,8 @@ private fun PlayerSheet(
     LaunchedEffect(studioEngaged) {
         if (studioEngaged) transition.close()
     }
-    val playerStyles = remember { com.mochyy.mochymusic.constants.PlayerStyle.entries.toList() }
+    // the module style is last among the entries, so leaving it out keeps every other style's index
+    val playerStyles = remember(hasModuleStyle) { PlayerStyle.entries.filter { it != PlayerStyle.MODULE || hasModuleStyle } }
     val currentPlayerStyleForStudio by androidx.compose.runtime.rememberUpdatedState(playerStyle)
     val openStudio: () -> Unit = remember(studio) {
         {
@@ -375,10 +413,31 @@ private fun PlayerSheet(
         kotlinx.coroutines.delay(180)
         openStudio()
     }
+    // the equalizer page, from the options sheet or a round button: the player steps down so it's in view
+    val openEqualizer: () -> Unit = {
+        showActionMenu = false
+        showExpandMenu = false
+        navController.navigate("equalizer")
+        state.collapseSoft()
+    }
+    // the full video mode, from the options sheet or the chevron while a youtube video plays
+    val enterVideoMode: () -> Unit = {
+        showActionMenu = false
+        showExpandMenu = false
+        onPlayerStyleChange(PlayerStyle.VIDEO)
+    }
+    val exitVideoMode = androidx.compose.runtime.rememberUpdatedState {
+        val back = PlayerStyle.entries.firstOrNull { it.name == videoModeReturn && it != PlayerStyle.VIDEO }
+            ?: PlayerStyle.fromStored(videoModeReturn)
+        onPlayerStyleChange(back ?: PlayerStyle.FLAGSHIP)
+    }
+    // whether the style on now is turned sideways; only the styles with a rotate item ever turn this on
+    val (styleTurned) = com.mochyy.mochymusic.ui.player.styles.rememberStyleRotation(playerStyle)
     // the song's whole lyrics, opened over an alternate style from its ••• menu
     var styleLyricsOpen by remember { mutableStateOf(false) }
-    // that page fully up: the style under it stops drawing
+    // that page fully up: the style under it stops drawing, and its clocks stop with it
     var styleCovered by remember { mutableStateOf(false) }
+    val styleCoveredNow = remember { { styleCovered } }
     val styleActions = remember(openStudio) {
         com.mochyy.mochymusic.ui.player.styles.StyleActions(
             onOtherMenu = {
@@ -389,6 +448,15 @@ private fun PlayerSheet(
             },
             onEditPlayer = openStudio,
             onLyrics = { styleLyricsOpen = true },
+            onExitVideoMode = { exitVideoMode.value() },
+            onOpenArtist = { artistId ->
+                navController.navigate("artist/$artistId")
+                state.collapseSoft()
+            },
+            onOpenAlbum = { albumId ->
+                navController.navigate("album/$albumId")
+                state.collapseSoft()
+            },
         )
     }
 
@@ -420,6 +488,9 @@ private fun PlayerSheet(
     // it is: collapsed, the pages are unmounted (still remembered) and the seek bar holds still.
     val sheetShowing by remember(state) { derivedStateOf { state.progress > 0f } }
 
+    // the record and the lyrics move with no finger on them, which android 15+ otherwise draws at 60hz
+    com.mochyy.mochymusic.ui.utils.HighRefreshWhile { sheetShowing && transportState.isPlaying }
+
     // Settings > Customise > Gesture: a swipe down anywhere on the open player closes it (#121)
     val (swipeDownAnywhere) = rememberPreference(
         com.mochyy.mochymusic.constants.PlayerSwipeDownAnywhereKey,
@@ -447,7 +518,7 @@ private fun PlayerSheet(
     var lyricsChevronRect by remember {
         mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
     }
-    val statusBarTopInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val statusBarTopInset = WindowInsets.stableStatusBars.asPaddingValues().calculateTopPadding()
     val density = LocalDensity.current
 
     // The bar at the top of the open player, on every style: bright while it's touched, faint
@@ -556,7 +627,7 @@ private fun PlayerSheet(
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val screenWidth = maxWidth
         val screenHeight = maxHeight
-        val studioStatusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val studioStatusTop = WindowInsets.stableStatusBars.asPaddingValues().calculateTopPadding()
         androidx.compose.runtime.SideEffect {
             studioParts.width = with(density) { screenWidth.toPx() }
             studioParts.height = with(density) { screenHeight.toPx() }
@@ -758,7 +829,9 @@ private fun PlayerSheet(
                 com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.LYRICS -> transition.open(PlayerPage.LYRICS)
                 com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.QUEUE -> transition.open(PlayerPage.QUEUE)
                 com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SPEED -> showPlaybackSpeed = true
+                com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.EQUALIZER -> openEqualizer()
                 com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.OUTPUT -> showDeviceOutput = true
+                com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.FULL_VIDEO -> enterVideoMode()
                 else -> menuExtras.run(action)
             }
         }
@@ -804,6 +877,8 @@ private fun PlayerSheet(
             isPillTransition = true,
             expandedSwipe = swipe,
             collapsedSwipe = miniSwipe,
+            // the full video mode closes, opens its pane and scrolls by itself; the sheet read its swipes upright and fought its lists for them
+            dragsWhenOpen = { currentPlayerStyle != PlayerStyle.VIDEO },
             onTouchActivity = handleState::onTouchActivity,
             pureBlack = pureBlack,
             background = {},
@@ -829,6 +904,7 @@ private fun PlayerSheet(
                     glassActiveInEdit = { studio.stage >= StudioStage.EDIT && studio.selector.value < 0.01f },
                     // another style draws the open player itself: none of the flagship runs behind it
                     alternateStyle = !playerStyle.flagshipFamily,
+                    miniVideo = playerStyle == PlayerStyle.VIDEO,
                     coverOffsetProvider = layoutTweaks::controlsOffset,
                     onLongPressCover = holdToStudio,
                     studioArtModifier = if (playerStyle.flagshipFamily) {
@@ -842,6 +918,9 @@ private fun PlayerSheet(
                         }
                     },
                     onArtBoundsChanged = { rects.cover = it },
+                    onVideoShowingChange = { videoShowing = it },
+                    ambient = if (isFlagship || backgroundStyle == PlayerBackgroundStyle.AMBIENT) ambient else null,
+                    frostedCover = isFlagship,
                 )
             },
             onDismiss = {
@@ -878,8 +957,10 @@ private fun PlayerSheet(
                                 if (state.progress > StyleHiddenBelow) placeable.place(0, 0)
                             }
                         }
-                        .pointerInput(styleOpen) {
-                            if (!styleOpen) return@pointerInput
+                        // the full video mode is turned sideways and has its own pull to close, so a sideways swipe on it
+                        // (a vertical one to this) mustn't close the player; the bedside's swipes are its pages, and it closes itself
+                        .pointerInput(styleOpen, playerStyle) {
+                            if (!styleOpen || playerStyle == PlayerStyle.VIDEO || playerStyle.isBedside) return@pointerInput
                             val closePx = 8.dp.toPx()
                             var pulled = 0f
                             var closing = false
@@ -910,6 +991,7 @@ private fun PlayerSheet(
                 ) {
                     androidx.compose.runtime.CompositionLocalProvider(
                         com.mochyy.mochymusic.ui.player.styles.LocalStyleInteractive provides styleInteractive,
+                        com.mochyy.mochymusic.ui.player.styles.LocalStyleCovered provides styleCoveredNow,
                     ) {
                         com.mochyy.mochymusic.ui.player.styles.AlternatePlayerStyle(
                             style = playerStyle,
@@ -931,8 +1013,8 @@ private fun PlayerSheet(
                     onCoveredChange = { styleCovered = it },
                     onSwitchSource = { showLyricsSource = true },
                 )
-                // the ipod has its own chevron on its body, a bar over it would just be in the way
-                if (playerStyle != PlayerStyle.IPOD) PlayerHandle(
+                // the ipod, the full video mode and the bedside each have their own close, a bar over them would just be in the way
+                if (playerStyle != PlayerStyle.IPOD && playerStyle != PlayerStyle.VIDEO && !playerStyle.isBedside) PlayerHandle(
                     state = handleState,
                     sheet = state,
                     statusBarTop = statusBarTopInset,
@@ -950,8 +1032,22 @@ private fun PlayerSheet(
                     .onGloballyPositioned { studioAnchors.root = it },
             )
 
-            // the Turntable's record isn't a cover to soften into the backdrop
-            if (!isTurntable) SeamBlur(
+            // the new flagship's cover fades into its own blurred copy instead, with only a light shade for the text; the Turntable's record isn't a cover to soften
+            if (isFlagship) {
+                if (shownCoverStyle == PlayerCoverStyle.EDGE_TO_EDGE) CoverFrost(
+                    glassState = morphingGlassState,
+                    progressProvider = progressProvider,
+                    maxHeight = screenHeight,
+                    fadeProvider = { 1f - lyricsProgress },
+                    offsetProvider = layoutTweaks::controlsOffset,
+                )
+                if (shownCoverStyle == PlayerCoverStyle.EDGE_TO_EDGE) ControlsShade(
+                    progressProvider = progressProvider,
+                    maxHeight = screenHeight,
+                    fadeProvider = { 1f - lyricsProgress },
+                    offsetProvider = layoutTweaks::controlsOffset,
+                )
+            } else if (!isTurntable) SeamBlur(
                 glassState = morphingGlassState,
                 progressProvider = progressProvider,
                 trackInfo = trackInfo,
@@ -963,7 +1059,8 @@ private fun PlayerSheet(
 
             // The card growing into the page, under it: its glass widens to the full screen while
             // the player behind dims a touch. Only there while a page is growing or shrinking.
-            ExpandingCardSurface(transition = transition, morph = morph)
+            if (pillMorph) FlagshipPillMorphSurface(transition = transition, morph = morph)
+            else ExpandingCardSurface(transition = transition, morph = morph, look = cardLook)
 
             // Unmounted while the player is collapsed - even though the page itself is remembered -
             // because its lines keep per-frame clocks of their own that would otherwise tick away
@@ -984,7 +1081,7 @@ private fun PlayerSheet(
                     onSwitchSource = { showLyricsSource = true },
                     modifier = Modifier
                         .fillMaxSize()
-                        .pageTransitionLayer(PlayerPage.LYRICS, transition, morph) { lyricsPageProgress },
+                        .pageTransitionLayer(PlayerPage.LYRICS, transition, morph, pageLook) { lyricsPageProgress },
                 )
             }
 
@@ -1001,7 +1098,7 @@ private fun PlayerSheet(
                     morph = morph,
                     modifier = Modifier
                         .fillMaxSize()
-                        .pageTransitionLayer(PlayerPage.QUEUE, transition, morph) { queuePageProgress },
+                        .pageTransitionLayer(PlayerPage.QUEUE, transition, morph, pageLook) { queuePageProgress },
                 )
             }
 
@@ -1040,6 +1137,7 @@ private fun PlayerSheet(
                     // in the bar's editor the card comes up whole, its body closed off at the bottom
                     closedProvider = { if (studioPieces.liftedPart == LiftedPart.BAR) studio.bar.value else 0f },
                     growthProvider = layoutTweaks::cardGrowth,
+                    look = cardLook,
 
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -1058,23 +1156,39 @@ private fun PlayerSheet(
             }
 
             if ((showVolumeBar || barLifted) && deckMounted) {
-                PlayerVolumeBar(
-                    progressProvider = progressProvider,
-                    isActive = ::menuActionActive,
-                    onAction = onMenuAction,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = playerVolumeBarFootprint() - PlayerVolumeBarHeight)
-                        .padding(horizontal = 26.dp)
-                        .studioAnchor(studioAnchors) { it.volumeBar }
-                        .studioBarLayer(studioParts) { it.volumeBar }
-                        .studioPiece(studioPieces, StudioPieces.VOLUME_BAR)
-                        .graphicsLayer {
-                            alpha = 1f - controlsHidden
-                            translationY = controlsHidden * size.height * 0.75f
-                            letTouchesThroughWhenHidden()
-                        },
-                )
+                val volumeBarModifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(
+                        bottom = if (newBottomBar) flagshipBarFootprint() - FlagshipBarHeight
+                        else playerVolumeBarFootprint() - PlayerVolumeBarHeight
+                    )
+                    .padding(horizontal = 26.dp)
+                    .studioAnchor(studioAnchors) { it.volumeBar }
+                    .studioBarLayer(studioParts) { it.volumeBar }
+                    .studioPiece(studioPieces, StudioPieces.VOLUME_BAR)
+                    .graphicsLayer {
+                        alpha = 1f - controlsHidden
+                        translationY = controlsHidden * size.height * 0.75f
+                        letTouchesThroughWhenHidden()
+                    }
+                if (newBottomBar) {
+                    FlagshipBottomBar(
+                        progressProvider = progressProvider,
+                        isActive = ::menuActionActive,
+                        onAction = onMenuAction,
+                        // the page grows out of the button that was tapped, not out of a card that isn't there
+                        onPageFrom = { morph.cardRect = it },
+                        pages = transition,
+                        modifier = volumeBarModifier,
+                    )
+                } else {
+                    PlayerVolumeBar(
+                        progressProvider = progressProvider,
+                        isActive = ::menuActionActive,
+                        onAction = onMenuAction,
+                        modifier = volumeBarModifier,
+                    )
+                }
             }
 
             if (lyricsButtonMounted && !studioEngaged) {
@@ -1093,6 +1207,7 @@ private fun PlayerSheet(
             // open and the start of every close, for a value the card layout never uses. (The
             // volume bar reads its size as if it were showing, which stays put through all that.)
             val belowControls = when {
+                showVolumeBar && newBottomBar -> flagshipBarFootprint()
                 showVolumeBar -> playerVolumeBarFootprint()
                 showPlayerBottomCard -> PlayerDeckHeight
                 else -> WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 8.dp
@@ -1100,10 +1215,14 @@ private fun PlayerSheet(
             val transportGap = (screenHeight * 0.19f - 37.dp - belowControls + TransportGapAboveRow + controlsDrawShift) / 2f
             // What's left of the gap above once the bar's own lift and the draw shift are counted.
             val transportSpacer = (transportGap - SeekBarLift - controlsDrawShift).coerceAtLeast(0.dp)
+            // the buttons sit halfway between the seek bar and the bottom part: once the spacer above runs out they'd sit low, so they're lifted by half the difference
+            val gapAboveButtons = transportSpacer + SeekBarLift + controlsDrawShift
+            val gapBelowButtons = transportGap.coerceAtLeast(0.dp)
+            val buttonsLift = (gapAboveButtons - gapBelowButtons) / 2f
             // how far the editor's hold may move the controls, and pull the card taller
             androidx.compose.runtime.SideEffect {
                 layoutTweaks.setLimits(
-                    roomAboveBar = transportGap.coerceAtLeast(0.dp),
+                    roomAboveBar = (gapAboveButtons + gapBelowButtons) / 2f,
                     screenHeightPx = with(density) { screenHeight.toPx() },
                     density = density,
                     controlsMovable = !isTurntable,
@@ -1380,12 +1499,20 @@ private fun PlayerSheet(
 
                 Spacer(modifier = Modifier.height(transportSpacer))
 
-                PlayerTransportRow(
-                    modifier = Modifier
-                        .studioAnchor(studioAnchors) { it.transport }
-                        .studioTransportLayer(studioParts)
-                        .studioPiece(studioPieces, StudioPieces.TRANSPORT)
-                )
+                val transportModifier = Modifier
+                    // the editor moves the seek bar; the buttons follow it halfway, and meet a taller card halfway, so they stay in the middle
+                    .offset {
+                        val follow = (layoutTweaks.controlsOffset() + layoutTweaks.cardGrowth()) / 2f
+                        androidx.compose.ui.unit.IntOffset(0, (-buttonsLift.toPx() - follow).roundToInt())
+                    }
+                    .studioAnchor(studioAnchors) { it.transport }
+                    .studioTransportLayer(studioParts)
+                    .studioPiece(studioPieces, StudioPieces.TRANSPORT)
+                if (isFlagship) {
+                    FlagshipTransportRow(layout = transportLayout, modifier = transportModifier)
+                } else {
+                    PlayerTransportRow(modifier = transportModifier, flagshipGlyph = isTurntable)
+                }
             }
 
             // The Turntable's own controls, as its frame lays them out, above the card. They give
@@ -1433,13 +1560,18 @@ private fun PlayerSheet(
             onDismiss = { showExpandMenu = false },
             // the Turntable's pills have no shuffle or repeat, so its menu adds them on top of the
             // four set in the editor (unless one of those is already there)
-            slots = if (isTurntable) {
-                listOf(
-                    com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SHUFFLE,
-                    com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.REPEAT,
-                ).filterNot { it in menuLayout.slots } + menuLayout.slots
-            } else {
-                menuLayout.slots
+            slots = run {
+                val set = if (isTurntable) {
+                    listOf(
+                        com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SHUFFLE,
+                        com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.REPEAT,
+                    ).filterNot { it in menuLayout.slots } + menuLayout.slots
+                } else {
+                    menuLayout.slots
+                }
+                // with a youtube video on the cover, the full video mode goes on top unless it's already one of the four
+                val fullVideo = com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.FULL_VIDEO
+                if (videoShowing && fullVideo !in set) listOf(fullVideo) + set else set
             },
             isActive = ::menuActionActive,
             onAction = onMenuAction,
@@ -1453,8 +1585,9 @@ private fun PlayerSheet(
 
         // Pulling down at the top of the queue list stretches the list instead of closing the
         // player. (Lyrics keep the pull-to-close.)
-        androidx.compose.runtime.DisposableEffect(state, showQueue) {
-            state.collapseOnNestedOverscroll = !showQueue
+        // the full video mode's pane is a side panel turned sideways: past its top it only stretches, the player stays open
+        androidx.compose.runtime.DisposableEffect(state, showQueue, playerStyle) {
+            state.collapseOnNestedOverscroll = !showQueue && playerStyle != PlayerStyle.VIDEO
             onDispose { state.collapseOnNestedOverscroll = true }
         }
 
@@ -1464,71 +1597,76 @@ private fun PlayerSheet(
         // and back belongs to the app.
         PageBackHandler(state, pageOpen = showQueue || showLyrics) { transition.close() }
 
-        if (showSleepTimer) {
-            com.mochyy.mochymusic.ui.player.menu.SleepTimerSheet(
-                onDismiss = { showSleepTimer = false }
-            )
-        }
+        // a style turned sideways gets these turned with it, each a floating card the right way up, the way the full video mode opens its own
+        com.mochyy.mochymusic.ui.player.styles.TurnedSheets(turned = styleTurned && playerStyle != PlayerStyle.VIDEO) {
+            if (showSleepTimer) {
+                com.mochyy.mochymusic.ui.player.menu.SleepTimerSheet(
+                    onDismiss = { showSleepTimer = false }
+                )
+            }
 
-        if (showSongDetails) {
-            // Opening an artist or the album leaves the player: it closes on its way to the page,
-            // the way the song menus' "view artist" does
-            com.mochyy.mochymusic.ui.player.menu.SongDetailsSheet(
-                onDismiss = { showSongDetails = false },
-                onOpenArtist = { artistId ->
-                    showSongDetails = false
-                    navController.navigate("artist/$artistId")
-                    state.collapseSoft()
-                },
-                onOpenAlbum = { albumId ->
-                    showSongDetails = false
-                    navController.navigate("album/$albumId")
-                    state.collapseSoft()
-                },
-            )
-        }
+            if (showSongDetails) {
+                // Opening an artist or the album leaves the player: it closes on its way to the page,
+                // the way the song menus' "view artist" does
+                com.mochyy.mochymusic.ui.player.menu.SongDetailsSheet(
+                    onDismiss = { showSongDetails = false },
+                    onOpenArtist = { artistId ->
+                        showSongDetails = false
+                        navController.navigate("artist/$artistId")
+                        state.collapseSoft()
+                    },
+                    onOpenAlbum = { albumId ->
+                        showSongDetails = false
+                        navController.navigate("album/$albumId")
+                        state.collapseSoft()
+                    },
+                )
+            }
 
-        if (showStreamInfo) {
-            com.mochyy.mochymusic.ui.player.info.StreamInfoSheet(onDismiss = { showStreamInfo = false })
-        }
+            if (showStreamInfo) {
+                com.mochyy.mochymusic.ui.player.info.StreamInfoSheet(onDismiss = { showStreamInfo = false })
+            }
 
-        if (showActionMenu) {
-            PlayerActionMenu(
-                fromLyrics = menuFromLyrics,
-                onDismiss = {
-                    showActionMenu = false
-                    menuReveal.floatValue = 0f
-                },
-                onEditPlayer = {
-                    // Same destination as a long press: the selector, the player shrinking into
-                    // its card. Jumping straight into the editor skipped the choice of style.
-                    openStudio()
-                },
-                onReveal = { menuReveal.floatValue = it },
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
+            if (showActionMenu) {
+                PlayerActionMenu(
+                    fromLyrics = menuFromLyrics,
+                    onFullVideo = enterVideoMode,
+                    onEqualizer = openEqualizer,
+                    onDismiss = {
+                        showActionMenu = false
+                        menuReveal.floatValue = 0f
+                    },
+                    onEditPlayer = {
+                        // Same destination as a long press: the selector, the player shrinking into
+                        // its card. Jumping straight into the editor skipped the choice of style.
+                        openStudio()
+                    },
+                    onReveal = { menuReveal.floatValue = it },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
 
-        if (showPlaybackSpeed) {
-            com.mochyy.mochymusic.ui.player.menu.PlaybackSpeedSheet(onDismiss = { showPlaybackSpeed = false })
-        }
-        if (showDeviceOutput) {
-            com.mochyy.mochymusic.ui.player.menu.DeviceOutputSheet(onDismiss = { showDeviceOutput = false })
-        }
-        // opened by "Switch" at the end of the lyrics page
-        if (showLyricsSource) {
-            com.mochyy.mochymusic.ui.player.menu.LyricsProviderSheet(onDismiss = { showLyricsSource = false })
+            if (showPlaybackSpeed) {
+                com.mochyy.mochymusic.ui.player.menu.PlaybackSpeedSheet(onDismiss = { showPlaybackSpeed = false })
+            }
+            if (showDeviceOutput) {
+                com.mochyy.mochymusic.ui.player.menu.DeviceOutputSheet(onDismiss = { showDeviceOutput = false })
+            }
+            // opened by "Switch" at the end of the lyrics page
+            if (showLyricsSource) {
+                com.mochyy.mochymusic.ui.player.menu.LyricsProviderSheet(onDismiss = { showLyricsSource = false })
+            }
         }
 
         // the player studio, over the player: the selector, the editor's header and editors, its sheets
         PlayerSelectorOverlay(
             studio = studio,
             styles = playerStyles,
-            onSet = { index ->
+            onSet = { index, velocity ->
                 val style = playerStyles[index]
                 val restyled = style != playerStyle
                 if (restyled) onPlayerStyleChange(style)
-                studio.settleOn(index, restyled)
+                studio.settleOn(index, restyled, velocity = velocity)
             },
             onEdit = { focused ->
                 if (playerStyles.getOrNull(focused) == PlayerStyle.POSTER) {
@@ -1545,6 +1683,14 @@ private fun PlayerSheet(
                     studio.settleOn(focused, restyled) {
                         studio.openSheet(com.mochyy.mochymusic.ui.player.studio.StudioSheet.IPOD)
                     }
+                } else if (playerStyles.getOrNull(focused)?.isBedside == true) {
+                    // either bedside: the night look and the screen options, in a sheet over the style itself
+                    val bedside = playerStyles[focused]
+                    val restyled = playerStyle != bedside
+                    if (restyled) onPlayerStyleChange(bedside)
+                    studio.settleOn(focused, restyled) {
+                        studio.openSheet(com.mochyy.mochymusic.ui.player.studio.StudioSheet.BEDSIDE)
+                    }
                 } else if (playerStyles.getOrNull(focused) == PlayerStyle.TURNTABLE) {
                     // its one edit is the disc label: back to the player, with the label's sheet
                     val restyled = playerStyle != PlayerStyle.TURNTABLE
@@ -1553,15 +1699,16 @@ private fun PlayerSheet(
                         studio.openSheet(com.mochyy.mochymusic.ui.player.studio.StudioSheet.DISC_LABEL)
                     }
                 } else {
-                    val index = playerStyles.indexOf(PlayerStyle.DEFAULT)
-                    if (playerStyle != PlayerStyle.DEFAULT) onPlayerStyleChange(PlayerStyle.DEFAULT)
-                    studio.livePage = index
+                    // the full editor, on whichever flagship is in view
+                    val style = playerStyles.getOrNull(focused)?.takeIf { it.hasFullEditor } ?: PlayerStyle.FLAGSHIP
+                    if (playerStyle != style) onPlayerStyleChange(style)
+                    studio.livePage = playerStyles.indexOf(style)
                     studio.go(StudioStage.EDIT)
                 }
             },
         )
-        // the Poster's sheet, over the poster itself
-        if (playerStyle == PlayerStyle.POSTER || playerStyle == PlayerStyle.IPOD) {
+        // the Poster's, the iPod's and the bedside's sheets, each over its own style
+        if (playerStyle == PlayerStyle.POSTER || playerStyle == PlayerStyle.IPOD || playerStyle.isBedside) {
             com.mochyy.mochymusic.ui.player.studio.StyleSheets(studio)
         }
         if (playerStyle.flagshipFamily) {
@@ -1587,7 +1734,7 @@ private fun PlayerSheet(
                 com.mochyy.mochymusic.constants.PlayerEndTimestamp.END_TIME,
             )
             val artworkPalette = com.mochyy.mochymusic.ui.theme.ArtworkPalette.from(com.mochyy.mochymusic.LocalArtworkColor.current)
-            if (playerStyle == PlayerStyle.DEFAULT) StudioEditOverlay(
+            if (playerStyle.hasFullEditor) StudioEditOverlay(
                 parts = studioParts,
                 glassState = morphingGlassState,
                 capture = studioCapture,
@@ -1596,7 +1743,7 @@ private fun PlayerSheet(
                 onCoverStyle = { coverStyle = it },
                 backgroundStyles = backgroundStyles,
                 backgroundStyle = backgroundStyle,
-                onBackgroundStyle = { backgroundStyle = it },
+                onBackgroundStyle = { if (isFlagship) flagshipBackground = it else classicBackground = it },
                 menuLayout = menuLayout,
                 seekBarStyle = seekBarStyle,
                 endTimestamp = endTimestamp,
@@ -1613,6 +1760,9 @@ private fun PlayerSheet(
                 seekBarStyle = seekBarStyle,
                 onSeekBarStyle = { seekBarStyle = it },
                 menuLayout = menuLayout,
+                // the new flagship picks its button layout there instead of a button style
+                transportLayout = if (isFlagship) transportLayout else null,
+                onTransportLayout = { transportLayout = it },
                 transportColors = com.mochyy.mochymusic.ui.component.TransportColors(
                     accent = artworkPalette.accent,
                     onAccent = artworkPalette.onAccent,
@@ -1691,7 +1841,7 @@ private fun ExpandMenuOverlay(
             isRendered = true
             launch {
                 bgAlpha.animateTo(
-                    targetValue = 0.62f,
+                    targetValue = com.mochyy.mochymusic.ui.player.styles.ChevronMenuDim,
                     animationSpec = tween(durationMillis = 350, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f))
                 )
             }
@@ -1835,7 +1985,7 @@ private fun ExpandMenuOverlay(
                                     renderEffect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                                         // DECAL only exists on API 31+; keep the reference inside
                                         // the check so older devices never resolve it.
-                                        BlurEffectCache.get(blurPx, android.graphics.Shader.TileMode.DECAL)
+                                        BlurEffectCache.element(blurPx, android.graphics.Shader.TileMode.DECAL)
                                     } else {
                                         null
                                     }
@@ -1845,16 +1995,7 @@ private fun ExpandMenuOverlay(
                             val label: @Composable () -> Unit = {
                             androidx.compose.material3.Text(
                                 text = item.first,
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-                                style = androidx.compose.ui.text.TextStyle(
-                                    shadow = androidx.compose.ui.graphics.Shadow(
-                                        color = Color.Black.copy(alpha = 0.75f),
-                                        offset = androidx.compose.ui.geometry.Offset(0f, 2f),
-                                        blurRadius = 8f
-                                    )
-                                ),
+                                style = chevronMenuLabelStyle(Color.White, 14.sp),
                                 modifier = Modifier.padding(start = if (fromLeft) 4.dp else 0.dp, end = if (fromLeft) 0.dp else 4.dp)
                             )
                             }

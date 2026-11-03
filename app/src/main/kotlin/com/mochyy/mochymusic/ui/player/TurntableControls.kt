@@ -151,6 +151,7 @@ fun TurntablePills(modifier: Modifier = Modifier, likeBurst: LikeBurstState? = n
         Pill {
             AnimatedPressScaleSkipButton(
                 icon = R.drawable.avd_skip_previous,
+                flagshipGlyph = true,
                 onClick = connection::seekToPrevious,
                 enabled = transport.canSkipPrevious,
                 tint = Color.White,
@@ -164,6 +165,7 @@ fun TurntablePills(modifier: Modifier = Modifier, likeBurst: LikeBurstState? = n
         }
         Pill {
             AnimatedPressScalePlayPauseButton(
+                flagshipGlyph = true,
                 isPlaying = transport.isPlaying,
                 playbackState = transport.playbackState,
                 onClick = {
@@ -175,13 +177,15 @@ fun TurntablePills(modifier: Modifier = Modifier, likeBurst: LikeBurstState? = n
                     }
                 },
                 tint = Color.White,
-                iconSize = 26.dp,
+                // the skips' size, so play keeps the flagship's proportion to them
+                iconSize = 24.dp,
                 modifier = Modifier.fillMaxSize(),
             )
         }
         Pill {
             AnimatedPressScaleSkipButton(
                 icon = R.drawable.avd_skip_next,
+                flagshipGlyph = true,
                 onClick = connection::seekToNext,
                 enabled = transport.canSkipNext,
                 tint = Color.White,
@@ -301,7 +305,12 @@ private fun TitleLines(mediaId: String, title: String, artist: String, modifier:
     val (showSampleRate) = rememberPreference(ShowFormatSampleRateKey, defaultValue = false)
     Column(modifier = modifier) {
         val facts by remember(mediaId) { connection.streamFacts(mediaId) }.collectAsState(initial = null)
-        val badge = if (showBadge) streamBadgeText(facts, showSampleRate) else null
+        val larping = rememberLarpMode()
+        val badge = when {
+            larping -> larpBadgeText()
+            showBadge -> streamBadgeText(facts, showSampleRate)
+            else -> null
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             FadingOverflowText(
                 text = title,

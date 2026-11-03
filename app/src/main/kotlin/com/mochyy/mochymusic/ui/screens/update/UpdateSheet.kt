@@ -83,10 +83,12 @@ import com.mochyy.mochymusic.core.updater.installApk
 import com.mochyy.mochymusic.core.updater.isDownloaded
 import com.mochyy.mochymusic.core.updater.isNewerThanInstalled
 import com.mochyy.mochymusic.core.updater.parseFullVersion
+import com.mochyy.mochymusic.ui.component.BetaBadge
 import com.mochyy.mochymusic.ui.component.PopupSheetState
 import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
 import com.mochyy.mochymusic.ui.player.menu.MenuSurface
+import com.mochyy.mochymusic.ui.screens.donate.showSupportSheet
 import kotlinx.coroutines.launch
 
 @Composable
@@ -148,7 +150,7 @@ internal fun SheetPrimaryButton(text: String, onClick: () -> Unit) {
 }
 
 private val StableGreen = Color(0xFF9CF58A)
-private val BetaYellow = Color(0xFFF5E27A)
+private const val StableLabel = "STABLE"
 
 /** "8.1.0 build#1165" -> "8.1.0", "8.0.2 (1100)" -> "8.0.2" */
 internal fun shortVersion(version: String): String = version.substringBefore(' ').substringBefore("-xbibz.")
@@ -268,6 +270,11 @@ private fun ColumnScope.UpdateSheetContent(
                     label = "About app",
                     onClick = { popup.showAboutSheet(onOpenDevSpace = onOpenDevSpace) },
                 )
+                ActionRow(
+                    icon = R.drawable.favorite,
+                    label = "Help us!",
+                    onClick = { popup.showSupportSheet() },
+                )
             }
             Spacer(Modifier.height(6.dp))
         }
@@ -279,29 +286,21 @@ private fun ColumnScope.UpdateSheetContent(
 private fun ChannelBadge(latest: GithubRelease?) {
     val aheadOfReleases = latest != null &&
         parseFullVersion(latest.version).copy(buildNumber = 0) < parseFullVersion(BuildConfig.VERSION_NAME).copy(buildNumber = 0)
-    val (label, color) = when {
-        BuildConfig.IS_NIGHTLY -> "NIGHTLY" to BetaYellow
-        aheadOfReleases -> "BETA" to BetaYellow
-        else -> "STABLE" to StableGreen
+    val label = when {
+        BuildConfig.IS_NIGHTLY -> "NIGHTLY"
+        aheadOfReleases -> "BETA"
+        else -> StableLabel
     }
     AnimatedContent(
-        targetState = label to color,
+        targetState = label,
         transitionSpec = {
             (scaleIn(spring(dampingRatio = 0.5f, stiffness = 500f), initialScale = 0.6f) + fadeIn())
                 .togetherWith(scaleOut(targetScale = 0.6f) + fadeOut())
         },
         label = "channelBadge",
-    ) { (text, tint) ->
-        Text(
-            text,
-            color = tint,
-            fontSize = 12.sp,
-            fontFamily = FontFamily.Monospace,
-            letterSpacing = 1.sp,
-            modifier = Modifier
-                .border(1.dp, tint.copy(alpha = 0.8f), CircleShape)
-                .padding(horizontal = 14.dp, vertical = 4.dp),
-        )
+    ) { text ->
+        // the same outlined tag as every other beta mark in the app, green while this build is stable
+        if (text == StableLabel) BetaBadge(label = text, color = StableGreen) else BetaBadge(label = text)
     }
 }
 

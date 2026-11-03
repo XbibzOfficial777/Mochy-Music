@@ -23,7 +23,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,26 +40,28 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.ui.component.BottomSheetState
 import com.mochyy.mochymusic.ui.component.LocalPlayerBottomSheetState
-import com.mochyy.mochymusic.ui.player.findActivity
 import com.mochyy.mochymusic.ui.player.styles.LocalStyleInteractive
 import com.mochyy.mochymusic.ui.player.styles.rememberStyleShowing
 import com.mochyy.mochymusic.ui.player.styles.whileStyleInteractive
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.ui.utils.stableSystemBars
+import com.mochyy.mochymusic.constants.PlayerStatusBarDefault
+import com.mochyy.mochymusic.constants.PlayerStatusBarKey
+import com.mochyy.mochymusic.ui.player.findActivity
+import com.mochyy.mochymusic.ui.theme.ForceDarkTheme
+import com.mochyy.mochymusic.utils.rememberPreference
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+import kotlinx.coroutines.flow.distinctUntilChanged
 import com.mochyy.mochymusic.viewmodels.IpodLibraryViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.distinctUntilChanged
 
 // the ipod classic as a player: fills a phone edge to edge, sits whole on black on a big screen
 @Composable
@@ -70,6 +71,7 @@ fun IpodPlayerStyle(modifier: Modifier = Modifier, preview: Boolean = false) {
     val topInset = bars.getTop(density)
     val bottomInset = bars.getBottom(density)
     val look = rememberIpodLook()
+    val (statusBarShown) = rememberPreference(PlayerStatusBarKey, defaultValue = PlayerStatusBarDefault)
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
@@ -83,7 +85,8 @@ fun IpodPlayerStyle(modifier: Modifier = Modifier, preview: Boolean = false) {
             if (wholeDevice) deviceGeometry(w, h, topInset.toFloat(), bottomInset.toFloat(), look.tall)
             else phoneGeometry(w, h, topInset.toFloat(), bottomInset.toFloat(), look.tall)
         }
-        if (!preview) HideStatusBar()
+        // the top bar setting decides whether the phone's status bar shows, and over a light body its icons go dark
+        if (statusBarShown && !wholeDevice && !preview && look.body.light) DarkStatusIcons()
         Box(
             Modifier
                 .fillMaxSize()
@@ -302,28 +305,20 @@ private fun Chevron(geometry: IpodGeometry, sheet: BottomSheetState?, preview: B
     )
 }
 
-// the ipod has its own battery and status header, so the android status bar hides while the player is open
+// dark status bar icons over the light body, back to white once the player is mostly closed or the style changes
 @Composable
-private fun HideStatusBar() {
+private fun DarkStatusIcons() {
     val view = LocalView.current
     val sheet = LocalPlayerBottomSheetState.current
-    val focused = LocalWindowInfo.current.isWindowFocused
-    LaunchedEffect(view, sheet, focused) {
+    LaunchedEffect(view, sheet) {
         val window = view.context.findActivity()?.window ?: return@LaunchedEffect
-        val controller = WindowCompat.getInsetsController(window, window.decorView.rootView)
+        val controller = WindowCompat.getInsetsController(window, view)
         try {
-            snapshotFlow { sheet == null || sheet.isExpanded }
+            snapshotFlow { sheet == null || sheet.progress > 0.5f }
                 .distinctUntilChanged()
-                .collect { open ->
-                    if (open) {
-                        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                        controller.hide(WindowInsetsCompat.Type.statusBars())
-                    } else {
-                        controller.show(WindowInsetsCompat.Type.statusBars())
-                    }
-                }
+                .collect { light -> controller.isAppearanceLightStatusBars = light || !ForceDarkTheme }
         } finally {
-            controller.show(WindowInsetsCompat.Type.statusBars())
+            controller.isAppearanceLightStatusBars = !ForceDarkTheme
         }
     }
 }

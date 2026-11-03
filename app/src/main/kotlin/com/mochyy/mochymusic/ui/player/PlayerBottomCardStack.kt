@@ -58,6 +58,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -76,7 +77,7 @@ internal val PlayerCardHeight = 54.dp
 internal val PlayerCardCorner = 28.dp
 
 /** How far the card in front sits from the screen's bottom edge, back card included. */
-private val PeekOffset = 9.dp
+internal val PeekOffset = 9.dp
 
 /** The whole deck's height on screen: the card plus the back card peeking over it. */
 internal val PlayerDeckHeight = PlayerCardHeight + PeekOffset
@@ -92,17 +93,28 @@ private val BottomBleed = 100.dp
 private val ArtworkSize = 28.dp
 private val ArtworkShape = RoundedCornerShape(ArtworkSize * 0.3f)
 
-private val PeekInset = 10.dp
+internal val PeekInset = 10.dp
 
 private const val BackCardScale = 0.94f
 
 private val FlipDistance = 70.dp
 
-/** Card in front: fill and border. The expanding surface starts from exactly these. */
-internal const val FrontCardFillAlpha = 0.11f
-internal const val FrontCardBorderAlpha = 0.20f
-private const val BackCardFillAlpha = 0.06f
-private const val BackCardBorderAlpha = 0.10f
+// how the deck is drawn; the page growing out of the card starts from exactly the front card's look
+@Immutable
+internal class PlayerCardLook(
+    val corner: Dp,
+    val frontFill: Float,
+    val frontBorder: Float,
+    val backFill: Float,
+    val backBorder: Float,
+    val borderWidth: Dp,
+)
+
+// the classic's glassy card, the one behind peeking over it
+internal val ClassicCardLook = PlayerCardLook(PlayerCardCorner, 0.11f, 0.20f, 0.06f, 0.10f, 1.dp)
+
+// the new flagship's faint 4% fill and 12% outline, layered and sized like the classic's, the card behind as much fainter as the classic's is
+internal val FlagshipCardLook = PlayerCardLook(PlayerCardCorner, 0.04f, 0.12f, 0.02f, 0.06f, 1.35.dp)
 
 /** Where each card's content starts, so a page can grow it from the right spot. */
 private val LyricContentStart = 18.dp
@@ -139,6 +151,7 @@ internal fun PlayerBottomCardStack(
      * the lyrics (and of the queue). Read while laying out and drawing only.
      */
     growthProvider: () -> Float = { 0f },
+    look: PlayerCardLook = ClassicCardLook,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
 
@@ -319,6 +332,7 @@ internal fun PlayerBottomCardStack(
             key(page) {
                 DeckCard(
                     page = page,
+                    look = look,
                     frontnessProvider = {
                         val q = queueFrontness()
                         if (page == PlayerPage.QUEUE) q else 1f - q
@@ -355,6 +369,7 @@ internal fun PlayerBottomCardStack(
 @Composable
 private fun BoxScope.DeckCard(
     page: PlayerPage,
+    look: PlayerCardLook,
     frontnessProvider: () -> Float,
     transition: PlayerPageTransition,
     morph: CardMorphState,
@@ -395,7 +410,7 @@ private fun BoxScope.DeckCard(
                 if (flightProgress() > 0.0005f) return@drawBehind
                 val f = frontness()
                 val inset = mixF(PeekInset.toPx(), 0f, f)
-                val corner = PlayerCardCorner.toPx()
+                val corner = look.corner.toPx()
                 // Only the strip of a back card that shows above the front one is drawn. Each card's
                 // top sits its own height above the bottom (scaled when behind), raised by the peek
                 // and, behind a taller card, by the lift.
@@ -416,7 +431,7 @@ private fun BoxScope.DeckCard(
                     val topLeft = Offset(inset, 0f)
                     val cardSize = Size(size.width - inset * 2f, bottom)
                     drawRoundRect(
-                        color = Color.White.copy(alpha = mixF(BackCardFillAlpha, FrontCardFillAlpha, f)),
+                        color = Color.White.copy(alpha = mixF(look.backFill, look.frontFill, f)),
                         topLeft = topLeft,
                         size = cardSize,
                         cornerRadius = CornerRadius(corner, corner),
@@ -424,11 +439,11 @@ private fun BoxScope.DeckCard(
                     // The border runs down the sides and off the screen with the body, so there's
                     // no line along the bottom (unless the editor has closed the card off).
                     drawRoundRect(
-                        color = Color.White.copy(alpha = mixF(BackCardBorderAlpha, FrontCardBorderAlpha, f)),
+                        color = Color.White.copy(alpha = mixF(look.backBorder, look.frontBorder, f)),
                         topLeft = topLeft,
                         size = cardSize,
                         cornerRadius = CornerRadius(corner, corner),
-                        style = Stroke(width = 1.dp.toPx()),
+                        style = Stroke(width = look.borderWidth.toPx()),
                     )
                 }
             }

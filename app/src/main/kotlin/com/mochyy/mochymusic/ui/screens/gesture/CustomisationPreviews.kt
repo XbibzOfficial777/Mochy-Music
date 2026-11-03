@@ -37,35 +37,46 @@ import com.mochyy.mochymusic.ui.screens.audiolab.LabColors
 internal val PreviewWidth = 133.dp
 
 private val FrameShape = RoundedCornerShape(topStart = 15.dp, topEnd = 15.dp)
-private val FrameFill = Color(0xFF2B2B2D)
-private val ArtFill = Brush.verticalGradient(listOf(Color(0xFF636365), Color(0xFF3F3F41)))
+internal val FrameFill = Color(0xFF2B2B2D)
+internal val ArtFill = Brush.verticalGradient(listOf(Color(0xFF636365), Color(0xFF3F3F41)))
 private val SoftArtFill = Brush.verticalGradient(listOf(Color(0xFF545456), FrameFill))
 private val ArtLight = Color(0xFF7C7C7E)
-private val Ink = Color.White.copy(alpha = 0.92f)
-private val Bone = Color.White.copy(alpha = 0.2f)
-private val BoneDim = Color.White.copy(alpha = 0.1f)
+internal val Ink = Color.White.copy(alpha = 0.92f)
+internal val Bone = Color.White.copy(alpha = 0.2f)
+internal val BoneDim = Color.White.copy(alpha = 0.1f)
 private val Pill = RoundedCornerShape(50)
 
 // the little phone screen peeking up from a style card's bottom right, sinking into the card at its foot
 @Composable
-internal fun PreviewFrame(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
+internal fun PreviewFrame(
+    modifier: Modifier = Modifier,
+    width: Dp = PreviewWidth,
+    top: Dp = 23.dp,
+    // the whole screen, lifted off the card's foot, for a preview whose point sits at its bottom edge
+    floating: Boolean = false,
+    content: @Composable BoxScope.() -> Unit,
+) {
     Box(
         modifier = modifier
-            .padding(top = 23.dp, end = 18.dp)
-            .width(PreviewWidth)
+            .padding(top = top, end = 18.dp, bottom = if (floating) 18.dp else 0.dp)
+            .width(width)
             .fillMaxHeight()
-            .clip(FrameShape)
+            .clip(if (floating) FloatingFrameShape else FrameShape)
             .background(FrameFill)
-            .drawWithCache {
-                val top = size.height * 0.72f
-                val foot = Brush.verticalGradient(0f to Color.Transparent, 1f to LabColors.Card, startY = top, endY = size.height)
-                onDrawWithContent {
-                    drawContent()
-                    drawRect(foot, topLeft = Offset(0f, top))
-                }
-            },
+            .then(if (floating) Modifier else SinkingFoot),
         content = content,
     )
+}
+
+private val FloatingFrameShape = RoundedCornerShape(15.dp)
+
+private val SinkingFoot = Modifier.drawWithCache {
+    val top = size.height * 0.72f
+    val foot = Brush.verticalGradient(0f to Color.Transparent, 1f to LabColors.Card, startY = top, endY = size.height)
+    onDrawWithContent {
+        drawContent()
+        drawRect(foot, topLeft = Offset(0f, top))
+    }
 }
 
 @Composable
@@ -102,6 +113,47 @@ internal fun PlaylistStylePreview(style: PlaylistStyle, coverRadius: Dp) {
 internal fun PlayerStylePreview(style: PlayerStyle) {
     when (style) {
         PlayerStyle.IPOD -> IpodPreview()
+        // the video across the card with a line of lyrics over it and the pane's bar at the bottom right
+        PlayerStyle.VIDEO -> Box(Modifier.fillMaxSize().background(ArtFill)) {
+            Column(Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = 22.dp)) {
+                Bar(54.dp, 6.dp, BoneDim)
+                Spacer(Modifier.height(5.dp))
+                Bar(92.dp, 9.dp)
+            }
+            Box(Modifier.align(Alignment.BottomEnd).padding(end = 14.dp, bottom = 8.dp)) { Bar(40.dp, 3.dp, BoneDim) }
+        }
+        // a big quiet time on black, the date small over it
+        PlayerStyle.BEDSIDE -> Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+            modifier = Modifier.fillMaxSize().background(Color.Black),
+        ) {
+            Bar(46.dp, 5.dp, BoneDim)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Bar(40.dp, 26.dp, Bone)
+                Bar(5.dp, 5.dp, Bone)
+                Bar(40.dp, 26.dp, Bone)
+            }
+        }
+        // the cover on one side, a stacked clock on black on the other
+        PlayerStyle.BEDSIDE_TILES -> Column(Modifier.fillMaxSize().background(Color.Black)) {
+            Box(Modifier.fillMaxWidth().weight(1f).background(ArtFill)) {
+                Column(Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = 10.dp)) {
+                    Bar(64.dp, 7.dp)
+                    Spacer(Modifier.height(6.dp))
+                    Bar(PreviewWidth - 36.dp, 2.5.dp, Bone)
+                }
+            }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterVertically),
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            ) {
+                Bar(24.dp, 4.dp, BoneDim)
+                Bar(40.dp, 22.dp, Bone)
+                Bar(40.dp, 22.dp, Bone)
+            }
+        }
         PlayerStyle.LYRICS -> Column(
             verticalArrangement = Arrangement.spacedBy(7.dp),
             modifier = Modifier.fillMaxSize().padding(start = 12.dp, top = 18.dp),
@@ -205,7 +257,7 @@ private fun NowPlayingBars() {
 
 // a title and the line under it, like the mock's two white bars
 @Composable
-private fun TitleBars(modifier: Modifier = Modifier) {
+internal fun TitleBars(modifier: Modifier = Modifier) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = modifier) {
         Bar(42.dp, 4.5.dp)
         Bar(30.dp, 4.5.dp)
@@ -261,7 +313,7 @@ private fun Shelf(shape: RoundedCornerShape, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Bar(width: Dp, height: Dp, color: Color = Ink) {
+internal fun Bar(width: Dp, height: Dp, color: Color = Ink) {
     Box(Modifier.size(width, height).background(color, Pill))
 }
 

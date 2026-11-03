@@ -10,6 +10,8 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -61,7 +63,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
-/** "Stream Info": where the playing song comes from, and its whole road to the speaker */
+/** "stream info": where the playing song comes from, and its whole road to the speaker */
 @Composable
 fun StreamInfoSheet(onDismiss: () -> Unit) {
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -108,6 +110,7 @@ fun StreamInfoSheet(onDismiss: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProviderRow(service: MusicService, from: PlayingFrom?, onForce: () -> Unit) {
     val uriHandler = LocalUriHandler.current
@@ -129,16 +132,22 @@ private fun ProviderRow(service: MusicService, from: PlayingFrom?, onForce: () -
                 text = from.name,
                 color = Color.White,
                 fontSize = 18.sp,
+                lineHeight = 22.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.02).em,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            from.quality?.let {
-                Text(text = it, color = InfoMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // larping, the source swears it's handing over the master
+            val quality = if (com.mochyy.mochymusic.ui.player.rememberLarpMode()) {
+                androidx.compose.ui.res.stringResource(com.mochyy.mochymusic.R.string.larp_quality)
+            } else from.quality
+            quality?.let {
+                Text(text = it, color = InfoMuted, fontSize = 12.sp, lineHeight = 16.sp)
             }
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // side by side when they fit, the second one on its own line when they don't
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 // only a module that publishes its code gets the star; others say nothing rather than a dead button
                 val sourceUrl = service.sourceModules.module(from.providerId)?.info?.sourceUrl
                 if (sourceUrl != null) {
@@ -240,7 +249,9 @@ private fun rememberStatCards(service: MusicService, mediaId: String, durationMs
             floatAllowed = service.audioOutputs.floatAllowed,
         ),
     )
-    return remember(input) { buildStatCards(input) }
+    val cards = remember(input) { buildStatCards(input) }
+    // larping, the nerds get the wadax story instead
+    return if (com.mochyy.mochymusic.ui.player.rememberLarpMode()) com.mochyy.mochymusic.ui.player.larpStatCards() else cards
 }
 
 private val hardwareDecoders = ConcurrentHashMap<String, Boolean>()

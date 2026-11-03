@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,6 +33,7 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -43,6 +43,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.navigation.NavController
 import com.mochyy.mochymusic.LocalPlayerAwareWindowInsets
+import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.discord.DiscordLogin
 import com.mochyy.mochymusic.discord.NowPlaying
 import com.mochyy.mochymusic.discord.PresenceConnection
@@ -54,6 +55,7 @@ import com.mochyy.mochymusic.ui.screens.settings.integrations.IntegrationPageSub
 import com.mochyy.mochymusic.viewmodels.DiscordViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.mochyy.mochymusic.ui.utils.stableStatusBars
 
 const val DiscordRoute = "integrations_settings/discord"
 
@@ -107,7 +109,7 @@ fun DiscordScreen(
     }
 
     val density = LocalDensity.current
-    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val statusBarTop = WindowInsets.stableStatusBars.asPaddingValues().calculateTopPadding()
     val headerBottomPx = with(density) { (statusBarTop + HeaderHeight).toPx() }
     var previewBottomPx by remember { mutableFloatStateOf(Float.MAX_VALUE) }
     val previewHidden by remember(headerBottomPx) { derivedStateOf { previewBottomPx < headerBottomPx } }
@@ -240,6 +242,14 @@ private fun CustomizeSection(
             onValueChange = { seconds -> edit { copy(refreshSeconds = seconds) } },
         )
     }
+
+    DiscordSectionTitle(stringResource(R.string.discord_behaviour))
+    DiscordSwitchCard(
+        title = stringResource(R.string.discord_clear_on_pause),
+        description = stringResource(R.string.discord_clear_on_pause_desc),
+        checked = settings.clearOnPause,
+        onCheckedChange = { on -> edit { copy(clearOnPause = on) } },
+    )
 
     DiscordSectionTitle("Activity")
     DiscordCard {

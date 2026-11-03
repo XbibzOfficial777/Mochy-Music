@@ -26,7 +26,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlin.properties.ReadOnlyProperty
 
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "settings",
+    produceMigrations = { listOf(BibzPreferencesMigration) },
+)
 
 object PreferencesCache {
 
@@ -111,7 +114,7 @@ fun <T> rememberPreference(
         derivedStateOf { PreferencesCache.snapshot.value[key] ?: defaultValue }
     }
 
-    return remember(key, store) {
+    return remember(key, store, valueState) {
         object : MutableState<T> {
             override var value: T
                 get() = valueState.value
@@ -136,7 +139,7 @@ inline fun <reified T : Enum<T>> rememberEnumPreference(
         derivedStateOf { PreferencesCache.snapshot.value[key].toEnum(defaultValue) }
     }
 
-    return remember(key, store) {
+    return remember(key, store, valueState) {
         object : MutableState<T> {
             override var value: T
                 get() = valueState.value

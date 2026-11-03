@@ -27,9 +27,9 @@ extensions.configure<ApplicationExtension> {
         applicationId = "com.mochyy.mochymusic"
         minSdk = 24
         targetSdk = 36
-        // Fork builds need their own version identity: official APKs have a different signer.
-        versionCode = 79
-        versionName = "8.2.3-xbibz.6"
+    // Fork updates must remain installable over earlier Bibz releases.
+    versionCode = 80
+    versionName = "8.3.1-xbibz.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -102,26 +102,31 @@ extensions.configure<ApplicationExtension> {
         create("universal") {
             dimension = "abi"
             buildConfigField("String", "ARCHITECTURE", "\"universal\"")
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64") }
         }
         create("arm64") {
             dimension = "abi"
             // A flavor name alone does not filter native libraries in the APK.
             ndk { abiFilters += "arm64-v8a" }
             buildConfigField("String", "ARCHITECTURE", "\"arm64\"")
+            ndk { abiFilters += "arm64-v8a" }
         }
         create("armeabi") {
             dimension = "abi"
             // Do not mistake the flavor name for an ABI filter: this APK is 32-bit ARMv7 only.
             ndk { abiFilters += "armeabi-v7a" }
             buildConfigField("String", "ARCHITECTURE", "\"armeabi\"")
+            ndk { abiFilters += "armeabi-v7a" }
         }
         create("x86") {
             dimension = "abi"
             buildConfigField("String", "ARCHITECTURE", "\"x86\"")
+            ndk { abiFilters += "x86" }
         }
         create("x86_64") {
             dimension = "abi"
             buildConfigField("String", "ARCHITECTURE", "\"x86_64\"")
+            ndk { abiFilters += "x86_64" }
         }
     }
 
@@ -172,6 +177,7 @@ extensions.configure<ApplicationExtension> {
             // Optimize packaged PNGs in addition to R8 and resource shrinking.
             isCrunchPngs = true
             isDebuggable = false
+            isProfileable = true // TEMP-PROFILE
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -220,6 +226,14 @@ extensions.configure<ApplicationExtension> {
             signingConfig = signingConfigs.getByName("debug")
             // the provider modules only publish debug and release variants
             matchingFallbacks += listOf("debug")
+        }
+    }
+
+    // audio pass's direct usb driver and aaudio exclusive output (app/src/main/cpp)
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
         }
     }
 
@@ -398,8 +412,12 @@ dependencies {
     implementation(libs.media3)
     implementation(libs.media3.session)
     implementation(libs.media3.hls)
+    implementation(libs.media3.dash)
     implementation(libs.media3.ui)
     implementation(libs.media3.okhttp)
+    // song share videos: decode the background, mix in the song, encode the mp4
+    implementation(libs.media3.transformer)
+    implementation(libs.media3.effect)
 
     // Google Cast - only included in GMS flavor (not available in F-Droid/FOSS builds)
     "gmsImplementation"(libs.media3.cast)
@@ -432,9 +450,13 @@ dependencies {
     implementation(project(":providers:paxsenixlyrics"))
     implementation(project(":providers:directlyrics"))
     implementation(project(":providers:musixmatch"))
+    implementation(project(":providers:genius"))
+    implementation(project(":providers:wikipedia"))
     implementation(project(":modules:api"))
     implementation(project(":modules:applemusic"))
     implementation(project(":modules:monochrome"))
+    implementation(project(":modules:jiosaavn"))
+    implementation(project(":modules:bridge"))
 
 
     implementation(libs.ktor.client.core)

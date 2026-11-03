@@ -20,8 +20,8 @@ const val GithubRepoUrl = "https://github.com/$GithubOwner/$GithubRepo"
 const val InstagramUrl = "https://www.instagram.com/furfurrfoxx/"
 // Threads names follow the Instagram one
 const val ThreadsUrl = "https://www.threads.net/@furfurrfoxx"
-// Dev Spaces hides the Discord row while this is blank
-const val DiscordUrl = ""
+// dev spaces hides the discord row while this is blank
+const val DiscordUrl = "https://discord.gg/NTmqVphbRY"
 
 // The Xbibz APK has its own signing key. It must never offer an upstream APK as an update;
 // keep the upstream owner above for attribution, and use a separate fork release channel here.

@@ -1,4 +1,4 @@
-// audio lab's quality page: streaming tiers per provider, download quality and the provider order
+// audio lab's quality page: streaming tiers per provider, download quality, and the orders songs play and download in
 
 package com.mochyy.mochymusic.ui.screens.audiolab
 
@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,6 +46,8 @@ import androidx.navigation.NavController
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.runtime.collectAsState
 import com.mochyy.mochymusic.module.AccountState
+import com.mochyy.mochymusic.module.ModuleFeature
+import com.mochyy.mochymusic.module.jiosaavn.JioSaavnModule
 import com.mochyy.mochymusic.module.applemusic.AppleMusicModule
 import com.mochyy.mochymusic.module.monochrome.MonochromeModule
 import com.mochyy.mochymusic.modules.SourceModules
@@ -82,6 +85,7 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
     val quality = if (stored.usesMonochrome) AudioQuality.HIGH else stored
     val entries by modules.entries.collectAsState()
     val order by modules.order.collectAsState()
+    val downloadOrder by modules.downloadOrder.collectAsState()
     val youTubeOn by modules.youTubeEnabled.collectAsState()
     val context = LocalContext.current
     val metered = remember { (context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager)?.isActiveNetworkMetered == true }
@@ -90,6 +94,10 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
         if (id == SourceModules.YouTubeId) youTubeOn
         else entries.any { it.module.info.id == id && it.enabled && it.account is AccountState.SignedIn }
     }
+    // a module that's switched off isn't part of this page at all, only youtube and the modules that are on show up
+    val shownModules = entries.filter { it.enabled && it.adds(ModuleFeature.AudioSource) }
+    val shownOrder = order.filter { id -> id == SourceModules.YouTubeId || shownModules.any { it.id == id } }
+    val shownDownloadOrder = downloadOrder.filter { id -> id == SourceModules.YouTubeId || shownModules.any { it.id == id } }
     // the first provider in the order that's on plays everything it has
     val first = order.firstOrNull(usable)
     val effective = when (first) {
@@ -100,10 +108,21 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
             if (pick == AppleMusicModule.OptionHe64) Effective(AudioQuality.MEDIUM, "Apple Music", "HE-AAC 64")
             else Effective(AudioQuality.HIGH, "Apple Music", "AAC 256")
         }
-        else -> {
+        JioSaavnModule.Id -> {
+            val pick = entries.firstOrNull { it.id == first }?.picks?.get(JioSaavnModule.ChoiceQuality) ?: JioSaavnModule.Option320
+            Effective(if (pick == JioSaavnModule.Option96) AudioQuality.MEDIUM else AudioQuality.HIGH, "JioSaavn", "AAC $pick")
+        }
+        SourceModules.YouTubeId -> {
             val tier = if (quality == AudioQuality.AUTO) (if (metered) AudioQuality.MEDIUM else AudioQuality.HIGH) else quality
             val option = YouTubeOptions.first { it.quality == tier }
             Effective(tier, "YouTube · ${option.title}", option.format)
+        }
+        // a module added from a link: its name, and the stream it picked when it offers a choice
+        else -> {
+            val entry = entries.firstOrNull { it.id == first }
+            val choice = entry?.module?.choices?.firstOrNull { it.id == "quality" }
+            val picked = choice?.options?.firstOrNull { it.id == entry.picks[choice.id] } ?: choice?.options?.firstOrNull()
+            Effective(AudioQuality.HIGH, entry?.module?.info?.name ?: first, picked?.label ?: stringResource(R.string.quality_module_stream))
         }
     }
 
@@ -129,7 +148,7 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
             }
 
             // each module's own qualities, under its name
-            entries.forEach { entry ->
+            shownModules.forEach { entry ->
                 val id = entry.module.info.id
                 val active = entry.enabled && entry.account is AccountState.SignedIn
                 Spacer(Modifier.height(6.dp))
@@ -152,7 +171,7 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
             }
         }
 
-        // downloads are saved apart from what plays: lossless downloads monochrome's flac whatever the provider order says, since a download is kept
+        // what a download from youtube is saved as; the download order below picks where each download comes from
         Spacer(Modifier.height(24.dp))
         LabSheetTitle("Download")
         LabGroup {
@@ -162,12 +181,12 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
                 }
             }
         }
-        Footnote("For songs downloaded from now on. Downloads already made stay as they are.")
+        Footnote(stringResource(R.string.quality_download_footnote))
 
         Spacer(Modifier.height(24.dp))
         LabSheetTitle("Provider")
         ProviderOrder(
-            order = order,
+            order = shownOrder,
             name = modules::nameOf,
             logo = ::providerLogo,
             usable = usable,
@@ -179,24 +198,39 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
                 }
             },
             onTap = { id ->
+                // youtube switches right here; a module's switch is on its own page, switching it off here would make it vanish under the finger
                 if (id == SourceModules.YouTubeId) {
                     modules.setEnabled(id, !youTubeOn)
                 } else {
-                    val entry = entries.firstOrNull { it.module.info.id == id }
-                    // not signed in: there's nothing to switch on yet, so its sign-in opens
-                    if (entry == null || entry.account !is AccountState.SignedIn) {
-                        navController.navigate(com.mochyy.mochymusic.ui.screens.settings.modules.moduleRoute(id))
-                    } else {
-                        modules.setEnabled(id, !entry.enabled)
-                    }
+                    navController.navigate(com.mochyy.mochymusic.ui.screens.settings.modules.moduleRoute(id))
                 }
             },
-            onReorder = modules::setOrder,
+            onReorder = modules::setVisibleOrder,
         )
-        Footnote(
-            "Tap a provider to turn it on or off, or to sign in. Drag its handle to change the order: " +
-                "each song plays from the first one that's on and has it.",
+        Footnote(stringResource(R.string.quality_provider_footnote))
+
+        Spacer(Modifier.height(24.dp))
+        LabSheetTitle(stringResource(R.string.quality_download_order))
+        val youTubeForDownloads = stringResource(R.string.quality_download_order_youtube)
+        ProviderOrder(
+            order = shownDownloadOrder,
+            name = modules::nameOf,
+            logo = ::providerLogo,
+            usable = { id -> id == SourceModules.YouTubeId || usable(id) },
+            status = { id ->
+                if (id == SourceModules.YouTubeId) {
+                    youTubeForDownloads
+                } else {
+                    entries.firstOrNull { it.module.info.id == id }?.let(::moduleStatus) ?: "Not installed"
+                }
+            },
+            // youtube is always there for downloads, so only a module's row has somewhere to go
+            onTap = { id ->
+                if (id != SourceModules.YouTubeId) navController.navigate(com.mochyy.mochymusic.ui.screens.settings.modules.moduleRoute(id))
+            },
+            onReorder = modules::setVisibleDownloadOrder,
         )
+        Footnote(stringResource(R.string.quality_download_order_footnote))
     }
 }
 
@@ -230,7 +264,7 @@ private fun ProviderCaption(logo: Int?, name: String, status: String, on: Boolea
         Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 6.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.graphicsLayer { alpha = if (on) 1f else 0.45f }) { ProviderLogo(logo, size = 24) }
+        Box(Modifier.graphicsLayer { alpha = if (on) 1f else 0.45f }) { ProviderLogo(logo, size = 24, name = name) }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(name, fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
@@ -239,8 +273,9 @@ private fun ProviderCaption(logo: Int?, name: String, status: String, on: Boolea
     }
 }
 
+// a provider with no logo of its own (jiosaavn, a module from a link) shows its first letter instead of a blank tile
 @Composable
-internal fun ProviderLogo(logo: Int?, size: Int) {
+internal fun ProviderLogo(logo: Int?, size: Int, name: String? = null) {
     Box(
         modifier = Modifier.size(size.dp).clip(RoundedCornerShape((size * 0.26f).dp)).background(Color(0xFFD9D9D9)),
         contentAlignment = Alignment.Center,
@@ -251,12 +286,14 @@ internal fun ProviderLogo(logo: Int?, size: Int) {
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 modifier = Modifier.size(size.dp),
             )
+        } else if (name != null) {
+            Text(name.take(1).uppercase(), fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = (size * 0.44f).sp, color = Color.Black.copy(alpha = 0.7f))
         }
     }
 }
 
 @Composable
-private fun QualityRow(title: String, description: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
+internal fun QualityRow(title: String, description: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
     val bg by animateColorAsState(if (selected) Color(0xFF2A2A2E) else Color(0xFF111113), tween(200), label = "row")
     val alpha by animateFloatAsState(if (enabled) 1f else 0.35f, tween(250), label = "enabled")
     val check by animateFloatAsState(if (selected) 1f else 0f, spring(dampingRatio = 0.5f, stiffness = 500f), label = "check")

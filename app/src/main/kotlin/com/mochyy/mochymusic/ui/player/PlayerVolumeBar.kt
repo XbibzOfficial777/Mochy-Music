@@ -198,12 +198,17 @@ private fun Modifier.speakerLight(held: State<Float>): Modifier = graphicsLayer 
  * The phone's music volume as 0..1. A drag shows exactly where the finger is (the phone only has
  * a few steps); letting go settles on the step the phone actually took.
  */
-private class MusicVolume(private val audio: AudioManager) {
+internal class MusicVolume(private val audio: AudioManager) {
     private val steps = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
     private var level by mutableFloatStateOf(read())
     private var dragging by mutableStateOf<Float?>(null)
 
+    // the step last handed to the phone during a drag, so it's only told when the finger crosses into a new one
+    private var sentStep = -1
+
     val shown: Float get() = dragging ?: level
+
+    val isDragging: Boolean get() = dragging != null
 
     fun read(): Float = audio.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / steps
 
@@ -213,19 +218,24 @@ private class MusicVolume(private val audio: AudioManager) {
 
     fun drag(fraction: Float) {
         dragging = fraction
+        // the call is slow on some phones, and made on every move of the finger it made the drag lag
+        val step = (fraction * steps).roundToInt()
+        if (step == sentStep) return
+        sentStep = step
         // some phones refuse volume changes in Do Not Disturb; the line just stays where it is
-        runCatching { audio.setStreamVolume(AudioManager.STREAM_MUSIC, (fraction * steps).roundToInt(), 0) }
+        runCatching { audio.setStreamVolume(AudioManager.STREAM_MUSIC, step, 0) }
     }
 
     fun release() {
         dragging = null
+        sentStep = -1
         refresh()
     }
 }
 
 /** the music volume, following the volume keys while [listening] */
 @Composable
-private fun rememberMusicVolume(listening: Boolean): MusicVolume {
+internal fun rememberMusicVolume(listening: Boolean): MusicVolume {
     val context = LocalContext.current
     val volume = remember(context) {
         MusicVolume(context.getSystemService(Context.AUDIO_SERVICE) as AudioManager)

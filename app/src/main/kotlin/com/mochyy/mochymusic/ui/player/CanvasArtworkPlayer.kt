@@ -17,6 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -33,7 +36,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.AspectRatioFrameLayout
-import com.music.innertube.YouTube
+import com.mochyy.mochymusic.utils.followAppProxy
 import com.music.innertube.models.YouTubeClient
 import okhttp3.OkHttpClient
 import java.util.Locale
@@ -63,6 +66,10 @@ private object CanvasVideoCache {
 /** how long a canvas has to stay before its video starts */
 private const val CanvasSettleMs = 700L
 
+// the playing canvas is read this small, this often, for the backdrop's colours
+private const val CanvasSamplePx = 32
+private const val CanvasSampleMs = 1_500L
+
 @Composable
 fun CanvasArtworkPlayer(
     primaryUrl: String?,
@@ -72,6 +79,8 @@ fun CanvasArtworkPlayer(
     blurRadiusPx: Float = 0f,
     // told when the first frame is up and when it's gone again, so a mirror of it knows when there's something to show
     onReadyChange: ((Boolean) -> Unit)? = null,
+    // the flagship's moving backdrop, fed four tones from a tiny copy of the playing frame
+    onFrameColors: ((List<androidx.compose.ui.graphics.Color>) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val primary = primaryUrl?.takeIf { it.isNotBlank() }
@@ -81,6 +90,9 @@ fun CanvasArtworkPlayer(
     var currentUrl by remember(initial) { mutableStateOf(initial) }
     var isVideoReady by remember(initial) { mutableStateOf(false) }
     val currentOnReadyChange by rememberUpdatedState(onReadyChange)
+    // nothing to show with the app in the background, and a looping canvas kept decoding there for nobody
+    val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+    val shouldPlay = isPlaying && lifecycle.isAtLeast(Lifecycle.State.STARTED)
     LaunchedEffect(isVideoReady) { currentOnReadyChange?.invoke(isVideoReady) }
     DisposableEffect(Unit) { onDispose { currentOnReadyChange?.invoke(false) } }
 
@@ -88,7 +100,7 @@ fun CanvasArtworkPlayer(
         remember {
             OkHttpClient
                 .Builder()
-                .proxy(YouTube.proxy)
+                .followAppProxy()
                 .addInterceptor { chain ->
                     val request = chain.request()
                     val host = request.url.host
@@ -145,19 +157,29 @@ fun CanvasArtworkPlayer(
         }
     val aspectRatioFrameLayout = remember {
         AspectRatioFrameLayout(context).apply {
-            layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+            // zoomed past the cover's box and centred inside the frame below, not by compose
+            layoutParams = android.widget.FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT, android.view.Gravity.CENTER)
             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        }
+    }
+    // exactly the cover's size: given the zoomed view itself, compose shifted it left to centre it, and the cover's glass recorded it
+    // from that shifted corner, so its mirror and blurred copy lost their right side (the cut on animated covers)
+    val frame = remember {
+        android.widget.FrameLayout(context).apply {
+            layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+            clipChildren = true
             setBackgroundColor(android.graphics.Color.TRANSPARENT)
         }
     }
     // the texture outlives a session, so a new url's player draws into the same view
     val texture = remember { CanvasTexture() }
     val session = remember(initial) {
-        CanvasVideoSession(context, mediaSourceFactory, isPlaying).also { texture.session = it }
+        CanvasVideoSession(context, mediaSourceFactory, shouldPlay).also { texture.session = it }
     }
 
-    LaunchedEffect(isPlaying) {
-        session.setPlaying(isPlaying)
+    LaunchedEffect(shouldPlay) {
+        session.setPlaying(shouldPlay)
     }
 
     DisposableEffect(session, primary, fallback) {
@@ -194,22 +216,7 @@ fun CanvasArtworkPlayer(
 
     LaunchedEffect(currentUrl, session) {
         val normalized = currentUrl.trim()
-        val mimeType =
-            when {
-                normalized.contains(".m3u8", ignoreCase = true) ||
-                normalized.lowercase(Locale.ROOT).split('?').first().endsWith(".m3u8") -> MimeTypes.APPLICATION_M3U8
-                normalized.lowercase(Locale.ROOT).contains(".mp4") -> MimeTypes.VIDEO_MP4
-                primary != null && currentUrl == primary -> {
-
-                    if (normalized.contains("apple.com") || normalized.contains("music.apple") || !normalized.contains(".mp4")) {
-                        MimeTypes.APPLICATION_M3U8
-                    } else {
-                        MimeTypes.VIDEO_MP4
-                    }
-                }
-                fallback != null && currentUrl == fallback -> MimeTypes.VIDEO_MP4
-                else -> MimeTypes.APPLICATION_M3U8
-            }
+        val mimeType = canvasMimeType(normalized, isFallback = fallback != null && currentUrl == fallback && currentUrl != primary)
 
         val mediaItem =
             MediaItem.Builder()
@@ -218,7 +225,7 @@ fun CanvasArtworkPlayer(
                 .build()
 
         isVideoReady = false
-        session.load(mediaItem, isPlaying)
+        session.load(mediaItem, shouldPlay)
     }
 
     DisposableEffect(session) {
@@ -233,17 +240,35 @@ fun CanvasArtworkPlayer(
         label = "canvasAlpha"
     )
 
+    val currentOnFrameColors by rememberUpdatedState(onFrameColors)
+    val sampling = onFrameColors != null
+    LaunchedEffect(isVideoReady, sampling, shouldPlay) {
+        if (!isVideoReady || !sampling) return@LaunchedEffect
+        val sample = android.graphics.Bitmap.createBitmap(CanvasSamplePx, CanvasSamplePx, android.graphics.Bitmap.Config.ARGB_8888)
+        val pixels = IntArray(CanvasSamplePx * CanvasSamplePx)
+        // a paused canvas never changes, so it's read once and left alone
+        do {
+            val view = aspectRatioFrameLayout.getChildAt(0) as? TextureView
+            if (view != null && view.isAvailable && runCatching { view.getBitmap(sample) }.isSuccess) {
+                sample.getPixels(pixels, 0, CanvasSamplePx, 0, 0, CanvasSamplePx, CanvasSamplePx)
+                currentOnFrameColors?.invoke(
+                    com.mochyy.mochymusic.ui.player.flagship.ambientTones(pixels, CanvasSamplePx, CanvasSamplePx)
+                )
+            }
+            kotlinx.coroutines.delay(CanvasSampleMs)
+        } while (shouldPlay)
+    }
+
     AndroidView(
         factory = { viewContext ->
-            aspectRatioFrameLayout.apply {
-                if (childCount == 0) {
+            if (aspectRatioFrameLayout.childCount == 0) {
                 val textureView = TextureView(viewContext).apply {
                     layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
                     surfaceTextureListener = texture
                 }
-                addView(textureView)
-                }
+                aspectRatioFrameLayout.addView(textureView)
             }
+            frame.apply { if (childCount == 0) addView(aspectRatioFrameLayout) }
         },
         update = { view ->
 
@@ -260,13 +285,24 @@ fun CanvasArtworkPlayer(
     )
 }
 
+// whether a canvas link is an hls playlist or a plain mp4, so the song share's export reads it the same way the player does
+internal fun canvasMimeType(url: String, isFallback: Boolean = false): String {
+    val lower = url.lowercase(Locale.ROOT)
+    return when {
+        lower.contains(".m3u8") || lower.split('?').first().endsWith(".m3u8") -> MimeTypes.APPLICATION_M3U8
+        lower.contains(".mp4") -> MimeTypes.VIDEO_MP4
+        isFallback -> MimeTypes.VIDEO_MP4
+        else -> MimeTypes.APPLICATION_M3U8
+    }
+}
+
 // one thread runs every canvas player, so building or releasing one never stalls the main thread mid-scroll
 private object CanvasVideoThread {
     val handler: Handler by lazy { Handler(HandlerThread("CanvasVideo").apply { start() }.looper) }
 }
 
 // one canvas video's player, touched only on the canvas thread; the main thread just posts to it
-private class CanvasVideoSession(
+internal class CanvasVideoSession(
     context: Context,
     mediaSourceFactory: MediaSource.Factory,
     playing: Boolean,
@@ -322,6 +358,9 @@ private class CanvasVideoSession(
         }
     }
 
+    // back to the start of what's loaded, so a share's video starts over with its song
+    fun restart() = handler.post { player?.seekTo(0L) }
+
     fun attach(texture: SurfaceTexture) = handler.post {
         surface?.release()
         surface = Surface(texture).also { player?.setVideoSurface(it) }
@@ -348,7 +387,7 @@ private class CanvasVideoSession(
 }
 
 // keeps the view's texture alive until the canvas thread is done with it, and gives it to whichever session is current
-private class CanvasTexture : TextureView.SurfaceTextureListener {
+internal class CanvasTexture : TextureView.SurfaceTextureListener {
     private var available: SurfaceTexture? = null
 
     var session: CanvasVideoSession? = null

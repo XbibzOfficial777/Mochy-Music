@@ -1,5 +1,6 @@
 package com.mochyy.mochymusic.ui.player.styles
 
+import android.graphics.Shader
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
@@ -13,7 +14,12 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.GraphicsLayerScope
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import com.mochyy.mochymusic.ui.player.MinInterludeGapMs
 import androidx.compose.runtime.getValue
@@ -26,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.layout.layout
@@ -36,9 +43,9 @@ import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextMotion
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -48,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.mochyy.mochymusic.lyrics.LyricsEntry
+import com.mochyy.mochymusic.ui.component.BlurEffectCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
@@ -65,6 +73,8 @@ internal fun posterType(size: TextUnit, weight: FontWeight = FontWeight.Bold) = 
     letterSpacing = (-0.035).em,
     platformStyle = PlatformTextStyle(includeFontPadding = false),
     lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.Both),
+    // these letters rise, zoom and slide every frame: snapped to whole pixels they shook against each other
+    textMotion = TextMotion.Animated,
 )
 
 /** whether [text] reads right to left (Arabic, Hebrew...), judged by its first letter that has a direction */
@@ -107,15 +117,24 @@ fun ExpressiveTitle(
     val scales = remember(words) { wordScales(words) }
     val rtl = remember(text) { isRtlText(text) }
     val enter = remember(text) { Animatable(0f) }
-    LaunchedEffect(text) { enter.animateTo(1f, spring(dampingRatio = 0.78f, stiffness = 180f)) }
     BoxWithConstraints(modifier) {
-        val measurer = rememberTextMeasurer()
         val density = LocalDensity.current
+        val fontFamilyResolver = LocalFontFamilyResolver.current
+        val layoutDirection = LocalLayoutDirection.current
         val maxWidth = constraints.maxWidth
         val maxHeight = constraints.maxHeight
-        val fitted = remember(text, baseSize, maxWidth, maxHeight, density) {
-            fitTitle(measurer, words, scales, text.length, baseSize, maxWidth, maxHeight, density)
+        val fitKey = TitleFitKey(text, baseSize, maxWidth, maxHeight, density.density, density.fontScale)
+        // kept through a resize until the new size is ready, so the words never blink out
+        val fit = remember(text) { mutableStateOf<TextUnit?>(TitleFits.get(fitKey)) }
+        // a long title tries up to nine sizes, which hitched the swipe that brought a new song in, so it's fitted off the main thread
+        LaunchedEffect(fitKey) {
+            fit.value = TitleFits.get(fitKey) ?: withContext(Dispatchers.Default) {
+                fitTitle(TextMeasurer(fontFamilyResolver, density, layoutDirection, 16), words, scales, text.length, baseSize, maxWidth, maxHeight, density)
+            }.also { TitleFits.put(fitKey, it) }
         }
+        val fitted = fit.value ?: return@BoxWithConstraints
+        // the words rise in once they have a size to rise in at
+        LaunchedEffect(text) { enter.animateTo(1f, spring(dampingRatio = 0.78f, stiffness = 180f)) }
         CompositionLocalProvider(LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr) {
             FlowRow(
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(fitted.value.dp * TitleSpacing),
@@ -143,6 +162,19 @@ fun ExpressiveTitle(
 
 /** the gap between a title's words, as a share of its size */
 private const val TitleSpacing = 0.24f
+
+// everything a title's fitted size depends on
+private data class TitleFitKey(
+    val text: String,
+    val baseSize: TextUnit,
+    val maxWidth: Int,
+    val maxHeight: Int,
+    val density: Float,
+    val fontScale: Float,
+)
+
+// titles already fitted, so a song coming back round (or its next slot in the row) is set at once
+private val TitleFits = android.util.LruCache<TitleFitKey, TextUnit>(48)
 
 private fun titleWordStyle(size: TextUnit, scale: Float) =
     posterType(size * scale, if (scale > 1f) FontWeight.Black else FontWeight.Bold)
@@ -202,7 +234,10 @@ private fun titleFits(
 // ---- lyrics ------------------------------------------------------------------------------
 
 /** one word of a line, with when it's sung */
-private class TimedWord(val text: String, val startMs: Long, val endMs: Long)
+private class TimedWord(val text: String, val startMs: Long, val endMs: Long) {
+    // letters' worth of singing: a kanji or kana is a syllable's worth, so one sung at a normal pace isn't taken for a held note
+    val sungLength = com.mochyy.mochymusic.ui.player.sungLength(text)
+}
 
 /**
  * The words of [entry] with their timings: the line's own word timings when it has them, or the
@@ -245,6 +280,19 @@ private const val RiseLeadChars = 0.8f
 private const val RiseSpanChars = 3.2f
 /** after its last word a line flies off this soon when a long instrumental gap follows */
 private const val GapExitDelayMs = 450L
+/** a word keeps its wave and glow this long after its last letter, fading out */
+private const val ActiveFadeMs = 450f
+/** a lit letter's glow: how much of its colour, and how soft as a share of the word's size; tight, so it reads as light and not a smudge */
+private const val GlowAlpha = 0.6f
+private const val GlowSoftness = 0.13f
+/** the glow follows the voice: brightest on the letters just sung, easing off over this many behind */
+private const val GlowTrailChars = 2.5f
+/** what's left on the rest of the sung word while it's being sung */
+private const val GlowRest = 0.3f
+/** the glow is blurred at this share of the word's resolution: it's soft anyway, and a full-size blur every frame was most of the gpu's time */
+private const val GlowRes = 0.5f
+/** fainter than this a letter doesn't glow at all */
+private const val GlowCutoff = 0.04f
 
 /**
  * Which side a line sits on. The lead voice takes the side the song's words start from (the left,
@@ -285,7 +333,15 @@ private class WordCell(
     val bleed: Float,
     /** read right to left, so it lights from the right. Always one piece (see [letterBounds]) */
     val rtl: Boolean,
-)
+) {
+    // this frame's rise, zoom and glow for each letter, worked out once for both the glow and the letters
+    val lift = FloatArray(letters.size)
+    val zoom = FloatArray(letters.size)
+    val glow = FloatArray(letters.size)
+}
+
+/** where a word is in its singing: before it and after it, it looks the same every frame */
+private enum class WordStage { Waiting, Live, Done }
 
 /**
  * Where [word] can be pulled apart into letters that move on their own: between its grapheme
@@ -363,6 +419,34 @@ private class LineCells(
         private set
     private var frameT = Long.MIN_VALUE
 
+    // when each word starts and stops changing how it's drawn
+    private val liveFrom = LongArray(words.size)
+    private val liveUntil = LongArray(words.size)
+
+    init {
+        // the singing only gets past a word once every word before it is done too
+        var settled = Long.MIN_VALUE
+        words.forEachIndexed { i, cell ->
+            val w = cell.word
+            settled = max(settled, max(w.startMs, w.endMs))
+            liveFrom[i] = w.startMs
+            liveUntil[i] = maxOf(settled, w.endMs + ActiveFadeMs.toLong(), w.startMs + growSpanOf(w).toLong()) + 1L
+        }
+    }
+
+    fun stageAt(index: Int, t: Long): WordStage = when {
+        t < liveFrom[index] -> WordStage.Waiting
+        t >= liveUntil[index] -> WordStage.Done
+        else -> WordStage.Live
+    }
+
+    /** the time a word is drawn at: one fixed moment while it waits or once it's done, so its picture doesn't change */
+    fun drawTimeOf(index: Int, stage: WordStage, t: Long): Long = when (stage) {
+        WordStage.Waiting -> liveFrom[index] - 1L
+        WordStage.Done -> liveUntil[index]
+        WordStage.Live -> t
+    }
+
     fun frameAt(t: Long) {
         if (t == frameT) return
         frameT = t
@@ -428,10 +512,10 @@ private class LineCells(
 }
 
 /** an emphasised word grows from its resting size to its peak as it's sung, slowly and evenly */
-private fun grow(word: TimedWord, t: Long): Float {
-    val span = max(520f, (word.endMs - word.startMs) * 0.75f)
-    return smootherstep((t - word.startMs) / span)
-}
+private fun grow(word: TimedWord, t: Long): Float = smootherstep((t - word.startMs) / growSpanOf(word))
+
+/** how long an emphasised word takes to grow to its peak */
+private fun growSpanOf(word: TimedWord): Float = max(520f, (word.endMs - word.startMs) * 0.75f)
 
 private fun smoothstep(x: Float): Float {
     val t = x.coerceIn(0f, 1f)
@@ -490,6 +574,7 @@ private fun measureLine(
             letterSpacing = (-0.02).em,
             color = color,
             textAlign = align,
+            textMotion = TextMotion.Animated,
         )
         val layout = measurer.measure(
             text = text,
@@ -616,6 +701,30 @@ private fun lastAtOrBefore(times: LongArray, t: Long): Int {
 /** what a measured line was measured with: its readings arrive later than the line itself */
 private data class LineKey(val index: Int, val reading: String?, val translation: String?)
 
+/** one block's measured lines; only touched on the main thread, the measuring itself happens elsewhere */
+private class LineCache {
+    private val measured = LinkedHashMap<LineKey, LineCells>()
+    // read in composition, so a line that lands shows on the next frame
+    private val landed = androidx.compose.runtime.mutableIntStateOf(0)
+
+    fun has(key: LineKey): Boolean = key in measured
+
+    /** the line as asked for, or while that's still being measured, the latest look it had (say, before its translation came) */
+    fun cellsFor(key: LineKey): LineCells? {
+        landed.intValue
+        return measured[key] ?: measured.entries.lastOrNull { it.key.index == key.index }?.value
+    }
+
+    fun put(key: LineKey, cells: LineCells, shows: Boolean) {
+        measured[key] = cells
+        if (shows) landed.intValue++
+    }
+
+    fun keepOnly(indices: IntRange) {
+        measured.keys.retainAll { it.index in indices }
+    }
+}
+
 /** the pronunciation of [entry]: its romanisation, or the readings of its words joined up */
 private fun readingOf(roman: String?, ruby: List<com.mochyy.mochymusic.lyrics.RubyToken>?, text: String): String? =
     roman?.takeIf { it.isNotBlank() && it != text }
@@ -649,7 +758,6 @@ fun ExpressiveLyrics(
     modifier: Modifier = Modifier,
     dimAlpha: Float = 0.32f,
 ) {
-    val measurer = rememberTextMeasurer(cacheSize = 128)
     val density = LocalDensity.current
     val fontFamilyResolver = LocalFontFamilyResolver.current
     val layoutDirection = LocalLayoutDirection.current
@@ -713,36 +821,30 @@ fun ExpressiveLyrics(
         val heightPx = if (constraints.hasBoundedHeight) constraints.maxHeight.toFloat() else widthPx
         val basePx = with(density) { baseSize.toPx() }
         val stackGapPx = basePx * 0.28f
-        val cache = remember(lines, widthPx, heightPx, basePx, color) { HashMap<LineKey, LineCells>() }
-        fun measureWith(textMeasurer: TextMeasurer, index: Int, reading: String?, translation: String?): LineCells {
+        val cache = remember(lines, widthPx, heightPx, basePx, color) { LineCache() }
+        // a line is dozens of text layouts, so it's always measured off the main thread, each time with a measurer of its own
+        suspend fun measure(key: LineKey): LineCells = withContext(Dispatchers.Default) {
+            val index = key.index
             // a line that shares the block with another gets half of it
             val shared = overlaps[index] || (index > 0 && overlaps[index - 1])
             val budget = if (shared) (heightPx * 0.94f - stackGapPx) / 2f else heightPx * 0.94f
-            return measureLine(
-                textMeasurer, lines[index], lines.getOrNull(index + 1)?.time, widthPx, budget, basePx,
-                density, color, sideOf(lines[index], duet, rtl), reading, translation,
+            measureLine(
+                TextMeasurer(fontFamilyResolver, density, layoutDirection, 128), lines[index], lines.getOrNull(index + 1)?.time,
+                widthPx, budget, basePx, density, color, sideOf(lines[index], duet, rtl), key.reading, key.translation,
             )
         }
-        fun cellsOf(index: Int, reading: String?, translation: String?): LineCells =
-            cache.getOrPut(LineKey(index, reading, translation)) { measureWith(measurer, index, reading, translation) }
-        // the next line is measured a frame after this one lands, off the main thread
+        // the next line is measured a frame after this one lands, long before it's needed
         androidx.compose.runtime.LaunchedEffect(shown, cache) {
             androidx.compose.runtime.withFrameMillis { }
-            cache.keys.retainAll { it.index in (first - 1)..(shown + 1) }
+            cache.keepOnly((first - 1)..(shown + 1))
             val next = shown + 1
             if (next in lines.indices) {
                 val e = lines[next]
                 val reading = readingOf(e.romanizedTextFlow.value, e.rubyFlow.value, e.text)
                 val translation = e.translatedTextFlow.value?.takeIf { it.isNotBlank() && it != e.text }
                 val key = LineKey(next, reading, translation)
-                if (key !in cache) {
-                    // its own measurer, because the shared one is only safe on the main thread
-                    val measured = withContext(Dispatchers.Default) {
-                        measureWith(TextMeasurer(fontFamilyResolver, density, layoutDirection, 128), next, reading, translation)
-                    }
-                    // if the line was needed before this finished, it was measured on the spot and stays
-                    if (key !in cache) cache[key] = measured
-                }
+                // quietly: the line isn't on screen yet, so nothing needs composing again for it
+                if (!cache.has(key)) cache.put(key, measure(key), shows = false)
             }
         }
 
@@ -764,35 +866,42 @@ fun ExpressiveLyrics(
                     val roman by entry.romanizedTextFlow.collectAsState()
                     val ruby by entry.rubyFlow.collectAsState()
                     val translated by entry.translatedTextFlow.collectAsState()
-                    val cells = cellsOf(
+                    val key = LineKey(
                         index,
                         readingOf(roman, ruby, entry.text),
                         translated?.takeIf { it.isNotBlank() && it != entry.text },
                     )
-                    val pushers = above.toList()
-                    val pusherExits = aboveExits.toList()
-                    LyricLine(
-                        cells = cells,
-                        enterAt = enterAts[index],
-                        exitAt = exitAts[index],
-                        position = position,
-                        color = color,
-                        dimAlpha = dimAlpha,
-                        offsetY = { t ->
-                            var y = 0f
-                            for (k in pushers.indices) {
-                                val holder = pushers[k]
-                                holder.frameAt(t)
-                                val hold = 1f - smootherstep((t - pusherExits[k]) / ExitMs)
-                                y += (holder.totalHeight + stackGapPx) * hold
-                            }
-                            y
-                        },
-                    )
-                    val exit = exitAts[index]
-                    if (overlaps[index] && exit != null) {
-                        above += cells
-                        aboveExits += exit
+                    // not measured yet (a seek, a turn, a translation just in): it lands a frame or two later instead of hitching this one
+                    if (!cache.has(key)) {
+                        androidx.compose.runtime.LaunchedEffect(key, cache) { cache.put(key, measure(key), shows = true) }
+                    }
+                    val cells = cache.cellsFor(key)
+                    if (cells != null) {
+                        val pushers = above.toList()
+                        val pusherExits = aboveExits.toList()
+                        LyricLine(
+                            cells = cells,
+                            enterAt = enterAts[index],
+                            exitAt = exitAts[index],
+                            position = position,
+                            color = color,
+                            dimAlpha = dimAlpha,
+                            offsetY = { t ->
+                                var y = 0f
+                                for (k in pushers.indices) {
+                                    val holder = pushers[k]
+                                    holder.frameAt(t)
+                                    val hold = 1f - smootherstep((t - pusherExits[k]) / ExitMs)
+                                    y += (holder.totalHeight + stackGapPx) * hold
+                                }
+                                y
+                            },
+                        )
+                        val exit = exitAts[index]
+                        if (overlaps[index] && exit != null) {
+                            above += cells
+                            aboveExits += exit
+                        }
                     }
                 }
             }
@@ -862,52 +971,83 @@ private fun LyricLine(
     val blurIn = with(density) { 10.dp.toPx() }
     val blurOut = with(density) { 12.dp.toPx() }
     val dim = color.copy(alpha = color.alpha * dimAlpha)
-    val canBlur = android.os.Build.VERSION.SDK_INT >= 31
+    // render effects arrived in android 12; before that the glow stays a text shadow
+    val gpuGlow = android.os.Build.VERSION.SDK_INT >= 31
+
+    fun enterOf(order: Int, t: Long) = easeOutCubic((t - enterAt - order * EnterStaggerMs) / EnterMs)
+    fun exitOf(order: Int, t: Long) = if (exitAt == null) 0f else smoothstep((t - exitAt - order * ExitStaggerMs) / ExitMs)
+
+    /** how blurred the [order]th piece is as it comes in or goes, in px; drawn into a smaller layer of its own (see [drawBlurred]) */
+    fun blurOf(order: Int, t: Long): Float =
+        if (!gpuGlow || !com.mochyy.mochymusic.ui.utils.AppMotion.elementBlur) 0f
+        else (1f - enterOf(order, t)) * blurIn + exitOf(order, t) * blurOut
 
     /** the entrance and exit, for the [order]th piece of the line */
-    fun GraphicsLayerScope.motion(order: Int, t: Long, liftPx: Float, x: Float, y: Float, bleed: Float) {
-        val e = easeOutCubic((t - enterAt - order * EnterStaggerMs) / EnterMs)
-        val out = if (exitAt == null) 0f else smoothstep((t - exitAt - order * ExitStaggerMs) / ExitMs)
+    fun GraphicsLayerScope.motion(order: Int, t: Long, liftPx: Float, x: Float, y: Float, bleed: Float, mayGlow: Boolean) {
+        val e = enterOf(order, t)
+        val out = exitOf(order, t)
         translationX = x - bleed
         translationY = y + offsetY(t) - bleed + (1f - e) * liftPx * 0.55f - out * out * liftPx * 0.9f
         alpha = (e * (1f - out)).coerceIn(0f, 1f)
         val zoom = (0.94f + 0.06f * e) * (1f + 0.08f * out)
         scaleX = zoom
         scaleY = zoom
-        if (canBlur) {
-            val blur = (1f - e) * blurIn + out * blurOut
-            renderEffect = if (blur > 0.5f) {
-                androidx.compose.ui.graphics.BlurEffect(blur, blur, androidx.compose.ui.graphics.TileMode.Clamp)
-            } else null
+        // the whole line zooms about one point, so its words keep their places to each other instead of each swelling about its own middle
+        val pivotX = when (cells.side) {
+            LineSide.LEFT -> 0f
+            LineSide.CENTER -> cells.maxWidth / 2f
+            LineSide.RIGHT -> cells.maxWidth
         }
+        transformOrigin = androidx.compose.ui.graphics.TransformOrigin((pivotX - (x - bleed)) / size.width, (cells.totalHeight / 2f - (y - bleed)) / size.height)
+        // blurred, a piece is one draw of its blurred layer, so its fade goes straight onto that; nearly in or out with no glow it goes onto each letter (lower, letters that touch would show their seams)
+        val blurred = blurOf(order, t) > BlurShownPx
+        compositingStrategy = if (blurred || (!mayGlow && alpha > 0.95f)) CompositingStrategy.ModulateAlpha else CompositingStrategy.Auto
     }
 
     cells.words.forEachIndexed { w, cell ->
-        androidx.compose.foundation.layout.Spacer(
-            modifier = Modifier
-                .layout { measurable, _ ->
-                    val p = measurable.measure(
-                        Constraints.fixed(
-                            (cell.width + cell.bleed * 2f).roundToInt().coerceAtLeast(1),
-                            (cell.height + cell.bleed * 2f).roundToInt().coerceAtLeast(1),
+        androidx.compose.runtime.key(w) {
+            // only while it's being sung does a word's picture change, so only then is it drawn again every frame
+            val stage = remember(cells, w, position) { derivedStateOf { cells.stageAt(w, position.positionMs()) } }
+            // a word coming in or going is drawn again each frame of its blur, and stays a still picture otherwise
+            val blurring = remember(cells, w, position) { derivedStateOf { blurOf(w, position.positionMs()) > BlurShownPx } }
+            val glowLayer = if (gpuGlow) rememberGraphicsLayer() else null
+            val blurLayer = if (gpuGlow) rememberGraphicsLayer() else null
+            androidx.compose.foundation.layout.Spacer(
+                modifier = Modifier
+                    .layout { measurable, _ ->
+                        val p = measurable.measure(
+                            Constraints.fixed(
+                                (cell.width + cell.bleed * 2f).roundToInt().coerceAtLeast(1),
+                                (cell.height + cell.bleed * 2f).roundToInt().coerceAtLeast(1),
+                            )
                         )
-                    )
-                    layout(0, 0) {
-                        p.placeWithLayer(0, 0) {
-                            val t = position.positionMs()
-                            cells.frameAt(t)
-                            motion(w, t, cell.sizePx, cells.x[w], cells.y[w], cell.bleed)
+                        layout(0, 0) {
+                            p.placeWithLayer(0, 0) {
+                                val t = position.positionMs()
+                                cells.frameAt(t)
+                                motion(w, t, cell.sizePx, cells.x[w], cells.y[w], cell.bleed, mayGlow = stage.value == WordStage.Live)
+                            }
                         }
                     }
-                }
-                .drawBehind {
-                    val t = position.positionMs()
-                    cells.frameAt(t)
-                    drawWord(cell, cells.scale[w], cells.headAt(t), t, color, dim)
-                },
-        )
+                    .drawBehind {
+                        val now = stage.value
+                        val moving = blurring.value
+                        val clock = if (now == WordStage.Live || moving) position.positionMs() else 0L
+                        val t = cells.drawTimeOf(w, now, clock)
+                        cells.frameAt(t)
+                        if (moving && blurLayer != null) {
+                            drawBlurred(blurLayer, blurOf(w, clock)) { drawWord(cell, cells.scale[w], cells.headAt(t), t, color, dim, glowLayer) }
+                        } else {
+                            drawWord(cell, cells.scale[w], cells.headAt(t), t, color, dim, glowLayer)
+                        }
+                    },
+            )
+        }
     }
     cells.subs.forEachIndexed { k, sub ->
+        val order = cells.words.size + k
+        val blurring = remember(cells, k, position) { derivedStateOf { blurOf(order, position.positionMs()) > BlurShownPx } }
+        val blurLayer = if (gpuGlow) rememberGraphicsLayer() else null
         androidx.compose.foundation.layout.Spacer(
             modifier = Modifier
                 .layout { measurable, _ ->
@@ -922,18 +1062,38 @@ private fun LyricLine(
                             val t = position.positionMs()
                             cells.frameAt(t)
                             // they come in just after the words, and go with them
-                            motion(cells.words.size + k, t, sub.layout.size.height * 1.6f, 0f, cells.subY[k], sub.bleed)
+                            motion(order, t, sub.layout.size.height * 1.6f, 0f, cells.subY[k], sub.bleed, mayGlow = false)
                         }
                     }
                 }
                 .drawBehind {
-                    drawText(sub.layout, color = color.copy(alpha = color.alpha * sub.alpha), topLeft = Offset(sub.bleed, sub.bleed), shadow = Shadow.None)
+                    val text: DrawScope.() -> Unit = {
+                        drawText(sub.layout, color = color.copy(alpha = color.alpha * sub.alpha), topLeft = Offset(sub.bleed, sub.bleed), shadow = Shadow.None)
+                    }
+                    if (blurring.value && blurLayer != null) drawBlurred(blurLayer, blurOf(order, position.positionMs()), text) else text()
                 },
         )
     }
 }
 
-private fun DrawScope.drawWord(cell: WordCell, scale: Float, head: Float, t: Long, color: Color, dim: Color) {
+/** under this a piece isn't blurred at all */
+private const val BlurShownPx = 0.5f
+
+/**
+ * [content] blurred by [radius] in a layer of its own, drawn at half size once the blur is wide
+ * enough to hide it: every word of a line blurred at full size, every frame of a line change, was
+ * most of the gpu's frame on the poster.
+ */
+private fun DrawScope.drawBlurred(layer: GraphicsLayer, radius: Float, content: DrawScope.() -> Unit) {
+    val res = if (radius >= 12f) 0.5f else 1f
+    layer.renderEffect = BlurEffectCache.get(radius * res, Shader.TileMode.DECAL)
+    val box = androidx.compose.ui.unit.IntSize((size.width * res).roundToInt().coerceAtLeast(1), (size.height * res).roundToInt().coerceAtLeast(1))
+    layer.record(box) { scale(res, res, pivot = Offset.Zero) { content() } }
+    scale(1f / res, 1f / res, pivot = Offset.Zero) { drawLayer(layer) }
+}
+
+/** one word this frame: its glow in a blurred layer under it ([glowLayer], android 12+), then its letters */
+private fun DrawScope.drawWord(cell: WordCell, scale: Float, head: Float, t: Long, color: Color, dim: Color, glowLayer: GraphicsLayer?) {
     val word = cell.word
     val n = cell.letters.size
     if (n == 0) return
@@ -943,59 +1103,100 @@ private fun DrawScope.drawWord(cell: WordCell, scale: Float, head: Float, t: Lon
     // the lit edge: a soft gradient a letter and a bit wide, running just behind the singing and
     // carried past the last letter as the word finishes, so the whole word ends lit
     val soft = cell.width / n * 1.15f
-    val idx = k.toInt().coerceAtMost(n - 1)
-    val letterRight = if (idx + 1 < n) cell.letterX[idx + 1] else cell.width
-    val frontAtHead = if (k >= n) cell.width else cell.letterX[idx] + (letterRight - cell.letterX[idx]) * (k - idx)
+    // at an even pace across the word: letter by letter, a narrow i and a wide m took the same time and the edge sped up and slowed down
+    val frontAtHead = cell.width * through
     val front = frontAtHead + soft * through
     val litFrom = front - soft
     val span = (word.endMs - word.startMs).coerceAtLeast(1L).toFloat()
     // long notes swell and glow; quick ones don't
-    val hold = smoothstep((span / n - 140f) / 200f)
+    val hold = smoothstep((span / word.sungLength - 140f) / 200f)
     val within = ((t - word.startMs) / span).coerceIn(0f, 1f)
     val swellEnvelope = hold * smootherstep(within / 0.2f) * smootherstep((1f - within) / 0.12f)
     // the word being sung, easing in as the singing enters it and out after it's over
-    val active = smootherstep(through / 0.15f) * (1f - smootherstep((t - word.endMs) / 450f))
+    val active = smootherstep(through / 0.15f) * (1f - smootherstep((t - word.endMs) / ActiveFadeMs))
 
+    var glowing = false
+    for (i in 0 until n) {
+        val lx = cell.letterX[i]
+        val lw = cell.letters[i].size.width.toFloat()
+        val c = i.toFloat()
+        val letterRise = if (k >= n) 1f else smootherstep((k - c + RiseLeadChars) / RiseSpanChars)
+        val rise = wordRise + (letterRise - wordRise) * RiseShare
+        // a soft swell a few letters wide rides the singing so no letter hops on its own: it builds over the letter and a half before and dies away behind
+        val d = k - (c + 0.5f)
+        val wave = smootherstep((d + 1.6f) / 1.6f) * (1f - smootherstep(d / 3.2f)) * active
+        val swell = swellEnvelope * smootherstep((k - c + 0.35f) / 1.4f)
+        cell.lift[i] = (rise * 0.07f + wave * 0.025f + swell * 0.02f) * cell.sizePx
+        cell.zoom[i] = 1f + wave * 0.035f + swell * 0.07f
+        val lit = ((front - (lx + lw / 2f)) / soft).coerceIn(0f, 1f)
+        val since = k - (c + 0.5f)
+        val trail = if (since <= 0f) 1f else 1f - smootherstep(since / GlowTrailChars)
+        // a letter still to be sung never glows; a held note lights the whole word
+        val glow = if (lx >= front) 0f else (active * lit * (GlowRest + (1f - GlowRest) * trail) + swell * 0.6f).coerceIn(0f, 1f)
+        cell.glow[i] = if (glow > GlowCutoff) glow else 0f
+        if (glow > GlowCutoff) glowing = true
+    }
+    // the glowing letters once more in their glow colour, blurred on the gpu; as text shadows they were blurred again on the cpu every frame they moved
+    if (glowing && glowLayer != null) {
+        // one radius for the word, so the glow doesn't step through blur sizes as an emphasised word grows
+        glowLayer.renderEffect = BlurEffectCache.get(cell.sizePx * GlowSoftness * GlowRes, Shader.TileMode.DECAL)
+        val half = androidx.compose.ui.unit.IntSize((size.width * GlowRes).roundToInt().coerceAtLeast(1), (size.height * GlowRes).roundToInt().coerceAtLeast(1))
+        glowLayer.record(half) {
+            scale(GlowRes, GlowRes, pivot = Offset.Zero) { drawLetters(cell, scale, litFrom, front, color, dim, LetterPass.Glow) }
+        }
+        scale(1f / GlowRes, 1f / GlowRes, pivot = Offset.Zero) { drawLayer(glowLayer) }
+    }
+    drawLetters(cell, scale, litFrom, front, color, dim, if (glowLayer == null) LetterPass.Shadowed else LetterPass.Plain)
+}
+
+/** which copy of a word's letters is drawn */
+private enum class LetterPass {
+    // the letters as they are
+    Plain,
+    // the letters with their glow as text shadows, on phones older than android 12
+    Shadowed,
+    // only the glowing letters, in their glow colour, for the blurred layer under the word
+    Glow,
+}
+
+/** [cell]'s letters where [drawWord] put them this frame, lit up to [litFrom] and fading to dim by [front] */
+private fun DrawScope.drawLetters(cell: WordCell, scale: Float, litFrom: Float, front: Float, color: Color, dim: Color, pass: LetterPass) {
     withTransform({
         translate(cell.bleed, cell.bleed)
         scale(scale, scale, pivot = Offset.Zero)
     }) {
-        for (i in 0 until n) {
+        for (i in cell.letters.indices) {
+            val glow = cell.glow[i]
+            if (pass == LetterPass.Glow && glow == 0f) continue
             val layout = cell.letters[i]
             val lx = cell.letterX[i]
             val lw = layout.size.width.toFloat()
             val lh = layout.size.height.toFloat()
-            val c = i.toFloat()
-            val letterRise = if (k >= n) 1f else smootherstep((k - c + RiseLeadChars) / RiseSpanChars)
-            val rise = wordRise + (letterRise - wordRise) * RiseShare
-            // a soft swell travelling with the singing, a few letters wide, so no letter hops on
-            // its own: it builds over the letter and a half before, and dies away behind
-            val d = k - (c + 0.5f)
-            val wave = smootherstep((d + 1.6f) / 1.6f) * (1f - smootherstep(d / 3.2f)) * active
-            val swell = swellEnvelope * smootherstep((k - c + 0.35f) / 1.4f)
-            val lift = (rise * 0.07f + wave * 0.025f + swell * 0.02f) * cell.sizePx
-            val zoom = 1f + wave * 0.035f + swell * 0.07f
-            val lit = ((front - (lx + lw / 2f)) / soft).coerceIn(0f, 1f)
-            val glow = (active * lit * 0.8f + swell * 0.5f).coerceIn(0f, 1f)
+            val zoom = cell.zoom[i]
             // always passed, never null: a letter's layout keeps the last shadow it was drawn with
-            val shadow = if (glow > 0.04f) {
-                Shadow(color.copy(alpha = 0.55f * glow), Offset.Zero, cell.sizePx * 0.2f)
+            val shadow = if (pass == LetterPass.Shadowed && glow > 0f) {
+                Shadow(color.copy(alpha = GlowAlpha * glow), Offset.Zero, cell.sizePx * GlowSoftness)
             } else Shadow.None
             withTransform({
-                translate(lx, -lift)
+                translate(lx, -cell.lift[i])
                 scale(zoom, zoom, pivot = Offset(lw / 2f, lh * 0.85f))
             }) {
                 when {
-                    lx + lw <= litFrom -> drawText(layout, color = color, shadow = shadow)
+                    lx + lw <= litFrom -> drawText(
+                        layout,
+                        color = if (pass == LetterPass.Glow) color.copy(alpha = GlowAlpha * glow) else color,
+                        shadow = shadow,
+                    )
                     lx >= front -> drawText(layout, color = dim, shadow = Shadow.None)
                     else -> {
-                        // the lit edge is measured from where the word starts reading, so a
-                        // right-to-left word (always one piece) lights from its right edge
+                        // the lit edge is measured from where the word starts reading, so a right-to-left word (always one piece) lights from its right edge
                         val litX = if (cell.rtl) cell.width - litFrom - lx else litFrom - lx
                         val frontX = if (cell.rtl) cell.width - front - lx else front - lx
+                        // a shadow takes the gradient too, faded to its glow, so the glow copy does the same
                         drawText(
                             layout,
                             brush = Brush.horizontalGradient(0f to color, 1f to dim, startX = litX, endX = frontX),
+                            alpha = if (pass == LetterPass.Glow) GlowAlpha * glow else Float.NaN,
                             shadow = shadow,
                         )
                     }

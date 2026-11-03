@@ -75,11 +75,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -109,14 +107,6 @@ import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import androidx.palette.graphics.Palette
-import coil3.imageLoader
-import coil3.request.allowHardware
-import coil3.toBitmap
-import com.mochyy.mochymusic.ui.theme.PlayerColorExtractor
-import androidx.compose.ui.graphics.toArgb
 import com.music.innertube.models.AlbumItem
 import com.music.innertube.models.ArtistItem
 import com.music.innertube.models.PlaylistItem
@@ -142,6 +132,7 @@ import com.mochyy.mochymusic.playback.queues.YouTubeQueue
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.ui.component.ArtistListCard
 import com.mochyy.mochymusic.ui.component.BonesHost
+import com.mochyy.mochymusic.ui.component.coverTintBackground
 import com.mochyy.mochymusic.ui.component.HeroCarousel
 import com.mochyy.mochymusic.ui.component.HeroHeightFraction
 import com.mochyy.mochymusic.ui.component.HomeCardCornerRadius
@@ -162,7 +153,6 @@ import com.mochyy.mochymusic.ui.launch.ReportLaunchHomeComposed
 import com.mochyy.mochymusic.ui.component.HomeSectionTitle
 import com.mochyy.mochymusic.ui.component.HomeTrackRow
 import com.mochyy.mochymusic.ui.component.HomeVideoCard
-import com.mochyy.mochymusic.utils.ArtistVideos
 import com.mochyy.mochymusic.utils.FeedVideoKind
 import com.mochyy.mochymusic.utils.HomeVideo
 import com.mochyy.mochymusic.utils.rememberEnumPreference
@@ -335,43 +325,7 @@ fun CommunityPlaylistCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    var extractedColors by remember { mutableStateOf<List<Color>>(emptyList()) }
-
-    LaunchedEffect(item.songs) {
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            try {
-                val thumbnails = item.songs.take(3).mapNotNull { it.thumbnail }
-                val colorsList = mutableListOf<Color>()
-                for (thumb in thumbnails) {
-                    val request = ImageRequest.Builder(context)
-                        .data(thumb)
-                        .size(100, 100)
-                        .allowHardware(false)
-                        .build()
-                    val result = context.imageLoader.execute(request)
-                    val bitmap = result.image?.toBitmap()
-
-                    if (bitmap != null) {
-                        val palette = Palette.from(bitmap)
-                            .maximumColorCount(4)
-                            .resizeBitmapArea(100 * 100)
-                            .generate()
-                        val colors = PlayerColorExtractor.extractGradientColors(
-                            palette = palette,
-                            fallbackColor = android.graphics.Color.DKGRAY
-                        )
-                        colorsList.addAll(colors.take(2))
-                    }
-                }
-                if (colorsList.isNotEmpty()) {
-                    extractedColors = colorsList.distinct().take(3)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
+    val tintCovers = remember(item.songs) { item.songs.take(3).mapNotNull { it.thumbnail } }
 
     Card(
         modifier = modifier
@@ -383,42 +337,10 @@ fun CommunityPlaylistCard(
         onClick = onClick
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            val premiumDarkColors = listOf(
-                listOf(Color(0xFF2B1B38), Color(0xFF151521), Color.Black),
-                listOf(Color(0xFF1B2838), Color(0xFF0F1521), Color.Black),
-                listOf(Color(0xFF381B24), Color(0xFF1F0F15), Color.Black),
-                listOf(Color(0xFF1B382D), Color(0xFF0F1F17), Color.Black),
-                listOf(Color(0xFF2D2B55), Color(0xFF151521), Color.Black)
-            )
-            val fallbackColors = premiumDarkColors[(item.playlist.id.hashCode() and 0x7FFFFFFF) % premiumDarkColors.size]
-
-            val color1 by animateColorAsState(
-                targetValue = extractedColors.getOrNull(0)?.let {
-                    Color(androidx.core.graphics.ColorUtils.blendARGB(it.toArgb(), android.graphics.Color.BLACK, 0.65f))
-                } ?: fallbackColors[0],
-                animationSpec = tween(800), label = ""
-            )
-            val color2 by animateColorAsState(
-                targetValue = extractedColors.getOrNull(1)?.let {
-                    Color(androidx.core.graphics.ColorUtils.blendARGB(it.toArgb(), android.graphics.Color.BLACK, 0.75f))
-                } ?: fallbackColors[1],
-                animationSpec = tween(800), label = ""
-            )
-            val color3 by animateColorAsState(
-                targetValue = extractedColors.getOrNull(2)?.let {
-                    Color(androidx.core.graphics.ColorUtils.blendARGB(it.toArgb(), android.graphics.Color.BLACK, 0.85f))
-                } ?: fallbackColors[2],
-                animationSpec = tween(800), label = ""
-            )
-
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(color1, color2, color3)
-                        )
-                    )
+                    .coverTintBackground(tintCovers, seed = item.playlist.id)
             )
 
             Box(
@@ -755,6 +677,7 @@ fun HomeScreen(
     val liveRow by viewModel.liveRow.collectAsState()
     val musicVideoRow by viewModel.musicVideoRow.collectAsState()
     val feedVideoKinds by viewModel.feedVideoKinds.collectAsState()
+    val feedVideoRows by viewModel.feedVideoRows.collectAsState()
     val homeCategories by viewModel.homeCategories.collectAsState()
 
     val speedDialItems by viewModel.speedDialItems.collectAsState()
@@ -1514,18 +1437,9 @@ fun HomeScreen(
                         HomeSection.MostPlayed -> {
                             mostPlayedSongsForHome?.takeIf { it.isNotEmpty() }?.let { mostPlayed ->
                                 homeItem("most_played_title", revealSeen, "title") {
-                                    val mostPlayedTitle = stringResource(R.string.home_most_played)
                                     HomeSectionTitle(
-                                        title = mostPlayedTitle,
+                                        title = stringResource(R.string.home_most_played),
                                         onClick = { navController.navigate("section_detail/most_played") },
-                                        onPlayAllClick = {
-                                            playerConnection.playQueue(
-                                                ListQueue(
-                                                    title = mostPlayedTitle,
-                                                    items = mostPlayed.map { it.toMediaItem() }
-                                                )
-                                            )
-                                        }
                                     )
                                 }
                                 homeItem("most_played_list", revealSeen, "trackGrid") {
@@ -1614,7 +1528,6 @@ fun HomeScreen(
                         is HomeSection.Category -> {
                             homeCategories?.firstOrNull { it.id == section.categoryId }?.let { category ->
                                 homeItem("${section.id}_title", revealSeen, "title") {
-                                    val categorySongs = category.items.filterIsInstance<SongItem>()
                                     val title = when (category.kind) {
                                         HomeCategory.Kind.NewFromArtists -> stringResource(R.string.home_new_from_your_artists)
                                         else -> category.title
@@ -1655,16 +1568,6 @@ fun HomeScreen(
                                                 }
                                             }
                                         },
-                                        onPlayAllClick = if (categorySongs.size >= 2) {
-                                            {
-                                                playerConnection.playQueue(
-                                                    ListQueue(
-                                                        title = title,
-                                                        items = categorySongs.map { it.toMediaMetadata().toMediaItem() }
-                                                    )
-                                                )
-                                            }
-                                        } else null,
                                     )
                                 }
                                 homeItem("${section.id}_list", revealSeen, "cardRow") {
@@ -1728,18 +1631,9 @@ fun HomeScreen(
                         HomeSection.DontForgetTheseSongs -> {
                             forgottenFavorites?.takeIf { it.isNotEmpty() }?.let { forgottenFavorites ->
                                 homeItem("forgotten_favorites_title", revealSeen, "title") {
-                                    val forgottenFavoritesTitle = stringResource(R.string.dont_forget_these_songs)
                                     HomeSectionTitle(
-                                        title = forgottenFavoritesTitle,
+                                        title = stringResource(R.string.dont_forget_these_songs),
                                         onClick = { navController.navigate("section_detail/forgotten_favorites") },
-                                        onPlayAllClick = {
-                                            playerConnection.playQueue(
-                                                ListQueue(
-                                                    title = forgottenFavoritesTitle,
-                                                    items = forgottenFavorites.map { it.toMediaItem() }
-                                                )
-                                            )
-                                        }
                                     )
                                 }
                                 homeItem("forgotten_favorites_list", revealSeen, "trackGrid") {
@@ -1757,8 +1651,6 @@ fun HomeScreen(
                         is HomeSection.HomePageSection -> {
                             val sectionData = homePage?.sections?.getOrNull(section.index)
                             sectionData?.let {
-                                val sectionSongs = sectionData.items.filterIsInstance<SongItem>()
-
                                 homeItem("home_section_title_${section.id}", revealSeen, "title") {
                                     HomeSectionTitle(
                                         title = sectionData.title,
@@ -1791,24 +1683,15 @@ fun HomeScreen(
                                                 }
                                             }
                                         },
-                                        onPlayAllClick = if (sectionSongs.isNotEmpty()) {
-                                            {
-                                                playerConnection.playQueue(
-                                                    ListQueue(
-                                                        title = sectionData.title,
-                                                        items = sectionSongs.map { it.toMediaMetadata().toMediaItem() }
-                                                    )
-                                                )
-                                            }
-                                        } else null,
                                     )
                                 }
 
                                 homeItem("home_section_list_${section.id}", revealSeen, "cardRow") {
-                                    if (feedVideoKinds[section.index] == FeedVideoKind.Other) {
+                                    val videos = feedVideoRows[section.index]
+                                    if (videos != null) {
                                         HomeCardRow(
                                             "home_section_${section.id}",
-                                            sectionSongs.map(ArtistVideos::feedVideo),
+                                            videos,
                                             revealSeen,
                                             key = { it.item.id },
                                             content = videoRowCard,
@@ -1878,17 +1761,22 @@ fun HomeScreen(
                         )
                     }
 
+                    val progressiveBar = com.mochyy.mochymusic.ui.component.rememberProgressiveBlur()
                     Box(
                         modifier = Modifier
                             .matchParentSize()
                             .drawWithCache {
                                 // every stop is black, so the fade is built once and only its alpha follows the scroll
-                                val fade = Brush.verticalGradient(
-                                    0f to Color.Black.copy(alpha = 0.9f),
-                                    0.3f to Color.Black.copy(alpha = 0.6f),
-                                    0.6f to Color.Black.copy(alpha = 0.3f),
-                                    1f to Color.Transparent
-                                )
+                                val fade = if (progressiveBar) {
+                                    Brush.verticalGradient(
+                                        0f to Color.Black.copy(alpha = 0.9f),
+                                        0.3f to Color.Black.copy(alpha = 0.6f),
+                                        0.6f to Color.Black.copy(alpha = 0.3f),
+                                        1f to Color.Transparent
+                                    )
+                                } else {
+                                    androidx.compose.ui.graphics.SolidColor(Color.Black.copy(alpha = com.mochyy.mochymusic.ui.component.FlatBarScrimAlpha))
+                                }
                                 onDrawBehind {
                                     drawRect(brush = fade, alpha = heroScrollProgressProvider().coerceIn(0f, 1f))
                                 }
@@ -1931,7 +1819,7 @@ fun HomeScreen(
                                     scaleX = scale
                                     scaleY = scale
                                     transformOrigin = TransformOrigin(0f, 0.5f)
-                                    renderEffect = BlurEffectCache.get(topBarProgress * 15f)
+                                    renderEffect = BlurEffectCache.element(topBarProgress * 15f)
                                 }
                         )
 
@@ -1947,7 +1835,7 @@ fun HomeScreen(
                             maxLines = 1,
                             modifier = Modifier.graphicsLayer {
                                 alpha = topBarProgress
-                                renderEffect = BlurEffectCache.get((1f - topBarProgress) * 15f)
+                                renderEffect = BlurEffectCache.element((1f - topBarProgress) * 15f)
                             }
                         )
                     }

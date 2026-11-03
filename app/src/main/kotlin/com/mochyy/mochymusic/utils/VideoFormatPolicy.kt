@@ -40,4 +40,4 @@ internal fun videoSampleMime(mimeType: String): String? {
 
 /** After a decoder/network failure, don't retry the same resolution indefinitely. */
 internal fun nextLowerVideoLimit(failedHeight: Int, currentLimit: Int): Int? =
-    VideoQuality.entries.lastOrNull { it.maxHeight < minOf(failedHeight, currentLimit) }?.maxHeight
+    VideoQuality.entries.map { it.shortSide }.filter { it > 0 && it < minOf(failedHeight, currentLimit) }.maxOrNull()

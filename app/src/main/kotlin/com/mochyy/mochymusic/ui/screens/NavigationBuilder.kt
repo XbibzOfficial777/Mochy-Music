@@ -365,6 +365,17 @@ fun NavGraphBuilder.navigationBuilder(
         }
     }
 
+    // the Imported tab's Albums cards: the albums one service's songs come from
+    coverSourceComposable(
+        route = "library/imported/{source}/albums",
+        arguments = listOf(navArgument("source") { type = NavType.StringType }),
+    ) {
+        com.mochyy.mochymusic.ui.screens.library.LibraryAlbumsScreen(
+            navController = navController,
+            source = com.mochyy.mochymusic.importer.ImportSource.fromKey(it.arguments?.getString("source")),
+        )
+    }
+
     composable(Screens.Settings.route) {
         ProfileScreen(navController = navController)
     }
@@ -385,12 +396,9 @@ fun NavGraphBuilder.navigationBuilder(
         com.mochyy.mochymusic.ui.screens.settings.MochySettingsScreen(navController = navController)
     }
 
+    // app behaviour kept general's route, so old links and search results still land on it
     composable("general_settings") {
-        com.mochyy.mochymusic.ui.screens.settings.GeneralSettingsScreen(navController = navController)
-    }
-
-    composable("appearance_settings") {
-        com.mochyy.mochymusic.ui.screens.settings.AppearanceSettingsScreen(navController = navController)
+        com.mochyy.mochymusic.ui.screens.settings.AppBehaviourSettingsScreen(navController = navController)
     }
 
     composable(com.mochyy.mochymusic.ui.screens.settings.integrations.IntegrationsRoute) {
@@ -411,8 +419,8 @@ fun NavGraphBuilder.navigationBuilder(
         com.mochyy.mochymusic.ui.screens.settings.integrations.ScrobbleServiceScreen(navController = navController, site = site)
     }
 
-    composable("playback_settings") {
-        com.mochyy.mochymusic.ui.screens.settings.PlaybackSettingsScreen(navController = navController)
+    composable(com.mochyy.mochymusic.ui.screens.settings.ProxySettingsRoute) {
+        com.mochyy.mochymusic.ui.screens.settings.ProxySettingsScreen(navController = navController)
     }
 
     composable("crossmix_settings") {
@@ -510,6 +518,10 @@ fun NavGraphBuilder.navigationBuilder(
         com.mochyy.mochymusic.ui.screens.audiolab.AudioQualityScreen(navController = navController)
     }
 
+    composable("audio_pass") {
+        com.mochyy.mochymusic.ui.screens.audiolab.AudioPassScreen(navController = navController)
+    }
+
     composable(com.mochyy.mochymusic.ui.screens.settings.modules.ModulesRoute) {
         com.mochyy.mochymusic.ui.screens.settings.modules.ModulesScreen(navController = navController)
     }
@@ -525,12 +537,13 @@ fun NavGraphBuilder.navigationBuilder(
     }
 
     composable(
-        route = com.mochyy.mochymusic.ui.screens.settings.modules.ModuleSignInRoutePattern,
-        arguments = listOf(navArgument("id") { type = NavType.StringType }),
+        route = com.mochyy.mochymusic.ui.screens.settings.modules.ModulePageRoutePattern,
+        arguments = listOf(navArgument("id") { type = NavType.StringType }, navArgument("page") { type = NavType.StringType }),
     ) { entry ->
-        com.mochyy.mochymusic.ui.screens.settings.modules.ModuleSignInScreen(
+        com.mochyy.mochymusic.ui.screens.settings.modules.ModulePageScreen(
             navController = navController,
             id = entry.arguments?.getString("id").orEmpty(),
+            pageId = entry.arguments?.getString("page").orEmpty(),
         )
     }
 
@@ -821,6 +834,10 @@ internal data class LocalAudioMetadata(
     val bitrate: Int?,
     val sampleRate: Int?,
     val embeddedArtwork: ByteArray?,
+    val albumArtist: String? = null,
+    val trackNumber: Int? = null,
+    val discNumber: Int? = null,
+    val year: Int? = null,
 )
 
 internal fun extractAudioMetadata(
@@ -849,6 +866,8 @@ internal fun extractAudioMetadata(
             } else null
         } catch (_: Exception) { null }
         val embeddedArtwork = try { retriever.embeddedPicture } catch (_: Exception) { null }
+        // track and disc tags often read "3/12", the part before the slash is the number
+        fun number(key: Int) = retriever.extractMetadata(key)?.substringBefore('/')?.trim()?.toIntOrNull()
         LocalAudioMetadata(
             title = title,
             artist = artist,
@@ -858,6 +877,10 @@ internal fun extractAudioMetadata(
             bitrate = bitrate,
             sampleRate = sampleRate,
             embeddedArtwork = embeddedArtwork,
+            albumArtist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST),
+            trackNumber = number(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER),
+            discNumber = number(MediaMetadataRetriever.METADATA_KEY_DISC_NUMBER),
+            year = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR)?.take(4)?.toIntOrNull(),
         )
     } catch (e: Exception) {
 

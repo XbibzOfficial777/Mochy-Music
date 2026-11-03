@@ -32,6 +32,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.scrobble.ScrobbleSite
+import com.mochyy.mochymusic.ui.screens.settings.importsync.YouTubeSyncRoute
 import com.mochyy.mochymusic.ui.screens.settings.integrations.IntegrationsRoute
 import com.mochyy.mochymusic.ui.screens.settings.integrations.discord.DiscordRoute
 import com.mochyy.mochymusic.ui.screens.settings.integrations.scrobbleServiceRoute
@@ -78,36 +80,62 @@ private data class SettingsEntry(
     val highlightKey: String get() = title
 }
 
-// Search IDs stay stable in English; visible labels and matching can follow the UI locale.
+// search ids stay english so rows can find themselves, what's shown and matched follows the app's language
 private val LocalizedSettingsTitles = mapOf(
+    "Customisation" to R.string.settings_customisation_category,
     "Theme" to R.string.theme,
     "Cover animation" to R.string.bibz_cover_animation,
-    "Hide status bar in player" to R.string.bibz_hide_status,
-    "Video quality" to R.string.bibz_video_quality,
-    "Customize player" to R.string.appearance_customize_player,
-    "Customize lyrics tab" to R.string.appearance_customize_lyrics,
-    "Lyrics Shader" to R.string.appearance_shader,
-    "High quality bloom" to R.string.appearance_bloom,
-    "Always enable Youtube background" to R.string.appearance_youtube_background,
-    "Enable animated canvas" to R.string.appearance_canvas,
+    "Blur" to R.string.appearance_blur,
+    "Progressive blur" to R.string.appearance_progressive_blur,
+    "Blur quality" to R.string.appearance_blur_quality,
+    "Blur strength" to R.string.appearance_blur_strength,
+    "Animation" to R.string.appearance_animation,
+    "Lyrics animation" to R.string.appearance_lyrics_animation,
+    "Larp mode" to R.string.larp_mode,
+    "Disable App Updates notice" to R.string.settings_updates_notice,
+    "Offline mode" to R.string.settings_offline_mode,
+    "Proxy" to R.string.proxy,
+    "Albums from liked songs" to R.string.settings_albums_from_likes,
+    "Keep playing even when closed" to R.string.playback_keep_playing,
+    "Play alongside other apps" to R.string.playback_mix_other_apps,
+    "Save Player's last state" to R.string.playback_save_state,
+    "Local song auto metadata" to R.string.settings_local_auto_metadata,
+    "Disable auto-playing YouTube video" to R.string.settings_disable_video_autoplay,
+    "Translations from YouTube" to R.string.settings_youtube_translations,
+    "Sync lyrics to music videos" to R.string.settings_sync_lyrics_video,
+    "Don't skip on failure" to R.string.settings_dont_skip_failure,
+    "Skip timeout failure" to R.string.settings_skip_timeout,
+    "Skip Silence" to R.string.playback_skip_silence,
     "Audio format badge" to R.string.appearance_format_badge,
     "Show sample rate" to R.string.appearance_sample_rate,
-    "Blur" to R.string.appearance_blur,
-    "Animation" to R.string.appearance_animation,
-    "Keep playing even when closed" to R.string.playback_keep_playing,
-    "Save Player's last state" to R.string.playback_save_state,
-    "Skip Silence" to R.string.playback_skip_silence,
+    "Always enable Youtube background" to R.string.appearance_youtube_background,
+    "Enable animated canvas" to R.string.appearance_canvas,
+    "High quality bloom" to R.string.appearance_bloom,
+    "Audio Pass" to R.string.audiopass_hub_title,
     "Prefer USB DAC" to R.string.playback_usb_prefer,
     "USB DAC passthrough" to R.string.playback_usb_passthrough,
     "Hi-res output" to R.string.playback_hires,
     "Hi-fi resampler" to R.string.playback_hifi,
-    "Offline mode" to R.string.settings_offline_mode,
-    "Local song auto metadata" to R.string.settings_local_auto_metadata,
+    "Audio Lab" to R.string.settings_audio_lab_category,
+    "Modules" to R.string.settings_modules_category,
+    "Storage" to R.string.storage,
+    "App behaviour" to R.string.settings_app_behaviour,
+    "Disable description on settings" to R.string.settings_hide_descriptions,
+    "Cover rounding" to R.string.customise_cover_rounding,
+    "Playlist styles" to R.string.customise_playlist_styles,
+    "Player styles" to R.string.customise_player_styles,
+    "Home styles" to R.string.customise_home_styles,
+    "Element blur" to R.string.customise_element_blur,
+    "Animation speed" to R.string.customise_animation_speed,
+    "Top Bar on player" to R.string.customise_top_bar,
+    "Gesture" to R.string.customise_gesture,
+    "Swipe right" to R.string.customise_swipe_right,
+    "Swipe left" to R.string.customise_swipe_left,
+    "Swipe down anywhere to close" to R.string.customise_swipe_down_anywhere,
+    "Open with your finger" to R.string.customise_swipe_up_follows,
 )
 private val LocalizedSettingsPages = mapOf(
-    "General" to R.string.general,
-    "Appearance" to R.string.appearance,
-    "Playback" to R.string.settings_playback_category,
+    "App behaviour" to R.string.settings_app_behaviour,
     "Customisation" to R.string.settings_customisation_category,
     "Storage" to R.string.storage,
     "Audio Lab" to R.string.settings_audio_lab_category,
@@ -116,32 +144,53 @@ private val LocalizedSettingsPages = mapOf(
 )
 
 private val SettingsIndex = listOf(
-    // Appearance
-    SettingsEntry("Theme", "Appearance", "appearance_settings", "theme liquid glass pure black frosted look chrome nav bar"),
-    SettingsEntry("Customize player", "Appearance", "appearance_settings", "player customise cover style"),
-    SettingsEntry("Cover animation", "Appearance", "appearance_settings", "cover fade slide artwork transition"),
-    SettingsEntry("Customize lyrics tab", "Appearance", "appearance_settings", "lyrics letter typography font"),
-    SettingsEntry("Hide status bar in player", "Appearance", "appearance_settings", "immersive fullscreen status bar clock battery"),
-    SettingsEntry("Lyrics Shader", "Appearance", "appearance_settings", "lyrics glow wave letters bloom shader"),
-    SettingsEntry("High quality bloom", "Appearance", "appearance_settings", "lyrics bloom quality extra soft pass"),
-    SettingsEntry("Always enable Youtube background", "Appearance", "appearance_settings", "youtube video background canvas"),
-    SettingsEntry("Video quality", "Appearance", "appearance_settings", "video resolution 144 240 360 480 720 1080 1440 2160 4k data"),
-    SettingsEntry("Enable animated canvas", "Appearance", "appearance_settings", "canvas animation spotify looping visual"),
-    SettingsEntry("Audio format badge", "Appearance", "appearance_settings", "format codec opus aac flac badge title quality"),
-    SettingsEntry("Show sample rate", "Appearance", "appearance_settings", "sample rate khz hz format badge quality"),
-    SettingsEntry("Blur", "Appearance", "appearance_settings", "blur glass performance lag strength"),
-    SettingsEntry("Animation", "Appearance", "appearance_settings", "element blur animator transition animation"),
-
     // Customisation
-    SettingsEntry("Customisation", "Customisation", "customisation_settings", "customize cover rounding playlist player home styles gesture swipe"),
+    SettingsEntry("Theme", "Customisation", "customisation_settings", "liquid glass frosted pure black chrome"),
+    SettingsEntry("Cover animation", "Customisation", "customisation_settings", "cover artwork fade slide transition"),
+    SettingsEntry("Customisation", "Customisation", "customisation_settings", "customize cover rounding playlist player home styles gesture swipe blur animation lyrics"),
     SettingsEntry("Cover rounding", "Customisation", "customisation_settings", "square rounded corner radius px thumbnail art"),
     SettingsEntry("Playlist styles", "Customisation", "customisation_settings", "flow classic minimal header layout"),
-    SettingsEntry("Player styles", "Customisation", "customisation_settings", "flagship turntable ipod poster timeline lyrics studio"),
+    SettingsEntry("Player styles", "Customisation", "customisation_settings", "flagship turntable ipod poster timeline lyrics studio customize player cover"),
     SettingsEntry("Home styles", "Customisation", "customisation_settings", "mochyy listen now hop in hero layout grid"),
+    SettingsEntry("Blur", "Customisation", "customisation_settings", "blur glass frosted performance lag"),
+    SettingsEntry("Progressive blur", "Customisation", "customisation_settings", "gradient fade top bar hairline flat"),
+    SettingsEntry("Blur quality", "Customisation", "customisation_settings", "low high glass performance"),
+    SettingsEntry("Blur strength", "Customisation", "customisation_settings", "radius px glass amount"),
+    SettingsEntry("Element blur", "Customisation", "customisation_settings", "lyrics line blur cover zoom title morph menu page wipe"),
+    SettingsEntry("Animation", "Customisation", "customisation_settings", "transition motion off reduce disable"),
+    SettingsEntry("Animation speed", "Customisation", "customisation_settings", "faster slower duration scale motion"),
+    SettingsEntry("Lyrics animation", "Customisation", "customisation_settings", "lyrics style 1 2 boring plain shader glow wave agsl letters"),
+    SettingsEntry("Top Bar on player", "Customisation", "customisation_settings", "status bar hide clock battery player top"),
     SettingsEntry("Gesture", "Customisation", "customisation_settings", "swipe slide song list left right queue library download play next playlist details"),
     SettingsEntry("Swipe right", "Customisation", "customisation_settings", "slide song list queue library download play next playlist details action"),
     SettingsEntry("Swipe left", "Customisation", "customisation_settings", "slide song list queue library download play next playlist details action"),
     SettingsEntry("Swipe down anywhere to close", "Customisation", "customisation_settings", "player close dismiss swipe down pull gesture anywhere"),
+    SettingsEntry("Open with your finger", "Customisation", "customisation_settings", "player open swipe up mini player follow finger speed velocity gesture"),
+
+    // App behaviour
+    SettingsEntry("App behaviour", "App behaviour", "general_settings", "general playback player behaviour"),
+    SettingsEntry("Larp mode", "App behaviour", "general_settings", "larp 67 flac 768 khz wadax atlantis dac hi-res lossless bit-perfect flex"),
+    SettingsEntry("App language", "App behaviour", "general_settings", "language bahasa locale device system indonesia english translate", R.string.app_language),
+    SettingsEntry("Disable App Updates notice", "App behaviour", "general_settings", "update popup notification updater"),
+    SettingsEntry("Offline mode", "App behaviour", "general_settings", "play downloaded cache offline"),
+    SettingsEntry("Proxy", "App behaviour", ProxySettingsRoute, "proxy socks http server vpn network region country blocked bot sign in"),
+    SettingsEntry("Albums from liked songs", "App behaviour", "general_settings", "albums library liked songs old way apple music"),
+    SettingsEntry("Keep playing even when closed", "App behaviour", "general_settings", "background close stop playback"),
+    SettingsEntry("Play alongside other apps", "App behaviour", "general_settings", "audio focus mix pause other app video game sound together"),
+    SettingsEntry("Save Player's last state", "App behaviour", "general_settings", "persistent queue restore track state"),
+    SettingsEntry("Local song auto metadata", "App behaviour", "general_settings", "match tags id3 covers lyrics"),
+    SettingsEntry("Disable auto-playing YouTube video", "App behaviour", "general_settings", "music video live autoplay cover"),
+    SettingsEntry("Translations from YouTube", "App behaviour", "general_settings", "captions translate lyrics language"),
+    SettingsEntry("Sync lyrics to music videos", "App behaviour", "general_settings", "lyrics video timing intro skit"),
+    SettingsEntry("Don't skip on failure", "App behaviour", "general_settings", "fail stream error stay skip"),
+    SettingsEntry("Skip timeout failure", "App behaviour", "general_settings", "skip timeout seconds failed stream"),
+    SettingsEntry("Skip Silence", "App behaviour", "general_settings", "silence trim gap interval"),
+    SettingsEntry("Audio format badge", "App behaviour", "general_settings", "format codec opus aac flac badge title quality"),
+    SettingsEntry("Show sample rate", "App behaviour", "general_settings", "sample rate khz hz format badge quality"),
+    SettingsEntry("Always enable Youtube background", "App behaviour", "general_settings", "youtube video background canvas"),
+    SettingsEntry("Enable animated canvas", "App behaviour", "general_settings", "canvas animation spotify looping visual"),
+    SettingsEntry("High quality bloom", "App behaviour", "general_settings", "lyrics bloom quality extra soft pass glow"),
+    SettingsEntry("Disable description on settings", "App behaviour", "general_settings", "hide subtitle text rows titles only"),
 
     // Audio Lab
     SettingsEntry("Audio Lab", "Audio Lab", "audio_lab", "sound effects equalizer fx quality"),
@@ -149,6 +198,11 @@ private val SettingsIndex = listOf(
     SettingsEntry("Equalizer", "Audio Lab", "equalizer", "eq bass treble band parametric graph autoeq headphones correction preset"),
     SettingsEntry("AutoEQ", "Audio Lab", "equalizer", "headphones earbuds correction harman database model"),
     SettingsEntry("Audio Quality", "Audio Lab", "audio_quality", "bitrate stream high low lossless hi-res flac monochrome"),
+    SettingsEntry("Audio Pass", "Audio Lab", "audio_pass", "dac usb output headphones bluetooth codec bit perfect exclusive"),
+    SettingsEntry("Prefer USB DAC", "Audio Lab", "audio_pass", "usb dac headphones output external audio"),
+    SettingsEntry("USB DAC passthrough", "Audio Lab", "audio_pass", "bit perfect bitperfect passthrough sample rate dac usb resample"),
+    SettingsEntry("Hi-res output", "Audio Lab", "audio_pass", "hi res 24 bit float precision lossless flac quality"),
+    SettingsEntry("Hi-fi resampler", "Audio Lab", "audio_pass", "resample sample rate 44.1 48 khz sinc src quality filter"),
     SettingsEntry("Reverb", "Audio Lab", "audio_fx", "room hall echo space fx effect"),
     SettingsEntry("Loudness", "Audio Lab", "audio_fx", "boost louder compressor limiter night mode fx"),
     SettingsEntry("Audio Normalization", "Audio Lab", "audio_fx", "even out songs loudness volume gain balance replaygain"),
@@ -163,27 +217,12 @@ private val SettingsIndex = listOf(
     SettingsEntry("YouTube Music", "Audio Lab", "audio_quality", "youtube turn off disable provider only monochrome apple music"),
 
     // Integrations
-    SettingsEntry("Discord", "Integrations", DiscordRoute, "discord rich presence rpc status activity listening playing profile"),
+    SettingsEntry("Discord", "Integrations", DiscordRoute, "discord rich presence rpc status activity listening playing profile behaviour pause clear"),
     SettingsEntry("Last.fm", "Integrations", scrobbleServiceRoute(ScrobbleSite.LASTFM), "lastfm scrobble scrobbling history stats account sign in"),
     SettingsEntry("Libre.fm", "Integrations", scrobbleServiceRoute(ScrobbleSite.LIBREFM), "librefm scrobble scrobbling history stats account sign in"),
     SettingsEntry("Now Playing", "Integrations", scrobbleServiceRoute(ScrobbleSite.LASTFM), "scrobble now playing status profile lastfm librefm"),
     SettingsEntry("Send likes", "Integrations", scrobbleServiceRoute(ScrobbleSite.LASTFM), "love loved songs lastfm librefm scrobble"),
-
-    // Playback
-    SettingsEntry("Keep playing even when closed", "Playback", "playback_settings", "background close stop playback"),
-    SettingsEntry("Save Player's last state", "Playback", "playback_settings", "persistent queue restore track state"),
-    SettingsEntry("Skip Silence", "Playback", "playback_settings", "silence trim gap interval"),
-    SettingsEntry("Prefer USB DAC", "Playback", "playback_settings", "usb dac headphones output external audio"),
-    SettingsEntry("USB DAC passthrough", "Playback", "playback_settings", "bit perfect bitperfect passthrough sample rate dac usb resample"),
-    SettingsEntry("Hi-res output", "Playback", "playback_settings", "hi res 24 bit float precision lossless flac quality"),
-    SettingsEntry("Hi-fi resampler", "Playback", "playback_settings", "resample sample rate 44.1 48 khz sinc src quality filter"),
-
-    // General
-    SettingsEntry("App language", "General", "general_settings", "language bahasa locale device system indonesia english", R.string.app_language, R.string.general),
-    SettingsEntry("Import Data", "General", "general_settings", "backup restore transfer library spotify"),
-    SettingsEntry("Edit profile", "General", "general_settings", "username avatar account"),
-    SettingsEntry("Offline mode", "General", "general_settings", "play downloaded cache offline"),
-    SettingsEntry("Local song auto metadata", "General", "general_settings", "match tags id3 covers lyrics"),
+    SettingsEntry("YouTube Music", "Integrations", YouTubeSyncRoute, "youtube ytm sync account sign in likes library playlists history"),
 
     // Storage
     SettingsEntry("Storage", "Storage", "storage_settings", "space disk size cache downloads clear free junk delete"),
@@ -203,33 +242,33 @@ private val SettingsIndex = listOf(
 )
 
 private data class RecommendedSetting(
-    val title: String,
-    val breadcrumb: String,
+    val titleRes: Int,
+    val breadcrumbRes: Int,
     val iconRes: Int,
     val onClick: (NavController) -> Unit,
 )
 
 private val RecommendedOptions = listOf(
     RecommendedSetting(
-        title = "Configure Blur settings",
-        breadcrumb = "settings>appearance",
+        titleRes = R.string.settings_rec_blur,
+        breadcrumbRes = R.string.settings_crumb_customisation,
         iconRes = R.drawable.contrast,
         onClick = { nav ->
             SettingsHighlight.pending = "Blur"
-            nav.navigate("appearance_settings")
+            nav.navigate("customisation_settings")
         }
     ),
     RecommendedSetting(
-        title = "Configure Crossfade settings",
-        breadcrumb = "settings>audio lab",
+        titleRes = R.string.settings_rec_crossfade,
+        breadcrumbRes = R.string.settings_crumb_audio_lab,
         iconRes = R.drawable.linear_scale,
         onClick = { nav ->
             nav.navigate("crossmix_settings")
         }
     ),
     RecommendedSetting(
-        title = "Configure Equalizer settings",
-        breadcrumb = "settings>audio lab",
+        titleRes = R.string.settings_rec_equalizer,
+        breadcrumbRes = R.string.settings_crumb_audio_lab,
         iconRes = R.drawable.equalizer,
         onClick = { nav ->
             nav.navigate("equalizer")
@@ -238,6 +277,10 @@ private val RecommendedOptions = listOf(
 )
 
 private val BubbleColor = Color(0xFF1C1C1E)
+
+// the header holds the mochy mark with the big "Settings" under it, taller than search's title-only header
+private val SettingsTitleBlockHeight = 88.dp
+private val SettingsMarkSize = 32.dp
 private val IconBgColor = Color(0xFF333338)
 
 @Composable
@@ -287,17 +330,14 @@ fun MochySettingsScreen(navController: NavController) {
         animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
         label = "contentAlpha"
     )
+    // flips only at the ends of the fade, so the page isn't recomposed on every frame of it
+    val showContent by remember { derivedStateOf { contentAlpha > 0.001f } }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black),
     ) {
-        // Scrollable content. glassRoot wraps only this box - never a sibling that also reads
-        // glassState to draw the blur, such as SearchGlassTopBar below - or that sibling's draw
-        // gets captured into its own backdrop RenderNode, which is a direct self-reference and
-        // crashes RenderThread with a native stack overflow (see SearchScreen.kt for the same
-        // split: glassRoot on the content box only, the glass top bar as a separate sibling).
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -308,7 +348,7 @@ fun MochySettingsScreen(navController: NavController) {
                 .fillMaxSize()
                 .verticalScroll(scrollState)
         ) {
-            Spacer(modifier = Modifier.height(searchTopBarHeight()))
+            Spacer(modifier = Modifier.height(searchTopBarHeight(titleBlockHeight = SettingsTitleBlockHeight)))
 
             // Search results view when user types
             AnimatedVisibility(
@@ -383,7 +423,7 @@ fun MochySettingsScreen(navController: NavController) {
             }
 
             // Normal Settings Content (fades smoothly to black when search is focused)
-            if (contentAlpha > 0.001f) {
+            if (showContent) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -433,14 +473,14 @@ fun MochySettingsScreen(navController: NavController) {
 
                                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                     Text(
-                                        text = recommendedItem.title,
+                                        text = stringResource(recommendedItem.titleRes),
                                         fontFamily = InterFontFamily,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 16.sp,
                                         color = Color.White
                                     )
                                     Text(
-                                        text = recommendedItem.breadcrumb,
+                                        text = stringResource(recommendedItem.breadcrumbRes),
                                         fontFamily = InterFontFamily,
                                         fontSize = 13.sp,
                                         color = Color.White.copy(alpha = 0.55f)
@@ -470,22 +510,17 @@ fun MochySettingsScreen(navController: NavController) {
                             .padding(horizontal = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        // in the order of the design: sound first, then how the app acts and looks, then the rest
                         CategoryBubble(
-                            title = stringResource(R.string.general),
+                            title = stringResource(R.string.settings_audio_lab_category),
+                            iconRes = R.drawable.equalizer,
+                            onClick = { navController.navigate("audio_lab") }
+                        )
+
+                        CategoryBubble(
+                            title = stringResource(R.string.settings_app_behaviour),
                             iconRes = R.drawable.settings,
                             onClick = { navController.navigate("general_settings") }
-                        )
-
-                        CategoryBubble(
-                            title = stringResource(R.string.appearance),
-                            iconRes = R.drawable.contrast,
-                            onClick = { navController.navigate("appearance_settings") }
-                        )
-
-                        CategoryBubble(
-                            title = stringResource(R.string.settings_playback_category),
-                            iconRes = R.drawable.play,
-                            onClick = { navController.navigate("playback_settings") }
                         )
 
                         CategoryBubble(
@@ -501,21 +536,15 @@ fun MochySettingsScreen(navController: NavController) {
                         )
 
                         CategoryBubble(
-                            title = stringResource(R.string.settings_audio_lab_category),
-                            iconRes = R.drawable.equalizer,
-                            onClick = { navController.navigate("audio_lab") }
+                            title = stringResource(R.string.integrations),
+                            iconRes = R.drawable.integration,
+                            onClick = { navController.navigate(IntegrationsRoute) }
                         )
 
                         CategoryBubble(
                             title = stringResource(R.string.settings_modules_category),
                             iconRes = R.drawable.library_add,
                             onClick = { navController.navigate("modules") }
-                        )
-
-                        CategoryBubble(
-                            title = stringResource(R.string.integrations),
-                            iconRes = R.drawable.integration,
-                            onClick = { navController.navigate(IntegrationsRoute) }
                         )
                     }
                 }
@@ -537,17 +566,34 @@ fun MochySettingsScreen(navController: NavController) {
             glassState = glassState,
             progressProvider = { collapseProgress },
             pureBlack = true,
-            title = "Mochy",
+            title = stringResource(R.string.settings),
+            titleBlockHeight = SettingsTitleBlockHeight,
             titleContent = {
-                Icon(
-                    painter = painterResource(R.drawable.ic_mochy_mark),
-                    contentDescription = "Mochy",
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_mochy_mark),
+                        contentDescription = "Mochy",
+                        tint = Color.White,
+                        modifier = Modifier.size(SettingsMarkSize),
+                    )
+                    Text(
+                        text = stringResource(R.string.settings),
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 34.sp,
+                        lineHeight = 40.sp,
+                        color = Color.White,
+                        maxLines = 1,
+                    )
+                }
             },
             trailing = {
+                // at rest it sits beside the mark like the design, and drops to the search field's middle as the header folds
                 SearchAvatar(
+                    modifier = Modifier.graphicsLayer {
+                        val lift = (SettingsTitleBlockHeight / 2 - SettingsMarkSize / 2).toPx()
+                        translationY = -(1f - collapseProgress) * lift
+                    },
                     imageUrl = profilePicUri.ifBlank { null },
                     onClick = {
                         // back to the profile page these were opened from, not a second copy of it on top
