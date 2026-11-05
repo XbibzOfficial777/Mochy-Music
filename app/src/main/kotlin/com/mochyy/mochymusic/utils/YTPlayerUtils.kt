@@ -369,7 +369,8 @@ object YTPlayerUtils {
 
         val audioConfig = metadataResponse?.playerConfig?.audioConfig ?: mainPlayerResponse.playerConfig?.audioConfig
         val videoDetails = metadataResponse?.videoDetails ?: mainPlayerResponse.videoDetails
-        val playbackTracking = metadataResponse?.playbackTracking ?: mainPlayerResponse.playbackTracking
+        // signed in, only the signed-in lookup's links count a play on the account; visionos ones would land in an anonymous history
+        val playbackTracking = if (isLoggedIn) metadataResponse?.playbackTracking else mainPlayerResponse.playbackTracking
         var format: PlayerResponse.StreamingData.Format? = null
         var streamUrl: String? = null
         var streamExpiresInSeconds: Int? = null

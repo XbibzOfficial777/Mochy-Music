@@ -78,7 +78,7 @@ class VideoDashTest {
 
     @Test
     fun `the manifest lists every size with its byte ranges and escapes the links`() {
-        val xml = VideoDash.manifest(streams(track(134, 360), track(136, 720)))!!
+        val xml = VideoDash.manifest(listOf(track(134, 360), track(136, 720)), 200_000L)!!
         assertTrue(xml.contains("<Representation id=\"134\""))
         assertTrue(xml.contains("<Representation id=\"136\""))
         assertTrue(xml.contains("<SegmentBase indexRange=\"741-1500\"><Initialization range=\"0-740\"/>"))
@@ -88,8 +88,8 @@ class VideoDashTest {
 
     @Test
     fun `a video youtube only serves whole gets no manifest`() {
-        assertNull(VideoDash.manifest(streams(track(18, 360, chunked = false))))
-        assertNull(VideoDash.manifest(streams(track(136, 720), durationMs = 0L)))
+        assertNull(VideoDash.manifest(listOf(track(18, 360, chunked = false)), 200_000L))
+        assertNull(VideoDash.manifest(listOf(track(136, 720)), 0L))
     }
 
     @Test
@@ -112,7 +112,7 @@ class VideoDashTest {
         assertEquals(313, s.trackFor(2160)?.itag)
         assertEquals(listOf(247, 313), s.tracksFor(2160).map { it.itag })
         assertNull(s.trackFor(144))
-        assertTrue(VideoDash.manifest(s.copy(tracks = s.tracksFor(2160)))!!.contains("id=\"313\""))
+        assertTrue(VideoDash.manifest(s.tracksFor(2160), s.durationMs)!!.contains("id=\"313\""))
     }
 
     @Test

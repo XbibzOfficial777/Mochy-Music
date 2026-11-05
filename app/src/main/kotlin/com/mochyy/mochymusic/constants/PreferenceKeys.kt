@@ -98,6 +98,7 @@ val StopPlaybackOnTaskRemovedKey = booleanPreferencesKey("stopPlaybackOnTaskRemo
 val KeepScreenOn = booleanPreferencesKey("keepScreenOn")
 // there's no limit to the larp
 val LarpModeKey = booleanPreferencesKey("larpMode")
+val LarpLevelKey = stringPreferencesKey("larpLevel")
 // a swipe down anywhere on the open player closes it, not only from its top and cover (#121)
 val PlayerSwipeDownAnywhereKey = booleanPreferencesKey("playerSwipeDownAnywhere")
 // Optional immersive player: never hide the status bar on the rest of the app.
@@ -128,6 +129,7 @@ val EnableQQMusicKey = booleanPreferencesKey("enableQQMusic")
 val EnableDeezerKey = booleanPreferencesKey("enableDeezer")
 val HideExplicitKey = booleanPreferencesKey("hideExplicit")
 val HideVideoSongsKey = booleanPreferencesKey("hideVideoSongs")
+// no switch for it in settings, so every reader defaults it to on and shorts stay out
 val HideYoutubeShortsKey = booleanPreferencesKey("hideYoutubeShorts")
 val ShowArtistDescriptionKey = booleanPreferencesKey("showArtistDescription")
 val ShowArtistSubscriberCountKey = booleanPreferencesKey("showArtistSubscriberCount")
@@ -435,6 +437,7 @@ val DisableVideoAutoplayKey = booleanPreferencesKey("disableVideoAutoplay")
 // how sharp youtube videos play; auto drops to a lower picture when the connection slows down instead of freezing
 enum class VideoQuality(val shortSide: Int) {
     AUTO(0),
+    // past 1080p youtube only has vp9 or av1, played only where the phone decodes it in hardware
     Q2160(2160),
     Q1440(1440),
     Q1080(1080),

@@ -21,7 +21,9 @@ import androidx.compose.ui.platform.LocalDensity
 import com.mochyy.mochymusic.constants.VideoQuality
 import com.mochyy.mochymusic.lyrics.AiTranslationSession
 import com.mochyy.mochymusic.ui.player.menu.AiTranslationSettingsSheet
-import com.mochyy.mochymusic.ui.screens.settings.VideoQualityDialog
+import com.mochyy.mochymusic.ui.component.PopupSheetHost
+import com.mochyy.mochymusic.ui.component.PopupSheetState
+import com.mochyy.mochymusic.ui.screens.settings.showVideoQualitySheet
 import com.mochyy.mochymusic.ui.screens.settings.videoQualityName
 import java.time.LocalDate
 
@@ -34,14 +36,12 @@ class IssueSmokeActivity : ComponentActivity() {
             when (screen) {
                 "quality" -> {
                     var selected by remember { mutableStateOf(VideoQuality.Q720) }
-                    var visible by remember { mutableStateOf(true) }
-                    Box(Modifier.fillMaxSize().background(Color(0xFF252528))) {
-                        Text("Selected: ${videoQualityName(selected)}", color = Color.White)
-                        if (visible) VideoQualityDialog(
-                            selected = selected,
-                            onSelect = { selected = it; visible = false },
-                            onDismiss = { visible = false },
-                        )
+                    val sheet = remember { PopupSheetState() }
+                    LaunchedEffect(Unit) { sheet.showVideoQualitySheet(selected) { selected = it } }
+                    PopupSheetHost(states = listOf(sheet)) {
+                        Box(Modifier.fillMaxSize().background(Color(0xFF252528))) {
+                            Text("Selected: ${videoQualityName(selected)}", color = Color.White)
+                        }
                     }
                 }
                 "ai" -> {

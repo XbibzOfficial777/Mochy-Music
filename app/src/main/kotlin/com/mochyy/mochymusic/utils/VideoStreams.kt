@@ -14,8 +14,8 @@ data class VideoStreams(
     // a minute early, so a video that is just starting doesn't run into a dead link halfway
     val isExpired: Boolean get() = System.currentTimeMillis() > expiresAtMs - 60_000L
 
-    // every size can be fetched in small pieces, so the player can switch between them as the connection changes
-    val chunked: Boolean get() = tracks.isNotEmpty() && tracks.all { it.chunked }
+    // Every size offered by a supported decoder, largest first.
+    val sizes: List<Int> get() = tracks.map { it.shortSide }.distinct().sortedDescending()
 
     /**
      * Pick one decoder family for DASH. Prefer the highest supported size under the user's
@@ -35,6 +35,9 @@ data class VideoStreams(
     // The chosen size is a ceiling, never an instruction to download a bigger track.
     fun trackFor(shortSide: Int): VideoTrack? = tracksFor(shortSide).lastOrNull()
 }
+
+// Upstream's DASH builder operates on a selected family rather than the entire stream list.
+val List<VideoTrack>.chunked: Boolean get() = isNotEmpty() && all { it.chunked }
 
 data class VideoTrack(
     val itag: Int,

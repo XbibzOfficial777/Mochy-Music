@@ -169,7 +169,7 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
     fun load(streams: VideoStreams, quality: VideoQuality, autoCap: Int, startMs: Long) {
         if (loaded == streams) return
         loaded = streams
-        sizes = streams.tracks.map { it.shortSide }.distinct().sortedDescending()
+        sizes = streams.sizes
         handler.post {
             if (released) return@post
             if (this.quality != quality || this.autoCap != autoCap) fallbackCap = null
@@ -276,10 +276,9 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
             }
             return
         }
-        val selected = allStreams.copy(tracks = family)
         applyQuality(p)
         seekStartedAt = SystemClock.elapsedRealtime()
-        p.setMediaSource(mediaSourceFor(selected), positionMs.coerceAtLeast(0L))
+        p.setMediaSource(mediaSourceFor(allStreams), positionMs.coerceAtLeast(0L))
         p.prepare()
     }
 
@@ -321,7 +320,8 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
 
     private fun mediaSourceFor(s: VideoStreams): MediaSource {
         val dataSource = OkHttpDataSource.Factory(YouTubeVideoHttp.client).setDefaultRequestProperties(s.headers)
-        val manifest = VideoDash.manifest(s)?.let { xml ->
+        val family = s.tracksFor(capShortSide())
+        val manifest = VideoDash.manifest(family, s.durationMs)?.let { xml ->
             runCatching { DashManifestParser().parse(ManifestUri, xml.byteInputStream()) }.getOrNull()
         }
         if (manifest != null) {

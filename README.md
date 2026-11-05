@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **Mochy Xbibz** is an independent fork of [Mochy Music](https://github.com/realidkroo/Mochy-Music). This branch builds **Mochy Xbibz**, including Liquid Glass and the other Bibz additions. The fork's `main` branch mirrors official Mochy; Bibz changes live on `mochy-xbibz`. [Bibz releases](https://github.com/XbibzOfficial777/Mochy-Music/releases) are signed with a different key from official Mochy. Both use the same Android package ID, so they cannot be installed side by side or upgraded over one another; back up your data before switching.
+
 <img width="1799" height="927" alt="fdb" src="https://github.com/user-attachments/assets/98652d23-a7cd-4c6f-945e-96a85273f61f" />
 
 <div align="center">
@@ -56,6 +59,9 @@ Updating works the same way: install the new apk over the old one and your libra
 
 > [!TIP]
 > Only download Mochy from the releases page of this repo. A random mediafire or telegram link could be a modified app, and then your logins would not be safe, pls avoid those
+
+> [!BTW]
+> We support android 7 unofficially.
 
 ---
 

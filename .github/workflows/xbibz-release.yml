@@ -8,6 +8,7 @@ on:
       # Test a release commit before advancing the stable branch or creating its tag.
       - xbibz-dual-abi-verify
       - xbibz-animation-verify
+      - xbibz-upstream-sync-verify
     tags:
       - 'v*'
 

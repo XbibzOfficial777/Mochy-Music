@@ -27,9 +27,9 @@ extensions.configure<ApplicationExtension> {
         applicationId = "com.mochyy.mochymusic"
         minSdk = 24
         targetSdk = 36
-    // Fork updates must remain installable over earlier Bibz releases.
-    versionCode = 80
-    versionName = "8.3.1-xbibz.7"
+        // Fork updates must remain installable over earlier Bibz releases.
+        versionCode = 80
+        versionName = "8.3.2-xbibz.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -177,7 +177,6 @@ extensions.configure<ApplicationExtension> {
             // Optimize packaged PNGs in addition to R8 and resource shrinking.
             isCrunchPngs = true
             isDebuggable = false
-            isProfileable = true // TEMP-PROFILE
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

@@ -39,6 +39,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -55,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.BuildConfig
 import com.mochyy.mochymusic.constants.UsbPassthroughKey
 import com.mochyy.mochymusic.playback.audio.AudioOutputs
 import com.mochyy.mochymusic.ui.component.SheetIcon
@@ -87,12 +91,24 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
     val devices by remember { service?.audioOutputs?.devices ?: MutableStateFlow(emptyList()) }.collectAsState()
     val cast = service?.castConnectionHandler
     val isCasting by remember { cast?.isCasting ?: MutableStateFlow(false) }.collectAsState()
+    // GMS uses the Bibz Cast section; FOSS keeps upstream's Cast/DLNA discovery and rows.
+    val castTargets by remember { cast?.targets ?: MutableStateFlow(emptyList()) }.collectAsState()
+    val castingTo by remember { cast?.castDeviceName ?: MutableStateFlow(null) }.collectAsState()
+    val isConnecting by remember { cast?.isConnecting ?: MutableStateFlow(false) }.collectAsState()
+    var tappedTarget by remember { mutableStateOf<String?>(null) }
+    if (!BuildConfig.CAST_AVAILABLE) {
+        DisposableEffect(cast) {
+            cast?.startDiscovery()
+            onDispose { cast?.stopDiscovery() }
+        }
+    }
     val (passthrough) = rememberPreference(UsbPassthroughKey, false)
     val anyChosen = devices.any { it.isChosen }
-    // larping, whatever is really playing turns into a wadax fed straight from mochy
-    val larping = com.mochyy.mochymusic.ui.player.rememberLarpMode()
-    val larpName = androidx.compose.ui.res.stringResource(R.string.larp_dac_name)
-    val larpDetail = androidx.compose.ui.res.stringResource(R.string.larp_dac_detail)
+    // larping, whatever is really playing turns into the level's dac, fed straight from mochy
+    val larp = com.mochyy.mochymusic.ui.player.rememberLarpMode()
+    val larping = larp != null
+    val larpName = larp?.let { androidx.compose.ui.res.stringResource(it.dac) }.orEmpty()
+    val larpDetail = larp?.let { com.mochyy.mochymusic.ui.player.larpDacDetail(it) }.orEmpty()
 
     MenuSheetSurface(onDismiss = onDismiss, halfDetent = 0.66f, fullDetent = 0.92f) { _ ->
         Column(
@@ -129,7 +145,7 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
                 },
             )
 
-            CastDevicesSection()
+            if (BuildConfig.CAST_AVAILABLE) CastDevicesSection()
 
             Spacer(modifier = Modifier.height(22.dp))
             SectionLabel("Play on")
@@ -155,6 +171,34 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
                             service?.setPreferredAudioDevice(device.id)
                         },
                     )
+                }
+            }
+
+            if (!BuildConfig.CAST_AVAILABLE && (castTargets.isNotEmpty() || isCasting)) {
+                Spacer(modifier = Modifier.height(22.dp))
+                SectionLabel("Other devices on your network")
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (isCasting) {
+                        DeviceRow(
+                            label = castingTo ?: "Cast device",
+                            detail = "Playing here now · tap to stop casting",
+                            icon = Icons.Rounded.CastConnected,
+                            selected = true,
+                            onClick = { cast?.disconnect() },
+                        )
+                    }
+                    castTargets.filter { it.name != castingTo }.forEach { target ->
+                        val connecting = isConnecting && tappedTarget == target.id
+                        DeviceRow(
+                            label = target.name,
+                            detail = if (connecting) stringResource(R.string.cast_connecting) else target.detail ?: "Cast",
+                            icon = Icons.Rounded.Cast,
+                            onClick = {
+                                tappedTarget = target.id
+                                cast?.connectTo(target.id)
+                            },
+                        )
+                    }
                 }
             }
 
