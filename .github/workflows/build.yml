@@ -3,7 +3,7 @@ name: CI & Debug Build
 on:
   workflow_dispatch:
   push:
-    branches: [ '**', '!ci/original-album-order-repro' ]
+    branches: [ '**', '!ci/original-album-order-repro', '!ci/original-album-order-ui-fixed' ]
     paths-ignore:
       - 'README.md'
       - 'fastlane/**'

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Uses the unmodified official APK and original-app imports, with self-generated audio.
+# Uses the tested fixed original-project APK and original-app imports, with self-generated audio.
 set -euo pipefail
 mkdir -p album-order-evidence
-pkg=com.mochyy.mochymusic
+pkg=com.mochyy.mochymusic.debug
 appdir=/data/user/0/$pkg
 cleanup() {
   timeout 5s adb exec-out screencap -p > album-order-evidence/final.png 2>/dev/null || true
@@ -16,7 +16,7 @@ adb shell wm size 640x960
 adb shell wm density 240
 adb logcat -c
 adb logcat -v threadtime > album-order-evidence/logcat.txt 2>&1 & logpid=$!
-adb install official.apk
+adb install candidate-apk/app-universal-foss-debug.apk
 adb shell dumpsys package "$pkg" | tr -d '\r' > album-order-evidence/package.txt
 grep -m1 'versionCode=' album-order-evidence/package.txt
 adb shell pm grant "$pkg" android.permission.POST_NOTIFICATIONS >/dev/null 2>&1 || true
@@ -49,7 +49,7 @@ for n in 2 3 1; do
   done
   [[ "$id" =~ ^[0-9]+$ ]] || { echo "Not indexed: $filename"; exit 1; }
   echo "Import $title as media $id"
-  adb shell am start -W -n "$pkg/.MainActivity" -a android.intent.action.SEND -t 'audio/mpeg' \
+  adb shell am start -W -n "$pkg/com.mochyy.mochymusic.MainActivity" -a android.intent.action.SEND -t 'audio/mpeg' \
     --eu android.intent.extra.STREAM "content://media/external/audio/media/$id" --grant-read-uri-permission \
     > "album-order-evidence/import-$n.txt"
   sleep 8
@@ -66,10 +66,10 @@ rows=c.execute(q,('ZZ Fixture Album',)).fetchall()
 print('IMPORTED MAP INSERTION ORDER:',rows,flush=True)
 assert [(t,i) for t,i,_ in rows]==[(f'ZZ Fixture Track 0{x}',1000+x) for x in [2,3,1]], 'Fixture tags/order do not match the intended baseline'
 albumid=c.execute('SELECT id FROM album WHERE title=?',('ZZ Fixture Album',)).fetchone()[0]
-q="""SELECT song.title FROM song INNER JOIN sorted_song_album_map j ON j.songId=song.id WHERE j.albumId=?"""
-print('SORTED-VIEW JOIN ORDER:',c.execute(q,(albumid,)).fetchall(),flush=True)
+q="""SELECT song.title FROM song JOIN song_album_map j ON j.songId=song.id WHERE j.albumId=? ORDER BY j.`index`, j.rowid"""
+print('ORDERED JOIN:',c.execute(q,(albumid,)).fetchall(),flush=True)
 PYCHECK
-adb shell am start -W -n "$pkg/.MainActivity" >/dev/null
+adb shell am start -W -n "$pkg/com.mochyy.mochymusic.MainActivity" >/dev/null
 sleep 8
 
 dump() {
@@ -133,5 +133,7 @@ for n in ET.parse('album-order-evidence/album-songs.xml').iter('node'):
   if len(b)==4 and b[3]>b[1]: nodes.append(((b[1]+b[3])//2,t))
 nodes.sort(); print('VISIBLE ORDER:',nodes)
 assert len(nodes)==3, 'Could not see all three fixture titles; order is inconclusive'
-print('ISSUE REPRODUCED:',[t for _,t in nodes] != [f'ZZ Fixture Track 0{x}' for x in [1,2,3]])
+expected=[f'ZZ Fixture Track 0{x}' for x in [1,2,3]]
+assert [t for _,t in nodes] == expected, f'Expected {expected}, got {nodes}'
+print('FIXED UI SHOWS CORRECT TRACK ORDER')
 PY

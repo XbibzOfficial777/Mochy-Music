@@ -1,18 +1,24 @@
-name: Original local album ordering reproduction
+name: Original album ordering fixed UI check
 on:
   push:
-    branches: [ci/original-album-order-repro]
+    branches: [ci/original-album-order-ui-fixed]
   workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
 jobs:
   original:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
-      - name: Download official Mochy 8.3.2
-        run: |
-          curl --fail --location --retry 3 'https://github.com/realidkroo/Mochy-Music/releases/download/Mochy-8.3.2/app-universal-foss-release.apk' -o official.apk
-          echo '828dd521a27cdd4d4d505f2e9e492d900fb3525df382145e1e99f897d907a15c  official.apk' | sha256sum -c -
+      - name: Download the exact tested original-project debug APK
+        uses: actions/download-artifact@v4
+        with:
+          name: album-order-fixed-original-apk
+          path: candidate-apk
+          github-token: ${{ github.token }}
+          run-id: 42037923101
       - name: Ensure ffmpeg is available
         run: |
           if ! command -v ffmpeg; then sudo apt-get update && sudo apt-get install -y ffmpeg; fi
@@ -36,7 +42,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: album-order-original-api-35
+          name: album-order-fixed-ui-api-35
           path: album-order-evidence/
           if-no-files-found: warn
           retention-days: 7
