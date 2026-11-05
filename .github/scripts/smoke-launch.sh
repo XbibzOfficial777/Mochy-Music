@@ -9,17 +9,25 @@ fi
 build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
 badging="$("$build_tools/aapt" dump badging "${apks[0]}")"
 package="$(printf '%s\n' "$badging" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -1)"
-activity="$(printf '%s\n' "$badging" | sed -n "s/^launchable-activity: name='\([^']*\)'.*/\1/p" | head -1)"
-test -n "$package" && test -n "$activity"
+if [ -z "$package" ]; then
+  echo 'Could not determine the application package from APK badging.' >&2
+  exit 1
+fi
 export APP_PACKAGE="$package"
 printf '%s' "$package" > smoke-package.txt
 adb wait-for-device
 adb install -r "${apks[0]}"
+# The app exposes its launcher through an activity-alias. Some aapt versions omit
+# aliases from badging, so ask Android's package manager for the enabled launcher.
+component="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER "$package" | tr -d '\r' | tail -1)"
+case "$component" in
+  "$package"/*) echo "Resolved launcher: $component" ;;
+  *) echo "Could not resolve the enabled launcher for $package: $component" >&2; exit 1 ;;
+esac
 adb logcat -c
 adb shell am force-stop "$package"
-# Debug application IDs have a suffix, while the activity class keeps its original namespace.
-# Use the fully qualified launchable class from the APK rather than guessing either value.
-adb shell am start -W -n "$package/$activity" | tee smoke-start.txt
+# Debug application IDs have a suffix, while the launcher class uses the original namespace.
+adb shell am start -W -n "$component" | tee smoke-start.txt
 grep -q 'Status: ok' smoke-start.txt
 # Give startup, dependency initialization and the first composition time to fail visibly.
 sleep 30
