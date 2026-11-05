@@ -141,6 +141,7 @@ jobs:
             smoke-launch.png
             smoke-*-start.txt
             smoke-ui.xml
+            smoke-quality-compact-*.xml
             smoke-document-picker.xml
             smoke-fixtures-logcat.txt
             smoke-fixtures-screen.png

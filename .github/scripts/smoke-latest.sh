@@ -107,6 +107,7 @@ adb shell wm size 640x960
 adb shell wm density 320
 start_fixture player-quality
 dump_ui
+cp smoke-latest-ui.xml smoke-latest-player-compact-before.xml
 read -r sx sy ey < <(python3 - <<'PY_SCROLL'
 import re, xml.etree.ElementTree as ET
 for node in ET.parse('smoke-latest-ui.xml').iter('node'):
@@ -120,8 +121,11 @@ for node in ET.parse('smoke-latest-ui.xml').iter('node'):
 else: raise SystemExit('Player quality menu is not scrollable')
 PY_SCROLL
 )
+echo "Compact player quality swipe: x=$sx, y=$sy to y=$ey"
 adb shell input swipe "$sx" "$sy" "$sx" "$ey" 400
 sleep 1
+dump_ui
+cp smoke-latest-ui.xml smoke-latest-player-compact-after-first.xml
 adb shell input swipe "$sx" "$sy" "$sx" "$ey" 400
 sleep 1
 tap_node text '144p'
