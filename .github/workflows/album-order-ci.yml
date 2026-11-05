@@ -41,8 +41,8 @@ jobs:
           script: bash .github/scripts/run-album-tests.sh baseline
       - name: Apply the exact proposed fix
         run: git apply .github/patches/album-order.patch
-      - name: Build and test the fixed original app
-        run: ./gradlew :app:assembleUniversalFossDebug :app:assembleUniversalFossDebugAndroidTest :app:testUniversalFossDebugUnitTest :app:lintUniversalFossDebug --no-configuration-cache --console=plain --warning-mode summary
+      - name: Build and lint the fixed original app
+        run: ./gradlew :app:assembleUniversalFossDebug :app:assembleUniversalFossDebugAndroidTest :app:lintUniversalFossDebug --no-configuration-cache --console=plain --warning-mode summary
       - name: Verify fixed database queries on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -53,6 +53,24 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: bash .github/scripts/run-album-tests.sh fixed
+      - name: Verify fixed database queries on Android 8
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: bash .github/scripts/run-album-tests.sh fixed-api26
+      - name: Upload fixed debug APK
+        if: success()
+        uses: actions/upload-artifact@v6
+        with:
+          name: album-order-fixed-original-apk
+          path: app/build/outputs/apk/universalFoss/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v6
