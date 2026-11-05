@@ -16,7 +16,7 @@ if [[ "$stage" == baseline ]]; then
   grep -q 'albumPageAndPlaybackQueueFollowTrackNumbers' "album-ci-results/$stage.txt"
   grep -q 'mediaLibraryAndAlbumMenuFollowTrackNumbers' "album-ci-results/$stage.txt"
 elif [[ "$stage" == fixed* ]]; then
-  grep -Eq 'OK \(7 tests?\)' "album-ci-results/$stage.txt"
+  grep -Eq 'OK \(9 tests?\)' "album-ci-results/$stage.txt"
   if grep -q 'FAILURES!!!' "album-ci-results/$stage.txt"; then exit 1; fi
 else
   echo "Unknown test stage $stage" >&2; exit 1

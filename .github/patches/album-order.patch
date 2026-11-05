@@ -1,8 +1,16 @@
 diff --git a/app/src/main/kotlin/com/mochyy/mochymusic/db/DatabaseDao.kt b/app/src/main/kotlin/com/mochyy/mochymusic/db/DatabaseDao.kt
-index 14b6edb3..1fffccc0 100644
+index 14b6edb3..c876ea34 100644
 --- a/app/src/main/kotlin/com/mochyy/mochymusic/db/DatabaseDao.kt
 +++ b/app/src/main/kotlin/com/mochyy/mochymusic/db/DatabaseDao.kt
-@@ -224,7 +224,7 @@ interface DatabaseDao {
+@@ -24,6 +24,7 @@ import com.mochyy.mochymusic.constants.SongSortType
+ import com.mochyy.mochymusic.db.entities.Album
+ import com.mochyy.mochymusic.db.entities.AlbumArtistMap
+ import com.mochyy.mochymusic.db.entities.AlbumEntity
++import com.mochyy.mochymusic.db.entities.AlbumSongRow
+ import com.mochyy.mochymusic.db.entities.AlbumWithSongs
+ import com.mochyy.mochymusic.db.entities.Artist
+ import com.mochyy.mochymusic.db.entities.ArtistEntity
+@@ -224,7 +225,7 @@ interface DatabaseDao {
      fun likedSongsCount(): Flow<Int>
  
      @Transaction
@@ -11,32 +19,58 @@ index 14b6edb3..1fffccc0 100644
      fun albumSongs(albumId: String): Flow<List<Song>>
  
      @Transaction
-@@ -1059,7 +1059,16 @@ interface DatabaseDao {
+@@ -1057,9 +1058,22 @@ interface DatabaseDao {
+     @Query("SELECT * FROM album WHERE id = :id")
+     fun album(id: String): Flow<Album?>
  
++    // The outer ORDER BY is needed because SQLite can flatten the sorted view's join.
      @Transaction
-     @Query("SELECT * FROM album WHERE id = :albumId")
+-    @Query("SELECT * FROM album WHERE id = :albumId")
 -    fun albumWithSongs(albumId: String): Flow<AlbumWithSongs?>
-+    fun albumWithSongOrder(albumId: String): Flow<AlbumWithSongs?>
++    @Query("""
++        SELECT album.*, song_album_map.songId AS mappedSongId
++        FROM album LEFT JOIN song_album_map ON album.id = song_album_map.albumId
++        WHERE album.id = :albumId
++        ORDER BY song_album_map.`index`, song_album_map.rowid
++    """)
++    fun albumSongRows(albumId: String): Flow<List<AlbumSongRow>>
 +
-+    // SQLite can flatten the sorted view's join, so sort the songs using their stored positions.
 +    fun albumWithSongs(albumId: String): Flow<AlbumWithSongs?> =
-+        albumWithSongOrder(albumId).map { album ->
-+            album?.let {
-+                val positions = it.songOrder.associate { entry -> entry.songId to entry.index }
-+                it.copy(songs = it.songs.sortedBy { song -> positions[song.id] ?: Int.MAX_VALUE })
++        albumSongRows(albumId).map { rows ->
++            rows.firstOrNull()?.let { first ->
++                AlbumWithSongs(first.album, first.artists, rows.mapNotNull { it.song })
 +            }
 +        }
  
      @Transaction
      @Query("SELECT * FROM album_artist_map WHERE albumId = :albumId")
-diff --git a/app/src/main/kotlin/com/mochyy/mochymusic/db/entities/AlbumWithSongs.kt b/app/src/main/kotlin/com/mochyy/mochymusic/db/entities/AlbumWithSongs.kt
-index bcc17981..bead61c6 100644
---- a/app/src/main/kotlin/com/mochyy/mochymusic/db/entities/AlbumWithSongs.kt
-+++ b/app/src/main/kotlin/com/mochyy/mochymusic/db/entities/AlbumWithSongs.kt
-@@ -33,4 +33,6 @@ data class AlbumWithSongs(
-         ),
-     )
-     val songs: List<Song>,
-+    @Relation(parentColumn = "id", entityColumn = "albumId")
-+    val songOrder: List<SongAlbumMap> = emptyList(),
- )
+diff --git a/app/src/main/kotlin/com/mochyy/mochymusic/db/entities/AlbumSongRow.kt b/app/src/main/kotlin/com/mochyy/mochymusic/db/entities/AlbumSongRow.kt
+new file mode 100644
+index 00000000..8503ddae
+--- /dev/null
++++ b/app/src/main/kotlin/com/mochyy/mochymusic/db/entities/AlbumSongRow.kt
+@@ -0,0 +1,24 @@
++package com.mochyy.mochymusic.db.entities
++
++import androidx.room.ColumnInfo
++import androidx.room.Embedded
++import androidx.room.Junction
++import androidx.room.Relation
++
++data class AlbumSongRow(
++    @Embedded val album: AlbumEntity,
++    @ColumnInfo(name = "mappedSongId") val mappedSongId: String?,
++    @Relation(
++        entity = ArtistEntity::class,
++        entityColumn = "id",
++        parentColumn = "id",
++        associateBy = Junction(
++            value = AlbumArtistMap::class,
++            parentColumn = "albumId",
++            entityColumn = "artistId",
++        ),
++    )
++    val artists: List<ArtistEntity>,
++    @Relation(entity = SongEntity::class, parentColumn = "mappedSongId", entityColumn = "id")
++    val song: Song?,
++)
