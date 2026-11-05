@@ -44,6 +44,14 @@ class LanguageResourcesTest {
         assertEquals(locales, tags.toSet())
     }
 
+    @Test fun `regional English templates cannot mask a real German translation`() {
+        val english = values(File(resDir, "values")).getValue("home").textContent.trim()
+        val german = values(File(resDir, "values-de")).getValue("home").textContent.trim()
+        assertTrue("This check needs a translated German base string", german != english)
+        val regional = values(File(resDir, "values-de-rDE"))["home"]?.textContent?.trim()
+        assertTrue("A real region translation is fine; an English template masks German", regional == null || regional != english)
+    }
+
     @Test fun `Indonesian strings preserve the default format arguments`() {
         val english = values(File(resDir, "values"))
         val indonesian = values(File(resDir, "values-in"))

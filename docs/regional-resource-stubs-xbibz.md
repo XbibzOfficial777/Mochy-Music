@@ -1,0 +1,9 @@
+# Regional resource template audit — Xbibz 8.3.2
+
+The fork is based on official Mochy commit `3e49d704869cfa18a3217e8c07dd63d8de4644bc`; `main` remains the unmodified upstream mirror. This fork deliberately excludes 27 regional resource directories that appeared after Xbibz .6 and contain only generated English templates, because Android gives those regional strings priority over genuine base-language translations. For example, an English `values-de-rDE/home` would mask the translated `values-de/home` on a German (Germany) device.
+
+The removed folders are: `values-af-rZA`, `values-ar-rSA`, `values-ca-rES`, `values-cs-rCZ`, `values-da-rDK`, `values-de-rDE`, `values-el-rGR`, `values-en-rUS`, `values-es-rES`, `values-fi-rFI`, `values-fr-rFR`, `values-hu-rHU`, `values-it-rIT`, `values-iw-rIL`, `values-ja-rJP`, `values-ko-rKR`, `values-nl-rNL`, `values-no-rNO`, `values-pl-rPL`, `values-pt-rPT`, `values-ro-rRO`, `values-ru-rRU`, `values-sr-rSP`, `values-sv-rSE`, `values-tr-rTR`, `values-uk-rUA` and `values-vi-rVN`.
+
+Audit: in every folder, 1,650 of 1,651 string values match the English templates at upstream commit `4c856850`; the sole string difference is escaping in the same English confirmation sentence. Plurals contain English template text with locale-specific quantity shapes. None of these folders existed in the published `.6` fork. The real translated base-language resources and previously available translated regional folders remain intact. The app-language picker is checked against the remaining resource tree, and a unit test guards against an English German-region `home` string masking its translation.
+
+When upstream later supplies real regional translations, evaluate and restore them rather than automatically deleting them. Many translations remain incomplete and fall back to English; this audit does not establish complete localization coverage.
