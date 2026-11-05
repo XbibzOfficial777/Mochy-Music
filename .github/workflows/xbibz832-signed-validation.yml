@@ -1,0 +1,124 @@
+name: Xbibz 8.3.2 signed upgrade and FOSS verification
+on:
+  push:
+    branches: [ci/xbibz832-signed-verify]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  foss:
+    name: Compile FOSS and run its JVM tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
+      - run: |
+          chmod +x gradlew
+          mkdir -p ~/.android
+          keytool -genkey -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Android Debug,O=Android,C=US'
+          ./gradlew assembleUniversalFossDebug :app:testUniversalFossDebugUnitTest --no-configuration-cache --console=plain --warning-mode summary
+  upgrade:
+    name: ${{ matrix.abi }} in-place .6 upgrade (API ${{ matrix.api }}, ${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {abi: arm64-v8a, api: 30, arch: x86_64, runtime: arm64-v8a, oldabi: arm64-v8a}
+          - {abi: arm64-v8a, api: 35, arch: x86_64, runtime: arm64-v8a, oldabi: arm64-v8a}
+          - {abi: armeabi-v7a, api: 30, arch: x86, runtime: armeabi-v7a, oldabi: armeabi-v7a}
+          - {abi: armeabi-v7a, api: 30, arch: x86_64, runtime: armeabi-v7a, oldabi: armeabi-v7a}
+          - {abi: universal, api: 30, arch: x86, runtime: x86, oldabi: universal}
+          - {abi: universal, api: 35, arch: x86_64, runtime: x86_64, oldabi: universal}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify that this test branch uses the exact signed application sources
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN: '42025583738'
+        run: |
+          set -euo pipefail
+          sha="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN" --jq .head_sha)"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+          git cat-file -e "$sha^{commit}"
+          git diff --exit-code "$sha" "$GITHUB_SHA" -- . ':(exclude).github/**'
+          echo "Application sources exactly match signed build $sha"
+      - uses: actions/download-artifact@v4
+        with:
+          name: mochy-release-${{ matrix.abi }}
+          path: candidate-apk
+          github-token: ${{ github.token }}
+          run-id: 42025583738
+      - name: Verify exact artifact, ABI, brand, version, non-debuggable status and certificate
+        env:
+          TARGET_ABI: ${{ matrix.abi }}
+        run: |
+          set -euo pipefail
+          (cd candidate-apk && sha256sum --check "SHA256SUMS-$TARGET_ABI.txt")
+          mapfile -t apks < <(find candidate-apk -maxdepth 1 -name '*.apk' -type f)
+          test "${#apks[@]}" -eq 1
+          python3 .github/scripts/verify_release_native.py "${apks[0]}" "$TARGET_ABI"
+          tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$tools/aapt" dump badging "${apks[0]}" > upgrade-badging.txt
+          grep -F "package: name='com.mochyy.mochymusic' versionCode='80' versionName='8.3.2-xbibz.7'" upgrade-badging.txt
+          grep -Fx "application-label:'Mochy Xbibz'" upgrade-badging.txt
+          if grep -q 'application-debuggable' upgrade-badging.txt; then echo 'Debuggable release rejected' >&2; exit 1; fi
+          "$tools/apksigner" verify --verbose --print-certs "${apks[0]}" > upgrade-certificate.txt
+          grep -qx 'Number of signers: 1' upgrade-certificate.txt
+          actual="$(sed -n 's/^.*certificate SHA-256 digest: //p' upgrade-certificate.txt | tr '[:upper:]' '[:lower:]' | sort -u)"
+          expected="$(tr -d '[:space:]' < .github/release-certificate.sha256)"
+          test -n "$actual" && test "$actual" = "$expected"
+      - name: Download and verify previous public .6 of the same ABI
+        env:
+          OLD_ABI: ${{ matrix.oldabi }}
+        run: |
+          set -euo pipefail
+          mkdir -p old-apk
+          name="Mochy-Music-v8.2.3-xbibz.6-${OLD_ABI}-gms.apk"
+          curl -fL --retry 3 -o old-apk/xbibz6.apk "https://github.com/XbibzOfficial777/Mochy-Music/releases/download/v8.2.3-xbibz.6/$name"
+          case "$OLD_ABI" in
+            arm64-v8a) hash=4eef3cbb249beefd9a8eb1ce924ddb11f412b6fbf4b71ab1dcadfcc180ec54bc ;;
+            armeabi-v7a) hash=e7da026820b12880388eb3c8304637762228873a414388849cbd47de47a2134e ;;
+            universal) hash=6a2f2546147a9c284ed2f14a35c9ed00ffcce022c47d7fb91738bb4d83397cd1 ;;
+            *) exit 1 ;;
+          esac
+          echo "$hash  old-apk/xbibz6.apk" | sha256sum --check
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        env:
+          TARGET_ABI: ${{ matrix.abi }}
+          RUNTIME_ABI: ${{ matrix.runtime }}
+          OLD_ABI: ${{ matrix.oldabi }}
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: ${{ matrix.arch }}
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: bash -c 'bash .github/scripts/signed-upgrade-smoke.sh && if [ "$TARGET_ABI" = universal ]; then bash .github/scripts/signed-playback-smoke.sh; fi'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: xbibz832-upgrade-${{ matrix.abi }}-api${{ matrix.api }}-${{ matrix.arch }}
+          path: |
+            upgrade-*.txt
+            upgrade-*.xml
+            upgrade-*.png
+            language-playback-*.txt
+            language-playback-*.xml
+            language-playback-*.png
+          if-no-files-found: warn
