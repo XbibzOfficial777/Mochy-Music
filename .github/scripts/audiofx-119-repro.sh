@@ -16,7 +16,8 @@ adb root >/dev/null; adb wait-for-device
 adb shell wm size 720x1540
 adb shell wm density 280
 adb install official.apk
-adb shell dumpsys package "$pkg" | tr -d '\r' | grep -m1 'versionCode='
+adb shell dumpsys package "$pkg" | tr -d '\r' > audiofx-repro/package.txt
+grep -m1 'versionCode=' audiofx-repro/package.txt
 adb shell pm grant "$pkg" android.permission.POST_NOTIFICATIONS >/dev/null 2>&1 || true
 adb shell pm grant "$pkg" android.permission.READ_MEDIA_AUDIO >/dev/null 2>&1 || true
 adb shell am force-stop "$pkg"
