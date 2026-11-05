@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Uses the tested fixed original-project APK and original-app imports, with self-generated audio.
+# Uses the final candidate original-project APK and original-app imports, with self-generated audio.
 set -euo pipefail
 mkdir -p album-order-evidence
 pkg=com.mochyy.mochymusic.debug

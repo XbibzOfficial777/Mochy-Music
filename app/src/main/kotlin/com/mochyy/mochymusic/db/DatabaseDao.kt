@@ -224,7 +224,7 @@ interface DatabaseDao {
     fun likedSongsCount(): Flow<Int>
 
     @Transaction
-    @Query("SELECT song.* FROM song JOIN song_album_map ON song.id = song_album_map.songId WHERE song_album_map.albumId = :albumId")
+    @Query("SELECT song.* FROM song JOIN song_album_map ON song.id = song_album_map.songId WHERE song_album_map.albumId = :albumId ORDER BY song_album_map.`index`, song_album_map.rowid")
     fun albumSongs(albumId: String): Flow<List<Song>>
 
     @Transaction
@@ -1059,7 +1059,16 @@ interface DatabaseDao {
 
     @Transaction
     @Query("SELECT * FROM album WHERE id = :albumId")
-    fun albumWithSongs(albumId: String): Flow<AlbumWithSongs?>
+    fun albumWithSongOrder(albumId: String): Flow<AlbumWithSongs?>
+
+    // SQLite can flatten the sorted view's join, so sort the songs using their stored positions.
+    fun albumWithSongs(albumId: String): Flow<AlbumWithSongs?> =
+        albumWithSongOrder(albumId).map { album ->
+            album?.let {
+                val positions = it.songOrder.associate { entry -> entry.songId to entry.index }
+                it.copy(songs = it.songs.sortedBy { song -> positions[song.id] ?: Int.MAX_VALUE })
+            }
+        }
 
     @Transaction
     @Query("SELECT * FROM album_artist_map WHERE albumId = :albumId")
