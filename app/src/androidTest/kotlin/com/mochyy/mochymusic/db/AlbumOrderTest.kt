@@ -94,13 +94,25 @@ class AlbumOrderTest {
         val changed = async {
             withTimeout(10_000) {
                 database.albumWithSongs("album")
-                    .onEach { if (it?.songs?.map { song -> song.id } == initial) observedInitial.complete(Unit) }
-                    .first { it?.songs?.map { song -> song.id } == expected }
+                    .onEach { album ->
+                        when (album?.album?.title) {
+                            "Album" -> {
+                                assertEquals(initial, album.songs.map { it.id })
+                                observedInitial.complete(Unit)
+                            }
+                            "Updated" -> assertEquals(expected, album.songs.map { it.id })
+                            else -> throw AssertionError("Unexpected album snapshot: $album")
+                        }
+                    }
+                    .first { it?.album?.title == "Updated" }
             }
         }
         // Wait for the first emission so this checks an update, not just a fresh read.
         withTimeout(10_000) { observedInitial.await() }
-        database.upsert(SongAlbumMap("track3", "album", 1000))
+        room.runInTransaction {
+            database.update(AlbumEntity(id = "album", title = "Updated", songCount = 3, duration = 30, isLocal = true))
+            database.upsert(SongAlbumMap("track3", "album", 1000))
+        }
         assertEquals(expected, changed.await()?.songs?.map { it.id })
     }
 
