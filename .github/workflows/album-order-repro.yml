@@ -8,7 +8,7 @@ permissions:
   actions: read
 jobs:
   original:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
@@ -30,6 +30,19 @@ jobs:
           ./gradlew :app:assembleUniversalFossDebug --no-configuration-cache --console=plain --warning-mode summary
           mkdir -p candidate-apk
           cp app/build/outputs/apk/universalFoss/debug/*.apk candidate-apk/app-universal-foss-debug.apk
+      - name: Save the candidate APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: album-order-final-ui-candidate-apk
+          path: candidate-apk/*.apk
+          if-no-files-found: error
+          retention-days: 7
+      - name: Free build space before installing the emulator
+        run: |
+          ./gradlew --stop || true
+          find . -type d -name build -prune -exec rm -rf {} +
+          rm -rf "$HOME/.gradle/caches"
+          df -h
       - name: Ensure ffmpeg is available
         run: |
           if ! command -v ffmpeg; then sudo apt-get update && sudo apt-get install -y ffmpeg; fi
