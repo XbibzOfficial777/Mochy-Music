@@ -33,6 +33,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -54,6 +55,18 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.PlayerBackgroundStyle
+import com.mochyy.mochymusic.constants.AppTheme
+import com.mochyy.mochymusic.constants.AppThemeKey
+import com.mochyy.mochymusic.constants.PureBlackKey
+import com.mochyy.mochymusic.constants.VideoQuality
+import com.mochyy.mochymusic.constants.VideoQualityKey
+import com.mochyy.mochymusic.ui.player.video.VideoQualitySheet
+import com.mochyy.mochymusic.module.LookSetting
+import com.mochyy.mochymusic.modules.ModuleLooks
+import com.mochyy.mochymusic.ui.screens.gesture.BibzThemeSection
+import com.mochyy.mochymusic.utils.rememberEnumPreference
+import com.mochyy.mochymusic.utils.rememberPreference
+import kotlinx.coroutines.launch
 import com.mochyy.mochymusic.ui.component.Bone
 import com.mochyy.mochymusic.ui.component.BonesHost
 import com.mochyy.mochymusic.ui.component.PlayingIndicator
@@ -85,9 +98,40 @@ class LatestIssuesSmokeActivity : ComponentActivity() {
                     "album" -> AlbumLikeFixture()
                     "motion" -> LiquidMotionFixture()
                     "backdrop" -> BackdropMotionFixture()
+                    "theme" -> ThemeModuleFixture()
+                    "player-quality" -> PlayerQualityFixture()
                 }
             }
         }
+    }
+}
+
+/** The actual full-video quality menu, even before a stream has loaded. */
+@Composable
+private fun PlayerQualityFixture() {
+    val (quality) = rememberEnumPreference(VideoQualityKey, VideoQuality.Q720)
+    var visible by remember { mutableStateOf(true) }
+    Box(Modifier.fillMaxSize().background(Color(0xFF242428)).padding(top = 38.dp)) {
+        Text("Player selected: ${quality.name}", color = Color.White)
+        if (visible) VideoQualitySheet(session = null, onDismiss = { visible = false })
+    }
+}
+
+/** The actual Bibz theme picker with the real official look-module apply/restore implementation. */
+@Composable
+private fun ThemeModuleFixture() {
+    val context = LocalContext.current.applicationContext
+    val scope = rememberCoroutineScope()
+    val looks = remember { ModuleLooks(context) }
+    val look = remember { mapOf(LookSetting.PURE_BLACK to "true") }
+    val (theme) = rememberEnumPreference(AppThemeKey, AppTheme.FROSTED)
+    val (black) = rememberPreference(PureBlackKey, false)
+    Column(Modifier.fillMaxSize().background(Color(0xFF242428)).padding(start = 12.dp, end = 12.dp, top = 36.dp)) {
+        Text("Stored theme: ${theme.name}", color = Color.White)
+        Text("Pure black: $black", color = Color.White)
+        BibzThemeSection()
+        Button(onClick = { scope.launch { looks.apply("ci-theme-fixture", look) } }) { Text("Apply look module") }
+        Button(onClick = { scope.launch { looks.restore("ci-theme-fixture", look) } }) { Text("Restore look module") }
     }
 }
 

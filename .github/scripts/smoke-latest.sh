@@ -8,6 +8,8 @@ cleanup() {
   adb logcat -d -v threadtime > smoke-latest-logcat.txt || true
   adb exec-out screencap -p > smoke-latest-screen.png || true
   adb shell settings put global animator_duration_scale 0 || true
+  adb shell wm size reset >/dev/null 2>&1 || true
+  adb shell wm density reset >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -67,6 +69,63 @@ require_no_ime() {
     exit 1
   fi
 }
+
+# The real fork theme picker and the official look-module preference backup must cooperate.
+start_fixture theme
+tap_node text 'Liquid glass'
+assert_text 'Stored theme: LIQUID_GLASS'
+assert_text 'Pure black: false'
+tap_node text 'Apply look module'
+assert_text 'Stored theme: LIQUID_GLASS'
+assert_text 'Pure black: true'
+tap_node text 'Restore look module'
+assert_text 'Stored theme: LIQUID_GLASS'
+assert_text 'Pure black: false'
+tap_node text 'Pure black'
+assert_text 'Stored theme: PURE_BLACK'
+assert_text 'Pure black: true'
+tap_node text 'Frosted'
+assert_text 'Stored theme: FROSTED'
+assert_text 'Pure black: false'
+# A manual choice while the module is active must not be overwritten on restore.
+tap_node text 'Liquid glass'
+tap_node text 'Apply look module'
+tap_node text 'Frosted'
+assert_text 'Stored theme: FROSTED'
+assert_text 'Pure black: false'
+tap_node text 'Restore look module'
+assert_text 'Stored theme: FROSTED'
+assert_text 'Pure black: false'
+
+# The actual full-video menu must allow a higher ceiling even before a stream loads.
+start_fixture player-quality
+tap_node text '2160p (4K)'
+assert_text 'Player selected: Q2160'
+# The same player menu must allow the lowest option on a compact screen.
+adb shell am force-stop "$package"
+adb shell wm size 640x960
+adb shell wm density 320
+start_fixture player-quality
+dump_ui
+read -r sx sy ey < <(python3 - <<'PY_SCROLL'
+import re, xml.etree.ElementTree as ET
+for node in ET.parse('smoke-latest-ui.xml').iter('node'):
+    if node.get('scrollable') == 'true':
+        b = [int(x) for x in re.findall(r'\d+', node.get('bounds', ''))]
+        if len(b) == 4 and b[3] - b[1] > 80:
+            print((b[0] + b[2]) // 2, b[3] - 15, b[1] + 15)
+            break
+else: raise SystemExit('Player quality menu is not scrollable')
+PY_SCROLL
+)
+adb shell input swipe "$sx" "$sy" "$sx" "$ey" 400
+sleep 1
+adb shell input swipe "$sx" "$sy" "$sx" "$ey" 400
+sleep 1
+tap_node text '144p'
+assert_text 'Player selected: Q144'
+adb shell wm size reset
+adb shell wm density reset
 
 # #150 / #146: the real shared SearchField stays composed below an open sheet.
 start_fixture focus

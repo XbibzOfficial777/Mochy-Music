@@ -93,6 +93,15 @@ class VideoDashTest {
     }
 
     @Test
+    fun `available choices include higher sizes even when playback is capped`() {
+        val high = track(313, 2160).copy(mimeType = "video/webm", codecs = "vp09.00.51")
+        val s = streams(track(134, 360), track(136, 720), high)
+        assertEquals(listOf(2160, 720, 360), s.sizes)
+        assertEquals(720, s.tracksFor(720).maxOf { it.shortSide })
+        assertEquals(2160, s.tracksFor(2160).maxOf { it.shortSide })
+    }
+
+    @Test
     fun `a picked size falls to the nearest one under it and never exceeds the cap`() {
         val s = streams(track(134, 360), track(136, 720), track(137, 1080))
         assertEquals(720, s.trackFor(800)?.shortSide)
