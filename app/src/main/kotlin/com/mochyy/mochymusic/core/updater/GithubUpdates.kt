@@ -26,6 +26,7 @@ const val DiscordUrl = "https://discord.gg/NTmqVphbRY"
 // The Xbibz APK has its own signing key. It must never offer an upstream APK as an update;
 // keep the upstream owner above for attribution, and use a separate fork release channel here.
 private const val ForkReleaseRepo = "XbibzOfficial777/Mochy-Music"
+internal val isXbibzBuild: Boolean get() = isXbibzVersion(BuildConfig.VERSION_NAME)
 internal val isXbibzReleaseBuild: Boolean
     get() = isXbibzRelease(
         applicationId = BuildConfig.APPLICATION_ID,
@@ -35,7 +36,7 @@ internal val isXbibzReleaseBuild: Boolean
     )
 
 private val ReleasesApi: String
-    get() = if (isXbibzReleaseBuild) {
+    get() = if (isXbibzBuild) {
         "https://api.github.com/repos/$ForkReleaseRepo/releases?per_page=20"
     } else {
         "https://api.github.com/repos/$GithubOwner/$GithubRepo/releases?per_page=20"
@@ -169,7 +170,7 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                 val tag = release.optString("tag_name").orEmpty()
                 // A fork may later publish test or unrelated artifacts; only stable, matching
                 // fork tags signed by the release workflow are eligible for this build.
-                if (isXbibzReleaseBuild && (release.optBoolean("prerelease", false) || !ForkTagPattern.matches(tag))) continue
+                if (isXbibzBuild && (release.optBoolean("prerelease", false) || !ForkTagPattern.matches(tag))) continue
                 val title = release.optString("name").orEmpty().ifBlank { tag }
                 val fullVer = parseFullVersion("$title $tag")
 
@@ -203,7 +204,7 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                         // Never offer a different ABI or the official channel to a fork build.
                         // In particular, 32-bit-only devices cannot install an arm64 APK and
                         // some 64-bit-only devices cannot install an ARMv7 APK.
-                        if (isXbibzReleaseBuild && !isCompatibleXbibzAsset(appArch, name)) continue
+                        if (isXbibzBuild && (!isXbibzReleaseBuild || !isCompatibleXbibzAsset(appArch, name))) continue
                         val url = asset.optString("browser_download_url").orEmpty()
                         if (url.isBlank()) continue
                         val size = asset.optLong("size", 0L)
@@ -231,7 +232,7 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                     universalUrl != null -> universalSize
                     else -> fallbackSize
                 }
-                if (isXbibzReleaseBuild && apkUrl == null) continue
+                if (isXbibzBuild && apkUrl == null) continue
 
                 add(
                     ParsedRelease(

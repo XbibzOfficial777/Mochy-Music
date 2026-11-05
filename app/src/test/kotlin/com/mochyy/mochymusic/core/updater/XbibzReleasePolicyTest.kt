@@ -7,6 +7,16 @@ import org.junit.Test
 
 class XbibzReleasePolicyTest {
     @Test
+    fun everyForkFlavorAvoidsTheOfficialUpdateChannel() {
+        assertTrue(isXbibzVersion("8.3.2-xbibz.7"))
+        assertTrue(isXbibzVersion("8.3.2-XBIBZ.7"))
+        assertFalse(isXbibzVersion("8.3.2 build#1226"))
+        // Only published GMS release builds may offer the signed fork assets.
+        assertFalse(isXbibzRelease("com.mochyy.mochymusic", "universal", false, "8.3.2-xbibz.7"))
+        assertFalse(isXbibzRelease("com.mochyy.mochymusic.debug", "universal", true, "8.3.2-xbibz.7"))
+    }
+
+    @Test
     fun allThreeGmsReleasesUseTheForkChannel() {
         for (abi in listOf("arm64", "armeabi", "universal")) {
             assertTrue(isXbibzRelease("com.mochyy.mochymusic", abi, true, "8.2.3-xbibz.5"))

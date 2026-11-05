@@ -1,6 +1,9 @@
 package com.mochyy.mochymusic.core.updater
 
-/** The fork uses a different signing key; no flavor may offer an upstream APK as an update. */
+/** Every build of this branch must avoid offering an upstream-signed APK. */
+internal fun isXbibzVersion(version: String): Boolean = version.contains("-xbibz.", ignoreCase = true)
+
+/** Only the three published GMS flavors may offer our signed fork assets. */
 internal fun isXbibzRelease(
     applicationId: String,
     architecture: String,
@@ -8,7 +11,7 @@ internal fun isXbibzRelease(
     version: String,
 ): Boolean = applicationId == "com.mochyy.mochymusic" &&
     architecture in setOf("arm64", "armeabi", "universal") && castAvailable &&
-    version.contains("-xbibz.", ignoreCase = true)
+    isXbibzVersion(version)
 
 /** Match the known fork GMS asset naming convention without cross-ABI fallbacks. */
 internal fun isCompatibleXbibzAsset(architecture: String, fileName: String): Boolean {

@@ -50,12 +50,12 @@
 
 ## Hhhh-how to install? :3
 
-1. On your phone, open the [latest release](https://github.com/realidkroo/mochy-music/releases/latest).
+1. On your phone, open the [latest Mochy Xbibz release](https://github.com/XbibzOfficial777/Mochy-Music/releases/latest). For the original app instead, use the [official Mochy releases](https://github.com/realidkroo/mochy-music/releases).
 2. Download the `.apk` that matches your phone. If you are not sure, pick **arm64**, that is almost every phone from the last 8 years. The **universal** one works everywhere but is bigger.
 3. Open the downloaded file. Android will ask you to allow installs from your browser or file manager, say yes (you can turn it off again after).
-4. Open Mochy. You are done, no account needed to start listening.
+4. Open Mochy Xbibz. You are done; no account is needed to start listening.
 
-Updating works the same way: install the new apk over the old one and your library stays.
+To update an existing Bibz install, install the newer Bibz APK over it. Official Mochy and Bibz use different signing keys and cannot update one another; back up data before switching.
 
 > [!TIP]
 > Only download Mochy from the releases page of this repo. A random mediafire or telegram link could be a modified app, and then your logins would not be safe, pls avoid those
@@ -90,9 +90,9 @@ A - Tbh, you never have to log in to use this thing btw. Search, play, lyrics an
 - The app is open source under GPL-3.0 so you do not have to take my word for it, you can always read exactly what it does with them :)
 
 
-Q - Pls add liquid glass
+Q - Does this include Liquid Glass?
 
-A - No, and not now. maybe in form of modules created by someone in the future
+A - The independent Mochy Xbibz fork does. It is a Bibz feature, not a claim that the official Mochy release includes it.
 
 
 Q - Monochrome/flac stream doesnt work
@@ -167,7 +167,7 @@ Handy options (see `./build.sh --help` for all of them):
 | `./build.sh -fd --release` | F-Droid flavor, without the self-update permission |
 | `./build.sh -k` | stops stuck Gradle builds |
 
-Use **debug** while you are playing around, it builds much much faster. A debug build installs next to the real app (`com.example.mochy.debug`), so it will not touch your normal install, but it is also a bit slower to run.
+Use **debug** while you are playing around, it builds much much faster. A debug build installs next to the real app (`com.mochyy.mochymusic.debug`), so it will not touch your normal install, but it is also a bit slower to run.
 
 ### Optional keys
 Mochy builds fine without these, only the matching feature is switched off. Put them in `local.properties` (it is never committed):
