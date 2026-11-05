@@ -6,8 +6,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mochyy.mochymusic.db.entities.AlbumEntity
 import com.mochyy.mochymusic.db.entities.SongAlbumMap
 import com.mochyy.mochymusic.db.entities.SongEntity
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -64,6 +66,17 @@ class AlbumOrderTest {
     }
 
     @Test
+    fun multiDiscAlbumsPutUnnumberedTracksAtTheEndOfTheirDisc() = runBlocking {
+        database.insert(SongEntity(id = "disc2", title = "disc2", isLocal = true))
+        database.insert(SongAlbumMap("disc2", "album", 2001))
+        database.insert(SongEntity(id = "unknown", title = "unknown", isLocal = true))
+        database.insert(SongAlbumMap("unknown", "album", 1999))
+        val expected = listOf("track1", "track2", "track3", "unknown", "disc2")
+        assertEquals(expected, database.albumSongs("album").first().map { it.id })
+        assertEquals(expected, database.albumWithSongs("album").first()?.songs?.map { it.id })
+    }
+
+    @Test
     fun equalTrackNumbersKeepTheirInsertionOrder() = runBlocking {
         database.upsert(SongAlbumMap("track1", "album", 1999))
         database.upsert(SongAlbumMap("track2", "album", 1999))
@@ -75,12 +88,18 @@ class AlbumOrderTest {
 
     @Test
     fun observedAlbumUpdatesWhenTrackPositionsChange() = runBlocking {
+        val initial = listOf("track1", "track2", "track3")
         val expected = listOf("track3", "track1", "track2")
+        val observedInitial = CompletableDeferred<Unit>()
         val changed = async {
             withTimeout(10_000) {
-                database.albumWithSongs("album").first { it?.songs?.map { song -> song.id } == expected }
+                database.albumWithSongs("album")
+                    .onEach { if (it?.songs?.map { song -> song.id } == initial) observedInitial.complete(Unit) }
+                    .first { it?.songs?.map { song -> song.id } == expected }
             }
         }
+        // Wait for the first emission so this checks an update, not just a fresh read.
+        withTimeout(10_000) { observedInitial.await() }
         database.upsert(SongAlbumMap("track3", "album", 1000))
         assertEquals(expected, changed.await()?.songs?.map { it.id })
     }

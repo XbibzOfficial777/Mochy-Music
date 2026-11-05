@@ -24,6 +24,23 @@ jobs:
           fi
       - name: Build original with regression tests
         run: ./gradlew :app:assembleUniversalFossDebug :app:assembleUniversalFossDebugAndroidTest --no-configuration-cache --console=plain --warning-mode summary
+      - name: Record the unmodified upstream JVM test compile status
+        shell: bash
+        run: |
+          mkdir -p album-ci-results
+          set +e
+          set -o pipefail
+          ./gradlew :app:compileUniversalFossDebugUnitTestKotlin --no-configuration-cache --console=plain --warning-mode summary 2>&1 | tee album-ci-results/baseline-unit.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            grep -q 'VideoDashTest.kt:81:' album-ci-results/baseline-unit.txt
+            if grep '^e: ' album-ci-results/baseline-unit.txt | grep -v '/VideoDashTest.kt:'; then
+              echo 'Unexpected unit-test compile errors' >&2
+              exit 1
+            fi
+            echo 'Upstream VideoDashTest does not compile against the current manifest signature.'
+          fi
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
