@@ -1,4 +1,4 @@
-name: Original album ordering fixed UI check
+name: Transactional album ordering final UI check
 on:
   push:
     branches: [ci/original-album-order-ui-fixed]
@@ -18,7 +18,7 @@ jobs:
           name: album-order-fixed-original-apk
           path: candidate-apk
           github-token: ${{ github.token }}
-          run-id: 42037923101
+          run-id: 42047988456
       - name: Ensure ffmpeg is available
         run: |
           if ! command -v ffmpeg; then sudo apt-get update && sudo apt-get install -y ffmpeg; fi
@@ -42,7 +42,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: album-order-fixed-ui-api-35
+          name: album-order-final-ui-api-35
           path: album-order-evidence/
           if-no-files-found: warn
           retention-days: 7
