@@ -113,7 +113,9 @@ for node in ET.parse('smoke-latest-ui.xml').iter('node'):
     if node.get('scrollable') == 'true':
         b = [int(x) for x in re.findall(r'\d+', node.get('bounds', ''))]
         if len(b) == 4 and b[3] - b[1] > 80:
-            print((b[0] + b[2]) // 2, b[3] - 15, b[1] + 15)
+            # Stay well clear of the Android gesture-navigation area at the bottom.
+            height = b[3] - b[1]
+            print((b[0] + b[2]) // 2, b[1] + 3 * height // 4, b[1] + height // 4)
             break
 else: raise SystemExit('Player quality menu is not scrollable')
 PY_SCROLL

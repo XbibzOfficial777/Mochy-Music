@@ -14,7 +14,9 @@ cleanup() {
 trap cleanup EXIT
 
 start_fixture() {
-  adb shell am start -W -n "$activity" --es screen "$1" | tee "smoke-$1-start.txt"
+  # Force a fresh activity: Android can otherwise deliver a new intent to the
+  # top-most fixture instance, whose onCreate would keep showing the old screen.
+  adb shell am start -S -W -n "$activity" --es screen "$1" | tee "smoke-$1-start.txt"
   grep -q 'Status: ok' "smoke-$1-start.txt"
   sleep 4
 }
@@ -49,7 +51,14 @@ hide_keyboard_if_visible() {
   # service instead, otherwise taps on obscured fields can accidentally keep typing in the first.
   local state
   state="$(adb shell dumpsys input_method 2>/dev/null || true)"
-  if [[ "$state" == *"mInputShown=true"* || "$state" == *"mIsInputViewShown=true"* || "$state" == *"isInputViewShown=true"* ]]; then
+  # Android 15 may keep a stale mIsInputViewShown=true after hiding the IME;
+  # prefer the input-method manager's mInputShown flag when it is present.
+  if grep -Eq '(^|[[:space:]])mInputShown=(true|false)([[:space:]]|$)' <<< "$state"; then
+    if grep -Eq '(^|[[:space:]])mInputShown=true([[:space:]]|$)' <<< "$state"; then
+      adb shell input keyevent 4
+      sleep 1
+    fi
+  elif grep -Eq 'mIsInputViewShown=true|isInputViewShown=true' <<< "$state"; then
     adb shell input keyevent 4
     sleep 1
   fi
