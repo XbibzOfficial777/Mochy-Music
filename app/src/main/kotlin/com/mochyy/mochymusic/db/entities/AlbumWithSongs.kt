@@ -33,6 +33,4 @@ data class AlbumWithSongs(
         ),
     )
     val songs: List<Song>,
-    @Relation(parentColumn = "id", entityColumn = "albumId")
-    val songOrder: List<SongAlbumMap> = emptyList(),
 )

@@ -3,8 +3,11 @@ package com.mochyy.mochymusic.db
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.mochyy.mochymusic.db.entities.AlbumArtistMap
 import com.mochyy.mochymusic.db.entities.AlbumEntity
+import com.mochyy.mochymusic.db.entities.ArtistEntity
 import com.mochyy.mochymusic.db.entities.SongAlbumMap
+import com.mochyy.mochymusic.db.entities.SongArtistMap
 import com.mochyy.mochymusic.db.entities.SongEntity
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
@@ -78,6 +81,8 @@ class AlbumOrderTest {
 
     @Test
     fun equalTrackNumbersKeepTheirInsertionOrder() = runBlocking {
+        // Catch accidental reliance on SQLite's unspecified order for unordered queries.
+        room.openHelper.writableDatabase.execSQL("PRAGMA reverse_unordered_selects = ON")
         database.upsert(SongAlbumMap("track1", "album", 1999))
         database.upsert(SongAlbumMap("track2", "album", 1999))
         database.upsert(SongAlbumMap("track3", "album", 1999))
@@ -114,6 +119,39 @@ class AlbumOrderTest {
             database.upsert(SongAlbumMap("track3", "album", 1000))
         }
         assertEquals(expected, changed.await()?.songs?.map { it.id })
+    }
+
+    @Test
+    fun emptyAlbumKeepsItsMetadataAndArtists() = runBlocking {
+        database.insert(AlbumEntity(id = "empty", title = "Empty", songCount = 0, duration = 0))
+        database.insert(ArtistEntity(id = "artist", name = "Artist"))
+        database.insert(AlbumArtistMap(albumId = "empty", artistId = "artist", order = 0))
+        val album = database.albumWithSongs("empty").first()
+        assertEquals("Empty", album?.album?.title)
+        assertEquals(listOf("artist"), album?.artists?.map { it.id })
+        assertEquals(emptyList<String>(), album?.songs?.map { it.id })
+    }
+
+    @Test
+    fun observedAlbumUpdatesWhenASongsArtistChanges() = runBlocking {
+        database.insert(ArtistEntity(id = "artist", name = "Artist"))
+        val observedInitial = CompletableDeferred<Unit>()
+        val changed = async {
+            withTimeout(10_000) {
+                database.albumWithSongs("album")
+                    .onEach { album ->
+                        if (album?.songs?.firstOrNull { it.id == "track1" }?.artists?.isEmpty() == true) {
+                            observedInitial.complete(Unit)
+                        }
+                    }
+                    .first { album ->
+                        album?.songs?.firstOrNull { it.id == "track1" }?.artists?.any { it.id == "artist" } == true
+                    }
+            }
+        }
+        withTimeout(10_000) { observedInitial.await() }
+        database.insert(SongArtistMap(songId = "track1", artistId = "artist", position = 0))
+        assertEquals(listOf("artist"), changed.await()?.songs?.first { it.id == "track1" }?.artists?.map { it.id })
     }
 
     @Test
