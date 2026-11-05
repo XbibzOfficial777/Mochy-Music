@@ -1,0 +1,36 @@
+diff --git a/app/src/main/kotlin/com/mochyy/mochymusic/db/DatabaseDao.kt b/app/src/main/kotlin/com/mochyy/mochymusic/db/DatabaseDao.kt
+index 14b6edb3..d3138d8b 100644
+--- a/app/src/main/kotlin/com/mochyy/mochymusic/db/DatabaseDao.kt
++++ b/app/src/main/kotlin/com/mochyy/mochymusic/db/DatabaseDao.kt
+@@ -59,6 +59,7 @@ import com.mochyy.mochymusic.models.MediaMetadata
+ import com.mochyy.mochymusic.models.toMediaMetadata
+ import com.mochyy.mochymusic.ui.utils.resize
+ import kotlinx.coroutines.flow.Flow
++import kotlinx.coroutines.flow.combine
+ import kotlinx.coroutines.flow.first
+ import kotlinx.coroutines.flow.map
+ import kotlinx.coroutines.runBlocking
+@@ -224,7 +225,7 @@ interface DatabaseDao {
+     fun likedSongsCount(): Flow<Int>
+ 
+     @Transaction
+-    @Query("SELECT song.* FROM song JOIN song_album_map ON song.id = song_album_map.songId WHERE song_album_map.albumId = :albumId")
++    @Query("SELECT song.* FROM song JOIN song_album_map ON song.id = song_album_map.songId WHERE song_album_map.albumId = :albumId ORDER BY song_album_map.`index`, song_album_map.rowid")
+     fun albumSongs(albumId: String): Flow<List<Song>>
+ 
+     @Transaction
+@@ -1057,9 +1058,11 @@ interface DatabaseDao {
+     @Query("SELECT * FROM album WHERE id = :id")
+     fun album(id: String): Flow<Album?>
+ 
+-    @Transaction
+-    @Query("SELECT * FROM album WHERE id = :albumId")
+-    fun albumWithSongs(albumId: String): Flow<AlbumWithSongs?>
++    // Room's relation can lose the sorted view's order when SQLite flattens its join.
++    fun albumWithSongs(albumId: String): Flow<AlbumWithSongs?> =
++        combine(album(albumId), albumSongs(albumId)) { album, songs ->
++            album?.let { AlbumWithSongs(it.album, it.artists, songs) }
++        }
+ 
+     @Transaction
+     @Query("SELECT * FROM album_artist_map WHERE albumId = :albumId")
