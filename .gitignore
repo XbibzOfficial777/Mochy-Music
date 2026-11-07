@@ -45,7 +45,8 @@ apk-generated/
 plan.md
 implementation_plan.md
 transcript_*.txt
-docs/
+docs/*
+!docs/ui-search-release-audit.md
 
 # Logs, crash dumps & API response dumps
 *.log
@@ -87,3 +88,10 @@ app/keystore/
 output-metadata.json
 vcs.xml
 lint/
+
+# Release verification tools
+!.github/scripts/*.py
+
+# Python verification outputs
+__pycache__/
+*.pyc

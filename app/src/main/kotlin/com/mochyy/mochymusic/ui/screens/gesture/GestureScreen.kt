@@ -267,7 +267,7 @@ private fun PlayerSection() {
             val hasMedia = playerConnection?.player?.currentMediaItem != null
             if (hasMedia) {
                 playerSheetState?.expandSoft()
-                playerConnection?.requestPlayerStudio()
+                playerConnection.requestPlayerStudio()
             } else {
                 Toast.makeText(context, playFirst, Toast.LENGTH_SHORT).show()
             }

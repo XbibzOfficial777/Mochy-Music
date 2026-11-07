@@ -182,6 +182,6 @@ fun CreatePlaylistDialog(
             )
         }
         // The caller took the dialog away with the sheet still up: take the sheet away with it.
-        onDispose { if (!closed) sheet?.dismiss() }
+        onDispose { if (!closed) sheet.dismiss() }
     }
 }

@@ -290,6 +290,7 @@ interface DatabaseDao {
     @Query("SELECT COALESCE(SUM(playTime), 0) FROM event")
     fun totalListeningTimeMs(): Flow<Long>
 
+    @Transaction
     @Query(
         """
         SELECT s.*

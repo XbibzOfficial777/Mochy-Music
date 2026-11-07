@@ -257,7 +257,7 @@ class AudioLabStore @Inject constructor(
         val correctionOn = settings.correctionEnabled && settings.correction != null
         val headroom = when {
             settings.autoPreamp -> autoHeadroom(settings)
-            correctionOn -> settings.correction!!.preamp
+            correctionOn -> settings.correction.preamp
             else -> 0.0
         }
         val preamp = settings.preamp + headroom

@@ -274,11 +274,11 @@ private const val SpeedApplyGapMs = 60L
 // the longest the playback loop may sleep while playing; the position the lyrics, seek bar and video sync read only moves when it wakes
 private const val PositionWakeUs = 100_000L
 
-@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
-@androidx.annotation.OptIn(UnstableApi::class)
 /** A stream that failed at [startedAt] (elapsedRealtime) and skips to the next track [timeoutMs] later. */
 data class StreamFailure(val startedAt: Long, val timeoutMs: Long)
 
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
+@androidx.annotation.OptIn(UnstableApi::class)
 @AndroidEntryPoint
 class MusicService :
     MediaLibraryService(),

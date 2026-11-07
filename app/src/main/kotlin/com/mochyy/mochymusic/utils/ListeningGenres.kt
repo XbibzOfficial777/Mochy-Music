@@ -42,7 +42,7 @@ object ListeningGenres {
                 .build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@use null
-                val body = response.body?.string() ?: return@use null
+                val body = response.body.string()
                 val results = JSONObject(body).optJSONArray("results") ?: return@use null
                 val artists = (0 until results.length()).mapNotNull { results.optJSONObject(it) }
                 // the same name if there is one, otherwise trust the top hit

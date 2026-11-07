@@ -109,7 +109,7 @@ object ComposeToImage {
                             canvas.drawBitmap(blurredBitmap, null, blurRect, null)
 
                             val overlayPaint = Paint().apply {
-                                color = 0x4D000000.toInt()
+                                color = 0x4D000000
                             }
                             canvas.drawRect(blurRect, overlayPaint)
                         }

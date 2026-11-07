@@ -31,7 +31,10 @@ internal class AndroidVideoDecoderProbe {
                     if (sharp && !decoder.isHardware()) return@any false
                     val type = decoder.supportedTypes.firstOrNull { it.equals(mime, ignoreCase = true) }
                         ?: return@any false
-                    val caps = decoder.getCapabilitiesForType(type).videoCapabilities
+                    val caps = decoder.getCapabilitiesForType(type).videoCapabilities ?: run {
+                        queryFailed = true
+                        return@any false
+                    }
                     if (fps != null && fps > 0) {
                         caps.areSizeAndRateSupported(width, height, fps.toDouble()) ||
                             caps.areSizeAndRateSupported(height, width, fps.toDouble())

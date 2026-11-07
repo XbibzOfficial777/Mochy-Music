@@ -33,7 +33,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -86,7 +88,9 @@ fun LinkInputDialog(
     onSubmit: (String) -> Unit,
 ) {
     var link by rememberSaveable { mutableStateOf("") }
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
 
@@ -96,7 +100,11 @@ fun LinkInputDialog(
         title = { Text("Import from ${source.label}") },
         buttons = {
             TextButton(onClick = {
-                clipboard.getText()?.text?.trim()?.takeIf { it.isNotEmpty() }?.let { link = it }
+                scope.launch {
+                    clipboard.getClipEntry()?.clipData?.takeIf { it.itemCount > 0 }
+                        ?.getItemAt(0)?.coerceToText(context)?.toString()?.trim()
+                        ?.takeIf { it.isNotEmpty() }?.let { link = it }
+                }
             }) { Text("Paste") }
             TextButton(onClick = onDismiss) { Text("Cancel") }
             TextButton(

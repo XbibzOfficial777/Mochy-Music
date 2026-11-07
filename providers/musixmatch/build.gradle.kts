@@ -1,10 +1,12 @@
+import com.android.build.api.dsl.LibraryExtension
+
 // musixmatch's public song pages: what a song is about, its genre and release, no api key
 plugins {
     id("com.android.library")
     alias(libs.plugins.kotlin.serialization)
 }
 
-android {
+extensions.configure<LibraryExtension> {
     namespace = "com.music.musixmatch"
     compileSdk = 36
 

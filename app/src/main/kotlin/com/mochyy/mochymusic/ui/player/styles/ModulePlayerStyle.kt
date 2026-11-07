@@ -313,7 +313,7 @@ private fun SkinProgress(block: SkinBlock.Progress, context: SkinContext, modifi
                         .pointerInput(duration) {
                             whileStyleInteractive(interactive) {
                                 detectTapGestures { offset ->
-                                    connection?.player?.seekTo((offset.x / size.width * duration).toLong().coerceIn(0L, duration))
+                                    connection.player.seekTo((offset.x / size.width * duration).toLong().coerceIn(0L, duration))
                                 }
                             }
                         }
@@ -322,7 +322,7 @@ private fun SkinProgress(block: SkinBlock.Progress, context: SkinContext, modifi
                                 detectHorizontalDragGestures(
                                     onDragStart = { held.floatValue = (it.x / size.width).coerceIn(0f, 1f) },
                                     onDragEnd = {
-                                        connection?.player?.seekTo((held.floatValue * duration).toLong())
+                                        connection.player.seekTo((held.floatValue * duration).toLong())
                                         held.floatValue = -1f
                                     },
                                     onDragCancel = { held.floatValue = -1f },

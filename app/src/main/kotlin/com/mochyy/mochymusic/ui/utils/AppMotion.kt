@@ -18,6 +18,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.navigation.NavBackStackEntry
 import androidx.compose.ui.MotionDurationScale
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 
 // the speeds the animation slider stops at, slowest to fastest
 val AnimationSpeeds = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
@@ -70,7 +73,8 @@ fun animationSpeedLabel(speed: Float): String {
 fun rememberMotionAllowed(): Boolean {
     val scope = rememberCoroutineScope()
     val scale = scope.coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
-    return AppMotion.enabled && scale > 0f
+    val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+    return AppMotion.enabled && scale > 0f && lifecycleState.isAtLeast(Lifecycle.State.STARTED)
 }
 
 /** [transition], or no transition at all while animations are switched off */

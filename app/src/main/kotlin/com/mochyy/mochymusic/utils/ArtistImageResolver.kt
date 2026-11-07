@@ -60,7 +60,7 @@ object ArtistImageResolver {
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@runCatching null
-                val body = response.body?.string() ?: return@runCatching null
+                val body = response.body.string()
                 val results = JSONObject(body).optJSONArray("results") ?: return@runCatching null
 
                 var bestScore = 0
@@ -82,7 +82,7 @@ object ArtistImageResolver {
                     val linkRequest = Request.Builder().url(bestLink).header("User-Agent", "Mozilla/5.0").build()
                     client.newCall(linkRequest).execute().use { linkResponse ->
                         if (linkResponse.isSuccessful) {
-                            val html = linkResponse.body?.string() ?: return@runCatching null
+                            val html = linkResponse.body.string()
                             val ogImageRegex = Regex("""<meta\s+property="og:image"\s+content="([^"]+)"""")
                             val match = ogImageRegex.find(html)
                             val imageUrl = match?.groupValues?.get(1)
@@ -111,7 +111,7 @@ object ArtistImageResolver {
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@runCatching null
-                val body = response.body?.string() ?: return@runCatching null
+                val body = response.body.string()
                 val results = JSONObject(body).optJSONArray("results") ?: return@runCatching null
                 var bestScore = 0
                 var bestArtwork: String? = null

@@ -212,7 +212,7 @@ internal suspend fun exportVideo(
             if (background != null) {
                 val moving = EditedMediaItem.Builder(background.item)
                     .setRemoveAudio(true)
-                    .setEffects(Effects(emptyList(), backgroundEffects(session, video!!.dim, width, height)))
+                    .setEffects(Effects(emptyList(), backgroundEffects(session, video.dim, width, height)))
                     .build()
                 add(EditedMediaItemSequence.Builder(moving).setIsLooping(true).build())
             }

@@ -890,7 +890,7 @@ class HomeViewModel @Inject constructor(
                 val seed = rec.title
                 rec.items.forEach { item ->
                     when {
-                        item is ArtistItem -> addToGroup(item.id ?: item.title, item.title, item.thumbnail, item.id, null)
+                        item is ArtistItem -> addToGroup(item.id, item.title, item.thumbnail, item.id, null)
                         seed is com.mochyy.mochymusic.db.entities.Artist -> addToGroup(seed.id, seed.title, seed.thumbnailUrl, seed.id, item)
                         else -> {
                             val itemArtist = when (item) {

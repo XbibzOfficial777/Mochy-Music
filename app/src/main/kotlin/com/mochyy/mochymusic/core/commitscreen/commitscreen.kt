@@ -1,5 +1,6 @@
 package com.mochyy.mochymusic.core.commitscreen
 
+import com.mochyy.mochymusic.utils.optStringOrNull
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
@@ -129,10 +130,10 @@ fun CommitScreen(
                     } catch (e: Exception) { rawDate }
 
                     val authorLogin = if (!obj.isNull("author")) {
-                        obj.getJSONObject("author").optString("login", null)
+                        obj.getJSONObject("author").optStringOrNull("login")
                     } else null
                     val authorAvatarUrl = if (!obj.isNull("author")) {
-                        obj.getJSONObject("author").optString("avatar_url", null)
+                        obj.getJSONObject("author").optStringOrNull("avatar_url")
                     } else null
 
                     list.add(CommitData(sha, message, authorName, authorAvatarUrl, authorLogin, formattedDate, htmlUrl))
@@ -219,11 +220,7 @@ fun CommitScreen(
                             CommitItem(
                                 commit = commit,
                                 onClick = {
-                                    ContextCompat.startActivity(
-                                        context,
-                                        Intent(Intent.ACTION_VIEW, Uri.parse(commit.htmlUrl)),
-                                        null
-                                    )
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(commit.htmlUrl)))
                                 }
                             )
                             if (index < commits.lastIndex) {

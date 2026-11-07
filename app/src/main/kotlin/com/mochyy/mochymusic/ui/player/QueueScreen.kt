@@ -342,7 +342,7 @@ fun QueueScreen(
                                     // point it flies to.
                                     val origin = coords.positionInRoot()
                                     with(density) {
-                                        morph!!.pageArtAnchor = androidx.compose.ui.geometry.Offset(
+                                        morph.pageArtAnchor = androidx.compose.ui.geometry.Offset(
                                             origin.x + LyricsHeaderArtX.toPx(),
                                             origin.y + RowArtTop.toPx(),
                                         )
@@ -356,7 +356,7 @@ fun QueueScreen(
                             val e = enterProgressProvider()
                             val flew = growsFromCard && applyCardFlight(
                                 e = e,
-                                cardAnchor = morph!!.cardArtAnchor,
+                                cardAnchor = morph.cardArtAnchor,
                                 pageAnchor = morph.pageArtAnchor,
                                 localAnchor = androidx.compose.ui.geometry.Offset(
                                     LyricsHeaderArtX.toPx(),

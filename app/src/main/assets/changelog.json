@@ -1,0 +1,36 @@
+{
+  "versionName": "8.3.2-xbibz.8",
+  "versionCode": 81,
+  "description": "Mochy Xbibz: perbaikan pencarian, penghematan animasi latar, dan build release terverifikasi.",
+  "changelog": [
+    {
+      "title": "UI dan animasi",
+      "items": [
+        "Indikator loading mengikuti pengaturan animasi aplikasi dan Android.",
+        "Animasi dekoratif berhenti saat aplikasi berada di latar belakang.",
+        "Loading pencarian gagal memiliki tombol Coba lagi dan hasil kosong ditampilkan dengan jelas.",
+        "Tautan changelog memakai area klik dan informasi aksesibilitas yang sesuai."
+      ]
+    },
+    {
+      "title": "Perbaikan fitur",
+      "items": [
+        "Permintaan saran pencarian menunggu jeda mengetik 250 ms untuk mengurangi permintaan berulang.",
+        "Pergantian filter membatalkan permintaan pencarian sebelumnya.",
+        "Pagination mencegah permintaan bersamaan dan berhenti ketika token halaman berulang.",
+        "Riwayat lagu per artis dibaca dalam transaksi Room agar data dan relasinya konsisten.",
+        "Kapabilitas video yang tidak tersedia ditangani secara eksplisit dengan kebijakan fallback yang sama."
+      ]
+    },
+    {
+      "title": "Build dan validasi",
+      "items": [
+        "Versi dinaikkan menjadi 8.3.2-xbibz.8 (kode 81).",
+        "Signing release mendukung APK Signature Scheme v2, v3, dan v4 beserta berkas .idsig.",
+        "Plugin Protobuf diperbarui untuk mendukung DSL AGP 9.",
+        "API deprecated dan null-check yang dinyatakan tidak perlu oleh compiler diperbarui.",
+        "170 unit test lulus pada validasi lokal; pengujian perangkat nyata dan pengukuran FPS belum dilakukan."
+      ]
+    }
+  ]
+}

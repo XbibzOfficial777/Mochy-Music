@@ -3,7 +3,6 @@ package com.mochyy.mochymusic.playback
 import android.content.Context
 import android.media.AudioManager
 import android.os.Build
-import android.telephony.PhoneStateListener
 import android.telephony.TelephonyManager
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
@@ -46,12 +45,13 @@ class CallWatcher(
     @Suppress("DEPRECATION")
     private fun watchPhoneState(): () -> Unit {
         val telephony = context.getSystemService(TelephonyManager::class.java) ?: return {}
-        val listener = object : PhoneStateListener() {
+        val listener = object : android.telephony.PhoneStateListener() {
+            @Deprecated("Legacy callback required on Android 7–11")
             override fun onCallStateChanged(state: Int, phoneNumber: String?) {
                 report(state != TelephonyManager.CALL_STATE_IDLE)
             }
         }
-        telephony.listen(listener, PhoneStateListener.LISTEN_CALL_STATE)
-        return { telephony.listen(listener, PhoneStateListener.LISTEN_NONE) }
+        telephony.listen(listener, android.telephony.PhoneStateListener.LISTEN_CALL_STATE)
+        return { telephony.listen(listener, android.telephony.PhoneStateListener.LISTEN_NONE) }
     }
 }

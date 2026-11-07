@@ -72,7 +72,7 @@ object BotDetectionMitigator {
             YouTube.refreshVisitorData().onSuccess { newData ->
                 Timber.tag(TAG).i("New visitorData obtained successfully for region ${currentLocale.gl}.")
 
-                CipherDeobfuscator.appContext?.dataStore?.edit { settings ->
+                CipherDeobfuscator.appContext.dataStore.edit { settings ->
                     settings[VisitorDataKey] = newData
                 }
             }.onFailure { e ->

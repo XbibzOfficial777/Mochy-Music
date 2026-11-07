@@ -14,13 +14,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
+import android.content.ClipData
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.ui.component.SettingsGroup
@@ -37,7 +40,8 @@ fun ImportProgressScreen(
     viewModel: ImportSyncViewModel = hiltViewModel(),
 ) {
     val progress by viewModel.importProgress.collectAsState()
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     fun leave() {
@@ -150,8 +154,10 @@ fun ImportProgressScreen(
                                         miss.playlistName?.let { append("  [").append(it).append(']') }
                                     }
                                 }
-                                clipboard.setText(AnnotatedString(text))
-                                Toast.makeText(context, "Copied ${progress.unmatched.size} songs", Toast.LENGTH_SHORT).show()
+                                scope.launch {
+                                    clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Mochy tracks", text)))
+                                    Toast.makeText(context, "Copied ${progress.unmatched.size} songs", Toast.LENGTH_SHORT).show()
+                                }
                             },
                         )
                     )

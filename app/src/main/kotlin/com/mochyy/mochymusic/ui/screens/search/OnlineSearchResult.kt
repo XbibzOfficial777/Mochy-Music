@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -134,6 +135,7 @@ fun OnlineSearchResult(
 
     val searchFilter by viewModel.filter.collectAsState()
     val summary = viewModel.summaryPage
+    val hasError = viewModel.errors[searchFilter?.value ?: "summary"] == true
     val itemsPage by remember(searchFilter) {
         derivedStateOf { searchFilter?.value?.let { viewModel.viewStateMap[it] } }
     }
@@ -153,13 +155,13 @@ fun OnlineSearchResult(
 
     LaunchedEffect(searchFilter) { listState.scrollToItem(0) }
 
-    LaunchedEffect(listState, itemsPage) {
+    LaunchedEffect(listState, itemsPage, hasError) {
         snapshotFlow {
             val info = listState.layoutInfo
             val last = info.visibleItemsInfo.lastOrNull()?.index ?: 0
             last >= info.totalItemsCount - 4
         }.collect { nearEnd ->
-            if (nearEnd && itemsPage?.continuation != null) viewModel.loadMore()
+            if (nearEnd && itemsPage?.continuation != null && !hasError) viewModel.loadMore()
         }
     }
 
@@ -250,10 +252,21 @@ fun OnlineSearchResult(
                                 modifier = Modifier.fillMaxWidth().height(220.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                SearchLoadingDots()
+                                if (hasError) SearchRetry(onRetry = viewModel::retry)
+                                else SearchLoadingDots()
                             }
                         }
                     } else {
+                        if (page.summaries.all { it.items.isEmpty() }) {
+                            item(key = "summary_empty") {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().height(220.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(stringResource(R.string.no_results_found), color = SearchColors.Secondary)
+                                }
+                            }
+                        }
                         if (top != null) {
                             item(key = "top_header") {
                                 SearchSectionHeader(title = "Top Results", ruleAbove = false)
@@ -310,7 +323,8 @@ fun OnlineSearchResult(
                                 modifier = Modifier.fillMaxWidth().height(220.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                SearchLoadingDots()
+                                if (hasError) SearchRetry(onRetry = viewModel::retry)
+                                else SearchLoadingDots()
                             }
                         }
                     } else if (page.items.isEmpty()) {
@@ -320,7 +334,7 @@ fun OnlineSearchResult(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    text = "No results",
+                                    text = stringResource(R.string.no_results_found),
                                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
                                     color = SearchColors.Secondary,
                                 )
@@ -339,6 +353,11 @@ fun OnlineSearchResult(
                                 onLongClick = { onItemLongClick(item) },
                                 onMenu = { onItemLongClick(item) },
                             )
+                        }
+                    }
+                    if (page != null && hasError) {
+                        item(key = "pagination_error") {
+                            SearchRetry(onRetry = viewModel::loadMore)
                         }
                     }
                 }
@@ -380,6 +399,20 @@ fun OnlineSearchResult(
                     )
                 },
             )
+        }
+    }
+}
+
+@Composable
+private fun SearchRetry(onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(stringResource(R.string.error_unknown), color = SearchColors.Secondary)
+        TextButton(onClick = onRetry) {
+            Text(stringResource(R.string.retry))
         }
     }
 }

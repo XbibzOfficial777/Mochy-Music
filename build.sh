@@ -1,6 +1,15 @@
 #!/bin/bash
 set -e
 
+# GNU sed and macOS sed use different syntax for in-place edits.
+sed_in_place() {
+    if [[ "$OSTYPE" == darwin* ]]; then
+        sed -i '' "$@"
+    else
+        sed -i "$@"
+    fi
+}
+
 # build defaults
 BUILD_ATTEMPT_FILE=".build_number"
 if [ ! -f "$BUILD_ATTEMPT_FILE" ]; then
@@ -135,14 +144,14 @@ if [ "$SKIP_BUILD" = false ]; then
 
     if [ -n "$CHANGE_VERSION" ]; then
         echo "Changing base app version to $CHANGE_VERSION..."
-        sed -i '' "s/versionName = \".*\"/versionName = \"$CHANGE_VERSION\"/g" app/build.gradle.kts
+        sed_in_place "s/versionName = \".*\"/versionName = \"$CHANGE_VERSION\"/g" app/build.gradle.kts
     fi
 
     # read base version
     BASE_VERSION=$(grep 'versionName =' app/build.gradle.kts | head -n 1 | sed 's/.*versionName = "\(.*\)".*/\1/' | sed 's/ build#.*//')
 
     # update version name
-    sed -i '' "s/versionName = \".*\"/versionName = \"$BASE_VERSION build#$BUILD_ATTEMPT\"/g" app/build.gradle.kts
+    sed_in_place "s/versionName = \".*\"/versionName = \"$BASE_VERSION build#$BUILD_ATTEMPT\"/g" app/build.gradle.kts
 
     # update beta notice
     if [ -f "$BETA_NOTICE_FILE" ]; then
@@ -150,20 +159,23 @@ if [ "$SKIP_BUILD" = false ]; then
         if [ -n "$CUSTOM_DATE" ]; then
             NOTICE_TITLE="mochy build #$BUILD_ATTEMPT $VARIANT ($CUSTOM_DATE)"
         fi
-        sed -i '' -e "s/text = \"Mochy DEV PREV\"/text = \"$NOTICE_TITLE\"/g" "$BETA_NOTICE_FILE"
-        sed -i '' -e "s/text = \"mochy build #[0-9]* .*\"/text = \"$NOTICE_TITLE\"/g" "$BETA_NOTICE_FILE"
-        sed -i '' -e "s/text = \"[0-9]*\.[0-9]*\.[0-9]*DEV\"/text = \"$BASE_VERSION build#$BUILD_ATTEMPT\"/g" "$BETA_NOTICE_FILE"
-        sed -i '' -e "s/text = \"[0-9]*\.[0-9]*\.[0-9]* build#[0-9]*\"/text = \"$BASE_VERSION build#$BUILD_ATTEMPT\"/g" "$BETA_NOTICE_FILE"
+        sed_in_place -e "s/text = \"Mochy DEV PREV\"/text = \"$NOTICE_TITLE\"/g" "$BETA_NOTICE_FILE"
+        sed_in_place -e "s/text = \"mochy build #[0-9]* .*\"/text = \"$NOTICE_TITLE\"/g" "$BETA_NOTICE_FILE"
+        sed_in_place -e "s/text = \"[0-9]*\.[0-9]*\.[0-9]*DEV\"/text = \"$BASE_VERSION build#$BUILD_ATTEMPT\"/g" "$BETA_NOTICE_FILE"
+        sed_in_place -e "s/text = \"[0-9]*\.[0-9]*\.[0-9]* build#[0-9]*\"/text = \"$BASE_VERSION build#$BUILD_ATTEMPT\"/g" "$BETA_NOTICE_FILE"
     fi
 
     # select gradle task
     CAP_FLAVOR="$(tr '[:lower:]' '[:upper:]' <<< ${FLAVOR:0:1})${FLAVOR:1}"
     CAP_VARIANT="$(tr '[:lower:]' '[:upper:]' <<< ${VARIANT:0:1})${VARIANT:1}"
 
+    BUILD_ABIS="universal"
     if [ "$PACKAGE_STYLE" == "all" ]; then
+        BUILD_ABIS="arm64,armeabi,x86,x86_64,universal"
         echo "Building ALL $FLAVOR package styles for $VARIANT..."
         TASK=":app:assembleArm64${CAP_FLAVOR}${CAP_VARIANT} :app:assembleArmeabi${CAP_FLAVOR}${CAP_VARIANT} :app:assembleX86${CAP_FLAVOR}${CAP_VARIANT} :app:assembleX86_64${CAP_FLAVOR}${CAP_VARIANT} :app:assembleUniversal${CAP_FLAVOR}${CAP_VARIANT}"
     elif [ "$PACKAGE_STYLE" == "arm64-universal" ]; then
+        BUILD_ABIS="arm64,universal"
         echo "Building arm64 and universal $FLAVOR package styles for $VARIANT..."
         TASK=":app:assembleArm64${CAP_FLAVOR}${CAP_VARIANT} :app:assembleUniversal${CAP_FLAVOR}${CAP_VARIANT}"
     else
@@ -172,14 +184,15 @@ if [ "$SKIP_BUILD" = false ]; then
     fi
 
     # run gradle build
-    ./gradlew $TASK
+    ./gradlew $TASK -PbuildAbis="$BUILD_ABIS"
 
     # clean old apks
     OUTPUT_DIR="apk-generated"
     mkdir -p "$OUTPUT_DIR"
-    rm -f "$OUTPUT_DIR"/*-${VARIANT}.apk 2>/dev/null || true
+    rm -f "$OUTPUT_DIR"/*-${VARIANT}.apk "$OUTPUT_DIR"/*-${VARIANT}.apk.idsig 2>/dev/null || true
     find app/build/outputs/apk -name "*${FLAVOR}*-$VARIANT.apk" -exec cp {} "$OUTPUT_DIR/" \;
-    echo "Copied $FLAVOR $VARIANT APKs to $OUTPUT_DIR/"
+    find app/build/outputs/apk -name "*${FLAVOR}*-$VARIANT.apk.idsig" -exec cp {} "$OUTPUT_DIR/" \;
+    echo "Copied $FLAVOR $VARIANT APKs and v4 signatures to $OUTPUT_DIR/"
 else
     echo "Skipping compilation (--install-only/--no-compile requested for $VARIANT variant)..."
     BUILD_ATTEMPT=$(cat "$BUILD_ATTEMPT_FILE")

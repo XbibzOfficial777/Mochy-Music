@@ -1,9 +1,11 @@
+import com.android.build.api.dsl.LibraryExtension
+
 plugins {
     id("com.android.library")
     alias(libs.plugins.kotlin.serialization)
 }
 
-android {
+extensions.configure<LibraryExtension> {
     namespace = "com.music.lastfm"
     compileSdk = 36
 

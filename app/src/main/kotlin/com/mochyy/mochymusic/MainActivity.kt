@@ -491,7 +491,7 @@ class MainActivity : ComponentActivity() {
                 if (enableHighRefreshRate) {
                     layoutParams.preferredDisplayModeId = highRefreshModeId()
                 } else {
-                    val modes = window.windowManager.defaultDisplay.supportedModes
+                    val modes = display?.supportedModes.orEmpty()
                     val mode60 = modes.firstOrNull { kotlin.math.abs(it.refreshRate - 60f) < 1f }
                         ?: modes.minByOrNull { kotlin.math.abs(it.refreshRate - 60f) }
 
@@ -1218,7 +1218,6 @@ class MainActivity : ComponentActivity() {
                                         startDestination = when (tabOpenedFromShortcut ?: defaultOpenTab) {
                                             NavigationTab.HOME -> Screens.Home
                                             NavigationTab.SEARCH -> Screens.Search
-                                            else -> Screens.Home
                                         }.route,
 
                                         // each page slides by the tab it belongs to, not by its own route: an
@@ -1577,17 +1576,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @SuppressLint("ObsoleteSdkInt")
+    // Android 7 cannot draw dark navigation icons; its legacy scrim still needs this API.
+    @Suppress("DEPRECATION")
+    private fun setLegacyNavigationBarColor(isDark: Boolean) {
+        window.navigationBarColor = (if (isDark) Color.Transparent else Color.Black.copy(alpha = 0.2f)).toArgb()
+    }
+
     private fun setSystemBarAppearance(isDark: Boolean) {
         WindowCompat.getInsetsController(window, window.decorView.rootView).apply {
             isAppearanceLightStatusBars = !isDark
             isAppearanceLightNavigationBars = !isDark
         }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            window.statusBarColor = (if (isDark) Color.Transparent else Color.Black.copy(alpha = 0.2f)).toArgb()
-        }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            window.navigationBarColor = (if (isDark) Color.Transparent else Color.Black.copy(alpha = 0.2f)).toArgb()
+            setLegacyNavigationBarColor(isDark)
         }
     }
 }

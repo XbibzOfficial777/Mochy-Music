@@ -142,7 +142,7 @@ object YouLyPlus {
             // a line is either a background vocal or attributed to a voice, never both, the app's parser treats {bg} as its own kind of line and centres it regardless of singer
             val marker = when {
                 isBg -> "{bg}"
-                !item.element?.singer.isNullOrBlank() -> "{agent:${item.element?.singer}}"
+                !item.element?.singer.isNullOrBlank() -> "{agent:${item.element.singer}}"
                 else -> ""
             }
 

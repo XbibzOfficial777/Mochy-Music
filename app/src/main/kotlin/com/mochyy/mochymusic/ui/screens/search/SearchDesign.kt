@@ -888,14 +888,17 @@ fun SearchArtwork(
 
 @Composable
 fun SearchLoadingDots(modifier: Modifier = Modifier) {
-    val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "searchLoading")
+    val motionAllowed = com.mochyy.mochymusic.ui.utils.rememberMotionAllowed()
+    val transition = if (motionAllowed) {
+        androidx.compose.animation.core.rememberInfiniteTransition(label = "searchLoading")
+    } else null
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         repeat(3) { index ->
-            val phase by transition.animateFloat(
+            val phase = transition?.animateFloat(
                 initialValue = 0f,
                 targetValue = 1f,
                 animationSpec = androidx.compose.animation.core.infiniteRepeatable(
@@ -912,8 +915,9 @@ fun SearchLoadingDots(modifier: Modifier = Modifier) {
                 modifier = Modifier
                     .size(7.dp)
                     .graphicsLayer {
-                        alpha = 0.3f + 0.7f * phase
-                        val s = 0.75f + 0.25f * phase
+                        val progress = phase?.value ?: 0.5f
+                        alpha = 0.3f + 0.7f * progress
+                        val s = 0.75f + 0.25f * progress
                         scaleX = s
                         scaleY = s
                     }

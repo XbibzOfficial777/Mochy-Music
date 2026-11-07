@@ -52,7 +52,7 @@ object WidevineDrm {
         val request = Request.Builder().url(url).post(ByteArray(0).toRequestBody()).build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw IOException("Widevine provisioning answered ${response.code}")
-            return response.body?.bytes() ?: ByteArray(0)
+            return response.body.bytes()
         }
     }
 }

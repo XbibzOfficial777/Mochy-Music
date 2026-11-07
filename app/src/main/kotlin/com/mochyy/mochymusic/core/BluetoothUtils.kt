@@ -4,40 +4,25 @@ import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Build
-import androidx.annotation.RequiresApi
+
+private fun AudioDeviceInfo.isBluetoothOutput(): Boolean =
+    type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+        type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+        (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            (type == AudioDeviceInfo.TYPE_BLE_HEADSET || type == AudioDeviceInfo.TYPE_BLE_SPEAKER))
 
 fun isBluetoothHeadphoneConnected(context: Context): Boolean {
     val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        val audioDevices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-        audioDevices.any { device ->
-            device.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
-                    device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-        }
-    } else {
-
-        @Suppress("DEPRECATION")
-        audioManager.isBluetoothA2dpOn || audioManager.isBluetoothScoOn
-    }
+    return audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any { it.isBluetoothOutput() }
 }
 
 fun getConnectedBluetoothDeviceName(context: Context): String? {
     val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-
-    val isBluetoothActive = audioManager.isBluetoothA2dpOn || audioManager.isBluetoothScoOn
-    if (!isBluetoothActive) return null
-
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        val audioDevices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-
-        val activeBluetoothDevice = audioDevices.find { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP }
-            ?: audioDevices.find { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
-
-        return activeBluetoothDevice?.productName?.toString()
-    } else {
-        return null
-    }
+    val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+    val device = devices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP }
+        ?: devices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
+        ?: devices.firstOrNull { it.isBluetoothOutput() }
+    return device?.productName?.toString()
 }
 
 fun isBuds(name: String?): Boolean {

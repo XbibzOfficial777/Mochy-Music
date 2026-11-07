@@ -28,8 +28,8 @@ extensions.configure<ApplicationExtension> {
         minSdk = 24
         targetSdk = 36
         // Fork updates must remain installable over earlier Bibz releases.
-        versionCode = 80
-        versionName = "8.3.2-xbibz.7"
+        versionCode = 81
+        versionName = "8.3.2-xbibz.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -137,14 +137,13 @@ extensions.configure<ApplicationExtension> {
         }
     }
 
-    // Release signing only works when the CI secrets are present. Locally they are not, which
-    // used to make `assembleRelease` unbuildable and left debug as the only variant anyone ever
-    // ran — and a debug Compose build is several times slower per frame than release, so all
-    // local performance impressions were being formed against the wrong binary.
+    // Local signing may use an external JKS; the default path/type preserve the CI setup.
+    val releaseStoreFile = System.getenv("RELEASE_STORE_FILE")?.let(::file)
+        ?: file("keystore/release.keystore")
     val hasReleaseSigning = System.getenv("STORE_PASSWORD") != null &&
         System.getenv("KEY_ALIAS") != null &&
         System.getenv("KEY_PASSWORD") != null &&
-        file("keystore/release.keystore").exists()
+        releaseStoreFile.exists()
 
     signingConfigs {
         create("persistentDebug") {
@@ -155,8 +154,11 @@ extensions.configure<ApplicationExtension> {
         }
         if (hasReleaseSigning) {
             create("release") {
-                storeFile = file("keystore/release.keystore")
-                storeType = "PKCS12"
+                storeFile = releaseStoreFile
+                storeType = System.getenv("RELEASE_STORE_TYPE") ?: "PKCS12"
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
                 storePassword = System.getenv("STORE_PASSWORD")
                 keyAlias = System.getenv("KEY_ALIAS")
                 keyPassword = System.getenv("KEY_PASSWORD")
@@ -288,6 +290,22 @@ extensions.configure<ApplicationExtension> {
             excludes += "META-INF/LICENSE.md"
             excludes += "META-INF/INDEX.LIST"
             excludes += "META-INF/io.netty.versions.properties"
+        }
+    }
+}
+
+// Configure only requested ABI flavors for local single-APK builds. Leave the complete matrix
+// available when this property is absent (Android Studio and CI keep their existing behavior).
+androidComponents {
+    val buildAbis = providers.gradleProperty("buildAbis").orNull?.split(',')?.toSet()
+    if (buildAbis != null) {
+        require(buildAbis.isNotEmpty() && buildAbis.all { it in setOf("universal", "arm64", "armeabi", "x86", "x86_64") }) {
+            "buildAbis must contain comma-separated ABI flavor names"
+        }
+        beforeVariants(selector().all()) { variant ->
+            if (variant.productFlavors.any { (dimension, flavor) -> dimension == "abi" && flavor !in buildAbis }) {
+                variant.enable = false
+            }
         }
     }
 }

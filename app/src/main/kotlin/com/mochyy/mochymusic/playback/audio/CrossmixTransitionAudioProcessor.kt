@@ -38,7 +38,6 @@ import kotlin.math.tan
  * delay only shifts content in time. The player's sense of position stays true.
  */
 @UnstableApi
-@Suppress("DEPRECATION")
 class CrossmixTransitionAudioProcessor : AudioProcessor {
 
     /** a transition, as one side of it sees it: [anchorMs] is transition beat 0 in this track */
@@ -223,7 +222,6 @@ class CrossmixTransitionAudioProcessor : AudioProcessor {
     override fun getOutput(): ByteBuffer = outputBuffer.also { outputBuffer = EmptyBuffer }
     override fun isEnded(): Boolean = inputEnded && outputBuffer === EmptyBuffer
 
-    @Deprecated("Deprecated in Java")
     override fun flush() {
         outputBuffer = EmptyBuffer
         inputEnded = false
@@ -236,7 +234,6 @@ class CrossmixTransitionAudioProcessor : AudioProcessor {
         }
     }
 
-    @Deprecated("Deprecated in Java")
     override fun reset() {
         flush()
         clear()

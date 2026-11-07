@@ -124,7 +124,7 @@ class ArtistViewModel @Inject constructor(
                 ?: apple?.bannerUrl?.let { appleArtworkUrl(it, 2400, 600) },
             motionUrl = apple?.motionSquareUrl ?: apple?.motionVideoUrl ?: canvas,
             logoUrl = apple?.logoUrl?.let { url ->
-                val aspect = apple?.logoAspect ?: 3f
+                val aspect = apple.logoAspect ?: 3f
                 appleArtworkUrl(url, 900, (900 / aspect).toInt().coerceAtLeast(1), format = "webp")
             },
             logoAspect = apple?.logoAspect,
@@ -316,8 +316,8 @@ class ArtistViewModel @Inject constructor(
         }
 
         val (album, fromSingles) = pick
-        val date = if (matched != null) latest?.releaseDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() } else null
-        val isSingle = if (matched != null) latest?.isSingle == true else fromSingles
+        val date = if (matched != null) latest.releaseDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() } else null
+        val isSingle = if (matched != null) latest.isSingle == true else fromSingles
         val recent = when {
             date != null -> ChronoUnit.DAYS.between(date, LocalDate.now()) in 0..120
             else -> album.year != null && album.year!! >= LocalDate.now().year

@@ -1,10 +1,12 @@
+import com.android.build.api.dsl.LibraryExtension
+
 plugins {
     id("com.android.library")
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.compose.compiler)
 }
 
-android {
+extensions.configure<LibraryExtension> {
     namespace = "com.mochyy.mochymusic.artistvideo"
     compileSdk = 36
 

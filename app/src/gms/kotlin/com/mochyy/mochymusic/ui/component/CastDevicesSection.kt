@@ -139,7 +139,7 @@ fun CastDevicesSection() {
 
         if (!castEnabled) {
             if (handler?.isCasting?.value == true || handler?.isConnecting?.value == true) {
-                handler?.disconnect()
+                handler.disconnect()
             }
         } else if (handler != null && handler.initialize()) {
             try {

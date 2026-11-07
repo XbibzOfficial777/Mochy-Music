@@ -1,10 +1,12 @@
+import com.android.build.api.dsl.LibraryExtension
+
 // wikipedia and wikidata: a song's article and its plain facts, no api key
 plugins {
     id("com.android.library")
     alias(libs.plugins.kotlin.serialization)
 }
 
-android {
+extensions.configure<LibraryExtension> {
     namespace = "com.music.wikipedia"
     compileSdk = 36
 

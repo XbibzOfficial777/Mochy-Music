@@ -43,7 +43,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.mochyy.mochymusic.importer.account.AccountImportState
 import com.mochyy.mochymusic.importer.account.AccountService
 import com.mochyy.mochymusic.ui.component.PopupSheetHandle

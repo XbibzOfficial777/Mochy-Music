@@ -63,7 +63,7 @@ fun SeamBlur(
 
     var scrimColor by remember(trackInfo.mediaId) { mutableStateOf(Color.Black) }
     LaunchedEffect(trackInfo.mediaId, trackInfo.thumbnailUrl) {
-        val url = trackInfo.thumbnailUrl ?: return@LaunchedEffect
+        val url = trackInfo.thumbnailUrl
         withContext(Dispatchers.IO) {
             try {
                 val request = ImageRequest.Builder(context)

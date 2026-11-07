@@ -36,8 +36,9 @@ internal object ShareEncoders {
         runCatching {
             MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.any { info ->
                 info.isEncoder && info.supportedTypes.any { it.equals(MimeTypes.VIDEO_H264, ignoreCase = true) } &&
-                    runCatching {
+                    runCatching encoder@{
                         val video = info.getCapabilitiesForType(MimeTypes.VIDEO_H264).videoCapabilities
+                            ?: return@encoder false
                         video.areSizeAndRateSupported(quality.height, quality.width, fps.toDouble()) ||
                             video.areSizeAndRateSupported(quality.width, quality.height, fps.toDouble())
                     }.getOrDefault(false)

@@ -584,7 +584,7 @@ private fun TickerLine(
             if (karaoke) {
                 KaraokeSweepText(
                     text = text,
-                    words = words!!,
+                    words = words,
                     positionProvider = positionProvider,
                     waveAmplitudeProvider = { if (waveEnabled) 1f else 0f },
                     riseAmplitudeProvider = { 1f },

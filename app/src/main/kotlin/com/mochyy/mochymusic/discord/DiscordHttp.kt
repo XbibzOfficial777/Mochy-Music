@@ -53,7 +53,7 @@ internal object DiscordHttp {
     private suspend fun send(request: Request): Reply = client.newCall(request).await().use { response ->
         Reply(
             code = response.code,
-            body = response.body?.string().orEmpty(),
+            body = response.body.string().orEmpty(),
             retryAfterSeconds = response.header("Retry-After")?.toDoubleOrNull(),
         )
     }

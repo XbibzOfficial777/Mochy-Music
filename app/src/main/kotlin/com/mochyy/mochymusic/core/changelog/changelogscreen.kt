@@ -1,5 +1,7 @@
 package com.mochyy.mochymusic.core.changelog
 
+import com.mochyy.mochymusic.utils.optStringOrNull
+import com.mochyy.mochymusic.core.updater.isXbibzBuild
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -24,7 +26,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Error
@@ -99,6 +100,7 @@ fun ChangelogScreen(
     versionTag: String = "v${BuildConfig.VERSION_NAME}"
 ) {
     val context = LocalContext.current
+    val changelogRepo = if (isXbibzBuild) "XbibzOfficial777/Mochy-Music" else "realidkroo/Mochy-Music"
     var changelogSections by remember { mutableStateOf<List<ChangelogSection>>(emptyList()) }
     var updateImage by remember { mutableStateOf<String?>(null) }
     var updateDescription by remember { mutableStateOf<String?>(null) }
@@ -127,7 +129,8 @@ fun ChangelogScreen(
         hasError = false
         coroutineScope.launch(Dispatchers.IO) {
             try {
-                val cachedData = loadChangelogFromCache(context, tag)
+                val bundled = if (isXbibzBuild && tag == versionTag) loadBundledChangelog(context) else null
+                val cachedData = bundled ?: loadChangelogFromCache(context, tag)
                 if (cachedData != null) {
                     withContext(Dispatchers.Main) {
                         changelogSections = cachedData.sections
@@ -135,10 +138,10 @@ fun ChangelogScreen(
                         updateDescription = cachedData.description
                         updateWarning = cachedData.warning
                         isLoading = false
-                        showingCached = true
+                        showingCached = bundled == null
                     }
                 } else {
-                    val changelogUrl = URL("https://github.com/realidkroo/Mochy-Music/releases/download/$tag/changelog.json")
+                    val changelogUrl = URL("https://github.com/$changelogRepo/releases/download/$tag/changelog.json")
                     val connection = changelogUrl.openConnection() as HttpURLConnection
                     connection.setRequestProperty("User-Agent", "Mochy-Changelog-App")
                     connection.setRequestProperty("Accept", "application/json")
@@ -147,9 +150,9 @@ fun ChangelogScreen(
                         val changelogJson = connection.inputStream.bufferedReader().use { it.readText() }
                         val changelogData = JSONObject(changelogJson)
 
-                        val desc = changelogData.optString("description", null)
-                        val imageUrl = changelogData.optString("image", null)
-                        val warning = changelogData.optString("warning", null)
+                        val desc = changelogData.optStringOrNull("description")
+                        val imageUrl = changelogData.optStringOrNull("image")
+                        val warning = changelogData.optStringOrNull("warning")
                         val changelogArray = changelogData.optJSONArray("changelog")
 
                         val sections = mutableListOf<ChangelogSection>()
@@ -211,7 +214,7 @@ fun ChangelogScreen(
         isFetchingOldReleases = true
         coroutineScope.launch(Dispatchers.IO) {
             try {
-                val releasesUrl = URL("https://api.github.com/repos/realidkroo/Mochy-Music/releases")
+                val releasesUrl = URL("https://api.github.com/repos/$changelogRepo/releases")
                 val connection = releasesUrl.openConnection() as HttpURLConnection
                 connection.setRequestProperty("User-Agent", "Mochy-Changelog-App")
                 connection.setRequestProperty("Accept", "application/vnd.github+json")
@@ -416,23 +419,18 @@ fun ChangelogScreen(
                                         }
 
                                         section.items.forEach { item ->
-                                            val urls = item.extractUrls()
+                                            val urls = item.trim().extractUrls()
                                             val annotatedText = buildAnnotatedString {
                                                 append(item.trim())
                                                 urls.forEach { (range, url) ->
-                                                    addStringAnnotation("URL", url, range.first, range.last + 1)
+                                                    addLink(androidx.compose.ui.text.LinkAnnotation.Url(url), range.first, range.last + 1)
                                                     addStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline), range.first, range.last + 1)
                                                 }
                                             }
                                             Row(modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                                 Box(modifier = Modifier.padding(top = 8.dp).size(6.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
-                                                ClickableText(
+                                                Text(
                                                     text = annotatedText,
-                                                    onClick = { offset ->
-                                                        annotatedText.getStringAnnotations("URL", offset, offset).firstOrNull()?.let {
-                                                            ContextCompat.startActivity(context, Intent(Intent.ACTION_VIEW, Uri.parse(it.item)), null)
-                                                        }
-                                                    },
                                                     style = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface)
                                                 )
                                             }
@@ -528,9 +526,25 @@ private fun loadChangelogFromCache(context: Context, versionTag: String): Cached
 
         CachedChangelogData(
             sections = sections,
-            image = cacheData.optString("image", null).takeIf { !it.isNullOrBlank() },
-            description = cacheData.optString("description", null).takeIf { !it.isNullOrBlank() },
-            warning = cacheData.optString("warning", null).takeIf { !it.isNullOrBlank() }
+            image = cacheData.optStringOrNull("image").takeIf { !it.isNullOrBlank() },
+            description = cacheData.optStringOrNull("description").takeIf { !it.isNullOrBlank() },
+            warning = cacheData.optStringOrNull("warning").takeIf { !it.isNullOrBlank() }
         )
     } catch (e: Exception) { null }
+}
+
+// The installed release can show its changes offline, before a public Release is published.
+private fun loadBundledChangelog(context: Context): CachedChangelogData? = try {
+    val data = JSONObject(context.assets.open("changelog.json").bufferedReader().use { it.readText() })
+    if (data.getString("versionName") != BuildConfig.VERSION_NAME) null else {
+        val array = data.getJSONArray("changelog")
+        val sections = (0 until array.length()).map { index ->
+            val section = array.getJSONObject(index)
+            val items = section.getJSONArray("items")
+            ChangelogSection(section.getString("title"), (0 until items.length()).map { items.getString(it) })
+        }
+        CachedChangelogData(sections, null, data.optStringOrNull("description"), data.optStringOrNull("warning"))
+    }
+} catch (_: Exception) {
+    null
 }

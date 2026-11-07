@@ -1,10 +1,12 @@
+import com.android.build.api.dsl.LibraryExtension
+
 // genius: what a song is about in its fans and makers own words, with its credits, no api key
 plugins {
     id("com.android.library")
     alias(libs.plugins.kotlin.serialization)
 }
 
-android {
+extensions.configure<LibraryExtension> {
     namespace = "com.music.genius"
     compileSdk = 36
 

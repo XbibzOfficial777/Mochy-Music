@@ -270,7 +270,6 @@ private fun playOrOpen(rec: YTItem, playerConnection: PlayerConnection, navContr
         is AlbumItem -> navController.navigate("album/${rec.id}")
         is ArtistItem -> navController.navigate("artist/${rec.id}")
         is PlaylistItem -> navController.navigate("online_playlist/${rec.id}")
-        else -> Unit
     }
 }
 

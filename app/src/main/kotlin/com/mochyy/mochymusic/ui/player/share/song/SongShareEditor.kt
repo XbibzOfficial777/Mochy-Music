@@ -91,7 +91,7 @@ private fun ColumnScope.EditorContent(session: SongShareSession, popup: PopupShe
             modifier = Modifier.fillMaxSize(),
             onCardTap = if (cinematic) null else ({ popup.showCardStyle(session) }),
             regions = if (cinematic) regions else null,
-            overlay = if (cinematic && pick != null) {
+            overlay = if (cinematic) {
                 {
                     EditOutlines(
                         regions = regions,

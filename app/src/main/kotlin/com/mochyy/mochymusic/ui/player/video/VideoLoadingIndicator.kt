@@ -59,7 +59,9 @@ fun VideoLoadingIndicator(
     if (!spinning) return
     // read only while drawing, so the turn repaints the ring without recomposing it
     var timeMs by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(Unit) {
+    val motionAllowed = com.mochyy.mochymusic.ui.utils.rememberMotionAllowed()
+    LaunchedEffect(motionAllowed) {
+        if (!motionAllowed) return@LaunchedEffect
         val start = withFrameMillis { it }
         while (true) withFrameMillis { timeMs = it - start }
     }

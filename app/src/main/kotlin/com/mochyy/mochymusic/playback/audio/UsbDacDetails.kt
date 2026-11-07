@@ -76,7 +76,7 @@ object UsbDacReader {
             bitDepths = output?.encodings?.toList().orEmpty().mapNotNull(AudioOutputs::bitDepthOf).distinct().sorted(),
             bitPerfect = when {
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> null
-                output == null || audio == null -> emptyList()
+                output == null -> emptyList()
                 else -> MixerFormats.bitPerfect(audio, output)
             },
             androidOutput = output != null,

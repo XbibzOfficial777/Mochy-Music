@@ -27,12 +27,13 @@ fun ShimmerHost(
     verticalArrangement: Arrangement.Vertical = Arrangement.Top,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val motionAllowed = com.mochyy.mochymusic.ui.utils.rememberMotionAllowed()
     Column(
         horizontalAlignment = horizontalAlignment,
         verticalArrangement = verticalArrangement,
         modifier =
         modifier
-            .shimmer()
+            .then(if (motionAllowed) Modifier.shimmer() else Modifier)
             .graphicsLayer(alpha = 0.99f)
             .drawWithContent {
                 drawContent()

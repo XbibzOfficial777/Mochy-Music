@@ -278,7 +278,7 @@ object YouTube {
             }
 
             response.contents?.singleColumnBrowseResultsRenderer?.tabs?.forEach { tab ->
-                tab.tabRenderer?.content?.sectionListRenderer?.contents?.forEach { content ->
+                tab.tabRenderer.content?.sectionListRenderer?.contents?.forEach { content ->
                     content.musicDescriptionShelfRenderer?.description?.runs?.let { yield(it) }
                 }
             }
@@ -294,7 +294,7 @@ object YouTube {
                 }
             }
             response.contents?.singleColumnBrowseResultsRenderer?.tabs?.forEach { tab ->
-                tab.tabRenderer?.content?.sectionListRenderer?.contents?.forEach { content ->
+                tab.tabRenderer.content?.sectionListRenderer?.contents?.forEach { content ->
                     content.musicResponsiveHeaderRenderer?.description?.runs?.let { yield(it) }
                 }
             }

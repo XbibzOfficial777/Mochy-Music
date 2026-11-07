@@ -87,7 +87,7 @@ internal class VideoModeState(private val scope: CoroutineScope) {
         val now = SystemClock.uptimeMillis()
         val last = seekFlash
         val chained = last != null && last.forward == forward && now - last.atMs < SeekChainMs
-        seekFlash = SeekFlash(forward, if (chained) last!!.seconds + 10 else 10, now)
+        seekFlash = SeekFlash(forward, if (chained) last.seconds + 10 else 10, now)
     }
 
     fun toggleControls() {

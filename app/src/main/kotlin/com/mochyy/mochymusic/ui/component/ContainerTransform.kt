@@ -100,7 +100,7 @@ private class MorphingCornerClip(
     private val path = Path()
 
     override fun getClipPath(
-        state: SharedTransitionScope.SharedContentState,
+        sharedContentState: SharedTransitionScope.SharedContentState,
         bounds: Rect,
         layoutDirection: LayoutDirection,
         density: Density,

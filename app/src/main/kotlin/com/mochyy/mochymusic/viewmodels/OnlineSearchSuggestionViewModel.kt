@@ -6,7 +6,6 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.music.innertube.YouTube
-import com.music.innertube.models.WatchEndpoint
 import com.music.innertube.models.YTItem
 import com.music.innertube.models.filterExplicit
 import com.music.innertube.models.filterVideoSongs
@@ -19,6 +18,8 @@ import com.mochyy.mochymusic.utils.dataStore
 import com.mochyy.mochymusic.utils.get
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -68,6 +69,8 @@ constructor(
                             )
                         }
                     } else {
+                        // Delay inside flatMapLatest so new input cancels the old request immediately.
+                        delay(250)
                         val parsedUrl = YouTubeUrlParser.parse(query)
                         val parsedItem = if (parsedUrl != null) fetchParsedUrlItem(parsedUrl) else null
 
@@ -119,6 +122,8 @@ constructor(
             }
             println("[LINK_PARSE_DEBUG] Fetch successful: ${item?.id} (${item?.javaClass?.simpleName})")
             item
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             println("[LINK_PARSE_DEBUG] Fetch failed: ${e.message}")
             e.printStackTrace()
