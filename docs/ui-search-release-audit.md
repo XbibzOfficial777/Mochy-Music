@@ -121,3 +121,12 @@ and 35: ComposeNavigator state was read before NavHost attached it. The follow-u
 only after `currentBackStackEntryFlow` emits a destination. This regression was caught by device
 execution despite passing all 170 JVM tests and Kotlin compilation. The failing commit's APK must
 not be treated as validated. Verify the follow-up emulator run before accepting the fix.
+
+The follow-up local lint report reduced errors from 112 to 1 (RestrictedApi for the old WebView
+header override), and warnings from 1588 to 1580. AndroidX WebSettingsCompat 1.12.1 documents
+X-Requested-With as deprecated in late 2022 and discontinued; its setter restores legacy header
+behavior. The obsolete empty-allow-list override and its restricted feature gate are removed,
+leaving WebView's default header policy. Authentication behavior on old WebView providers still
+needs manual coverage. Settings search keys cached results by a locale string rather than a mutable
+Resources.Configuration object. Build workflows use Node 24 versions of artifact, Gradle, and SDK
+actions to address the observed Node 20 deprecation annotations. These changes require a fresh run.

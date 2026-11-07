@@ -36,7 +36,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Set Up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
         with:
           cache-disabled: true
 
@@ -72,7 +72,7 @@ jobs:
             --no-configuration-cache --console=plain --warning-mode summary
 
       - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: app-universal-gms-debug
           path: app/build/outputs/apk/universalGms/debug/*.apk
@@ -105,7 +105,7 @@ jobs:
           # Only workflow/test-script changes may differ; all app and build sources must match.
           git diff --exit-code "$source_sha" "$GITHUB_SHA" -- . ':(exclude).github/**'
           echo "Debug APK source $source_sha matches current application sources."
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: app-universal-gms-debug
           path: smoke-apk
@@ -132,7 +132,7 @@ jobs:
             bash .github/scripts/smoke-latest.sh
       - name: Save smoke-test evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: android-smoke-evidence-api-${{ matrix.api }}
           path: |

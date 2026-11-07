@@ -266,7 +266,6 @@ fun CaptureWebContent(
         settings.displayZoomControls = false
         settings.userAgentString = if (desktopSite) DESKTOP_USER_AGENT else chromeUserAgent(settings.userAgentString)
         disableForcedDarkening()
-        hideAppIdentity()
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         addJavascriptInterface(bridge, BRIDGE_NAME)
@@ -450,14 +449,6 @@ internal fun WebView.isDesktopSite(): Boolean = settings.userAgentString == DESK
 internal fun WebView.useDesktopSite() {
     settings.userAgentString = DESKTOP_USER_AGENT
     settings.loadWithOverviewMode = true
-}
-
-/** opts out of the x-requested-with header, it is how sites spot an embedded browser */
-@SuppressLint("RequiresFeature")
-internal fun WebView.hideAppIdentity() {
-    if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
-        WebSettingsCompat.setRequestedWithHeaderOriginAllowList(settings, emptySet())
-    }
 }
 
 /** sign-in pages draw their own dark mode, webview's automatic darkening (and miui's forced dark) leaves light text on light fields */

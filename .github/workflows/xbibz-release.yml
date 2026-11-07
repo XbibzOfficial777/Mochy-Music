@@ -42,7 +42,7 @@ jobs:
           java-version: '21'
           distribution: temurin
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
         with:
           cache-disabled: true
       - name: Test the native release verifier
@@ -162,7 +162,7 @@ jobs:
           PY
           ls -lh release-assets/
       - name: Keep verified APK as a workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: mochy-release-${{ matrix.abi }}
           path: release-assets/
@@ -179,7 +179,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           pattern: mochy-release-*
           path: release-assets

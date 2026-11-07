@@ -305,7 +305,7 @@ fun MochySettingsScreen(navController: NavController) {
     val recommendedItem = remember { RecommendedOptions.random() }
 
     val resources = LocalResources.current
-    val results = remember(query.text, resources.configuration) {
+    val results = remember(query.text, androidx.compose.ui.platform.LocalConfiguration.current.locales.toLanguageTags()) {
         val q = query.text.trim()
         if (q.isBlank()) {
             emptyList()
