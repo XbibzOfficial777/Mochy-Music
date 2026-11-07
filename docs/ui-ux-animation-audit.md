@@ -82,13 +82,15 @@ middle of it.
 ### Warning cleanup
 
 **Verified green.** Release run
-[42338148320](https://github.com/XbibzOfficial777/Mochy-Music/actions/runs/42338148320)
-(`b36edc88`) passed `Require clean compiler and lint reports` with
-`Compiler/resource warnings: 0` and an empty lint summary (`lint-results-universalGmsRelease.txt`
-holds exactly `No issues found.`). The same run signed the APK with the repository key
-(certificate `d8828ad1…4b16`, checked against `.github/release-certificate.sha256`), verified v2 +
-v4, and the debug workflow `42335107937` was green on all three jobs including the API 30 and API 35
-emulator launches.
+[42339962929](https://github.com/XbibzOfficial777/Mochy-Music/actions/runs/42339962929)
+(`85b7bb2a`, the commit that also carries the lyric line-change work) passed
+`Require clean compiler and lint reports` with `Compiler/resource warnings: 0` and an empty lint
+summary (`lint-results-universalGmsRelease.txt` holds exactly `No issues found.`). The same run
+signed the APK with the repository key (certificate `d8828ad1…4b16`, checked against
+`.github/release-certificate.sha256`), verified v2 + v4 (`Errors: []`, `Warnings: []`).
+Debug workflow [42339962934](https://github.com/XbibzOfficial777/Mochy-Music/actions/runs/42339962934)
+was green on all three jobs, including the API 30 and API 35 emulator launches, so the build with
+these changes installs and starts on both.
 
 Starting point, for the record, was the lint report of the first signed release (1 581 warnings):
 
