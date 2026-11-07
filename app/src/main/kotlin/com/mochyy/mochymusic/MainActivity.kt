@@ -674,12 +674,16 @@ class MainActivity : ComponentActivity() {
 
                 // the tab lit in the bar is read off the back stack every time, never remembered:
                 // a page belongs to the tab page under it, however it was reached
+                // A navigator is attached by NavHost. Wait for the first destination before
+                // reading its state; reading it in remember crashes during cold startup.
                 val tabBackStack = remember(navController) {
-                    navController.navigatorProvider
-                        .getNavigator<androidx.navigation.compose.ComposeNavigator>("composable")
-                        .backStack
+                    navController.currentBackStackEntryFlow.map {
+                        navController.navigatorProvider
+                            .getNavigator<androidx.navigation.compose.ComposeNavigator>("composable")
+                            .backStack.value
+                    }
                 }
-                val backStack by tabBackStack.collectAsState()
+                val backStack by tabBackStack.collectAsState(initial = emptyList())
                 val selectedTabRoute by remember(navigationItems) {
                     derivedStateOf { com.mochyy.mochymusic.ui.component.owningTab(backStack, navigationItems) }
                 }
@@ -1229,7 +1233,7 @@ class MainActivity : ComponentActivity() {
                                         // album open in the Library moves like the Library when you switch tabs
                                         enterTransition = {
                                             defaultMotionEnter {
-                                                val stack = tabBackStack.value
+                                                val stack = backStack
                                                 val currentRouteIndex = tabOwnership.indexOf(targetState, stack)
                                                 val previousRouteIndex = tabOwnership.indexOf(initialState, stack)
 
@@ -1242,7 +1246,7 @@ class MainActivity : ComponentActivity() {
 
                                         exitTransition = {
                                             defaultMotionExit {
-                                                val stack = tabBackStack.value
+                                                val stack = backStack
                                                 val currentRouteIndex = tabOwnership.indexOf(initialState, stack)
                                                 val targetRouteIndex = tabOwnership.indexOf(targetState, stack)
 
@@ -1255,7 +1259,7 @@ class MainActivity : ComponentActivity() {
 
                                         popEnterTransition = {
                                             defaultMotionEnter {
-                                                val stack = tabBackStack.value
+                                                val stack = backStack
                                                 val currentRouteIndex = tabOwnership.indexOf(targetState, stack)
                                                 val previousRouteIndex = tabOwnership.indexOf(initialState, stack)
 
@@ -1268,7 +1272,7 @@ class MainActivity : ComponentActivity() {
 
                                         popExitTransition = {
                                             defaultMotionExit {
-                                                val stack = tabBackStack.value
+                                                val stack = backStack
                                                 val currentRouteIndex = tabOwnership.indexOf(initialState, stack)
                                                 val targetRouteIndex = tabOwnership.indexOf(targetState, stack)
 

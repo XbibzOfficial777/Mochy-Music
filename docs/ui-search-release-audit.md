@@ -115,3 +115,9 @@ are expressed as explicit escapes. The CI debuggable-APK guard now exits explici
 
 Lint remains strict: existing findings are not baselined or globally suppressed. Check the latest
 run before claiming these follow-up fixes pass release validation or that all lint debt is gone.
+
+The first public-navigator migration in `1f697069` failed emulator cold-start checks on API 30
+and 35: ComposeNavigator state was read before NavHost attached it. The follow-up reads its stack
+only after `currentBackStackEntryFlow` emits a destination. This regression was caught by device
+execution despite passing all 170 JVM tests and Kotlin compilation. The failing commit's APK must
+not be treated as validated. Verify the follow-up emulator run before accepting the fix.
