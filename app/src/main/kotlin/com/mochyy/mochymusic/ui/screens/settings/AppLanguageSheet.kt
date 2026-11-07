@@ -63,11 +63,13 @@ fun PopupSheetState.showAppLanguageSheet(selected: String, onSelect: (String) ->
 @Composable
 private fun AppLanguagePicker(selected: String, onPick: (String) -> Unit) {
     val context = LocalContext.current
+    // read during composition and captured: LocalResources cannot be read from produceState's body
+    val languageTags = LocalResources.current.getStringArray(R.array.app_language_tags)
     var query by rememberSaveable { mutableStateOf("") }
     // every language named in its own words, worked out off the main thread so the sheet opens without a hitch
     val options by produceState(initialValue = emptyList<LanguageOption>()) {
         value = withContext(Dispatchers.Default) {
-            LocalResources.current.getStringArray(R.array.app_language_tags).map { tag ->
+            languageTags.map { tag ->
                 LanguageOption(tag, appLanguageNativeName(tag), Locale.forLanguageTag(tag).getDisplayName(Locale.ENGLISH))
             }.sortedBy { it.nativeName.lowercase(Locale.ROOT) }
         }

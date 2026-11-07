@@ -1063,7 +1063,8 @@ fun playlistCompactHeaderHeight(): Dp = playlistCompactHeaderTop() + 120.dp
 
 // the squared style's cover, most of the screen's width so it reads as the page's picture and not a thumbnail
 @Composable
-private fun playlistClassicCoverSize(): Dp = rememberWindowSize().width * 0.72f.coerceAtMost(340.dp)
+private fun playlistClassicCoverSize(): Dp =
+    (rememberWindowSize().width * 0.72f).coerceAtMost(340.dp)
 
 // the squared style's header: the cover, the gap under it and the title block
 @Composable
