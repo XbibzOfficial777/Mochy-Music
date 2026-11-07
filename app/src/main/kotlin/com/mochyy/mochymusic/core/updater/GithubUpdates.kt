@@ -323,7 +323,7 @@ fun requestInstallPermission(context: Context) {
     runCatching {
         context.startActivity(
             Intent(
-                android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                ActionManageUnknownAppSources,
                 ("package:" + context.packageName).toUri(),
             ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
@@ -349,3 +349,9 @@ fun formatBytes(bytes: Long): String = when {
     bytes >= 1_000_000 -> UiNumberFormat.decimal("%.1f MB", bytes / 1_000_000f)
     else -> UiNumberFormat.decimal("%.0f KB", bytes / 1000f)
 }
+
+// the platform inlines these constants into the call site, so reading them below their own API level
+// is safe as long as the screen itself is only opened behind the matching version check
+@android.annotation.SuppressLint("InlinedApi")
+private const val ActionManageUnknownAppSources =
+    android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES

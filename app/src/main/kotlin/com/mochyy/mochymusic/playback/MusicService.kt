@@ -323,7 +323,7 @@ class MusicService :
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
     private var legacyFocusListener: AudioManager.OnAudioFocusChangeListener? = null
-    private var lastAudioFocusState = AudioManager.AUDIOFOCUS_NONE
+    private var lastAudioFocusState = AudioFocusNone
     private var wasPlayingBeforeAudioFocusLoss = false
     private var hasAudioFocus = false
     private var reentrantFocusGain = false
@@ -1276,10 +1276,10 @@ class MusicService :
                                     .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, scale)
                                     .compose()
                                 hapticVibrator.vibrate(effect)
-                            } else if (hapticVibrator.areAllPrimitivesSupported(VibrationEffect.Composition.PRIMITIVE_LOW_TICK)) {
+                            } else if (hapticVibrator.areAllPrimitivesSupported(PrimitiveLowTick)) {
 
                                 val effect = VibrationEffect.startComposition()
-                                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_LOW_TICK, scale)
+                                    .addPrimitive(PrimitiveLowTick, scale)
                                     .compose()
                                 hapticVibrator.vibrate(effect)
                             } else if (hapticVibrator.areAllPrimitivesSupported(VibrationEffect.Composition.PRIMITIVE_TICK)) {
@@ -1531,7 +1531,7 @@ class MusicService :
         if (lastAudioFocusState == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) {
             player.volume = if (isMuted.value) 0f else playerVolume.value
         }
-        lastAudioFocusState = AudioManager.AUDIOFOCUS_NONE
+        lastAudioFocusState = AudioFocusNone
         callWatcher.start()
     }
 
@@ -4979,3 +4979,10 @@ private data class PassSettings(val enabled: Boolean, val mode: AudioPassMode, v
 
 // reads a restore point from an older version even if fields were added since
 private val passJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+
+// these are compile-time constants the platform inlines into our code, so they stay safe on older releases
+@android.annotation.SuppressLint("InlinedApi")
+private const val AudioFocusNone = AudioManager.AUDIOFOCUS_NONE
+
+@android.annotation.SuppressLint("InlinedApi")
+private const val PrimitiveLowTick = VibrationEffect.Composition.PRIMITIVE_LOW_TICK

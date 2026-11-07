@@ -18,9 +18,9 @@ import com.mochyy.mochymusic.ui.player.studio.vibrator
 class IpodHaptics(context: Context) {
     private val vibrator: Vibrator? = context.vibrator()?.takeIf { it.hasVibrator() }
     // effects are held as plain objects so android 7 never loads the vibration effect class, it only came in android 8
-    private val tickEffect = effect(Primitive.TICK, 0.55f, predefined = VibrationEffect.EFFECT_TICK, oneShotMs = 8, amplitude = 90)
-    private val pressEffect = effect(Primitive.CLICK, 0.85f, predefined = VibrationEffect.EFFECT_CLICK, oneShotMs = 16, amplitude = 200)
-    private val releaseEffect = effect(Primitive.TICK, 0.35f, predefined = VibrationEffect.EFFECT_TICK, oneShotMs = 6, amplitude = 60)
+    private val tickEffect = effect(Primitive.TICK, 0.55f, predefined = EffectTick, oneShotMs = 8, amplitude = 90)
+    private val pressEffect = effect(Primitive.CLICK, 0.85f, predefined = EffectClick, oneShotMs = 16, amplitude = 200)
+    private val releaseEffect = effect(Primitive.TICK, 0.35f, predefined = EffectTick, oneShotMs = 6, amplitude = 60)
 
     fun tick() = play(tickEffect, 8L)
 
@@ -84,3 +84,10 @@ fun rememberIpodHaptics(): IpodHaptics {
     val context = LocalContext.current
     return remember(context) { IpodHaptics(context) }
 }
+
+// inlined by the compiler, so the fields can be read on android 7 even though they arrived in android 8
+@android.annotation.SuppressLint("InlinedApi")
+private const val EffectTick = VibrationEffect.EFFECT_TICK
+
+@android.annotation.SuppressLint("InlinedApi")
+private const val EffectClick = VibrationEffect.EFFECT_CLICK

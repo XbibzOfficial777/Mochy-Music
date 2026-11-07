@@ -116,14 +116,16 @@ internal fun SongSharePreview(
 internal fun ShareVideoLayer(
     session: SongShareSession,
     playing: Boolean,
-    modifier: Modifier = Modifier.fillMaxSize(),
+    modifier: Modifier = Modifier,
     source: ShareVideoSource? = (session.background as? SongBackground.Video)?.source,
 ) {
     val loops = session.preview?.loops ?: 0
+    // the layer always covers the frame it is drawn into; callers may still add their own modifiers
+    val fill = modifier.fillMaxSize()
     when (source) {
         null -> Unit
         ShareVideoSource.AnimatedCover -> session.animatedCover.found?.let { url ->
-            CanvasArtworkPlayer(primaryUrl = url, fallbackUrl = null, isPlaying = playing, modifier = modifier)
+            CanvasArtworkPlayer(primaryUrl = url, fallbackUrl = null, isPlaying = playing, modifier = fill)
         }
         ShareVideoSource.MusicVideo -> session.musicVideo.found?.let { music ->
             val track = music.trackFor(PreviewVideoShortSide) ?: return@let
@@ -131,11 +133,11 @@ internal fun ShareVideoLayer(
             val item = remember(track.url, start, session.windowLengthMs) {
                 clippedItem(MediaItem.Builder().setUri(track.url).setMimeType(MimeTypes.VIDEO_MP4), start, session.windowLengthMs)
             }
-            LoopingVideo(item, music.streams.headers, playing, restartKey = loops, modifier = modifier)
+            LoopingVideo(item, music.streams.headers, playing, restartKey = loops, modifier = fill)
         }
         is ShareVideoSource.Own -> {
             val item = remember(source) { clippedItem(MediaItem.Builder().setUri(source.uri), source.startMs, source.lengthMs) }
-            LoopingVideo(item, emptyMap(), playing, restartKey = loops, modifier = modifier)
+            LoopingVideo(item, emptyMap(), playing, restartKey = loops, modifier = fill)
         }
     }
 }

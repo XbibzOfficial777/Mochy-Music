@@ -167,6 +167,7 @@ private fun TilesLayout(
 
 // the music tile: the cover page and the card page, a vertical swipe apart; a sideways swipe skips the song
 @Composable
+@Suppress("ModifierParameter") // two distinct modifiers: `taps` rides the pager child, `modifier` is the tile itself
 private fun MusicTile(
     pager: PagerState,
     night: BedsideNight,
@@ -223,6 +224,7 @@ private fun MusicTile(
 
 // the info tile: the lyrics, the stacked clock, the dial and the bars, a vertical swipe apart
 @Composable
+@Suppress("ModifierParameter") // two distinct modifiers: `taps` rides the pager child, `modifier` is the tile itself
 private fun InfoTile(
     pager: PagerState,
     time: BedsideTime,

@@ -28,7 +28,7 @@ import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.importer.account.AccountService
 
 @Composable
-internal fun ProviderSquircle(service: AccountService, size: Dp = 40.dp, modifier: Modifier = Modifier) {
+internal fun ProviderSquircle(service: AccountService, modifier: Modifier = Modifier, size: Dp = 40.dp) {
     val art = when (service) {
         // logo on its own black square
         AccountService.SPOTIFY -> ProviderArt(R.drawable.provider_spotify, SolidColor(Color(0xFF191414)))

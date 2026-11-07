@@ -102,7 +102,7 @@ internal fun BoxScope.VideoPaneBackdrop(
                 modifier = Modifier.fillMaxSize(),
             ) { _ ->
                 val node = glass.renderNode ?: return@DownscaledBlur
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !glassNodeHasContent(node)) return@DownscaledBlur
+                if (!glassNodeHasContent(node)) return@DownscaledBlur
                 // the video slides left as the pane opens, so its picture is read from where it is right now
                 val videoLeft = -slidePx * state.pane.value
                 translate(left = videoLeft - paneLeftPx) {

@@ -692,6 +692,7 @@ val PopupSheetHandleHeight = 32.dp
  * ([minHeight]), or the fixed-height tablet card ([fillHeight]).
  */
 @Composable
+@Suppress("ModifierParameter") // `dragHandle` targets the grab area, `contentModifier` the column around it
 private fun SheetBody(
     frame: PopupSheetState.Frame,
     fillHeight: Boolean,

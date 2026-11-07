@@ -58,7 +58,7 @@ object UsbDacReader {
                 ep.direction == UsbConstants.USB_DIR_IN && ep.type == UsbConstants.USB_ENDPOINT_XFER_ISOC &&
                     (ep.attributes shr 4) and 3 == 0
             }
-        } || output?.type == AudioDeviceInfo.TYPE_USB_HEADSET
+        } || output?.type == TypeUsbHeadset
 
         return UsbDacDetails(
             name = usb?.productName?.trim()?.takeIf { it.isNotEmpty() }
@@ -115,3 +115,7 @@ private object MixerFormats {
             .distinct()
             .sortedWith(compareBy({ it.bits }, { it.sampleRate }))
 }
+
+// inlined by the compiler: comparing against it below API 26 cannot fail, it only never matches
+@android.annotation.SuppressLint("InlinedApi")
+private const val TypeUsbHeadset = AudioDeviceInfo.TYPE_USB_HEADSET
