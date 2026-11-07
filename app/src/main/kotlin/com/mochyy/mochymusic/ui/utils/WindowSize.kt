@@ -5,7 +5,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.min
 
 /**
  * The size of the window this composition is actually drawn into, in dp.
@@ -35,5 +34,5 @@ fun rememberWindowSize(): WindowSize {
 
 /** Window dimensions in dp; [shortest] is the smaller side, the usual basis for responsive sizing. */
 data class WindowSize(val width: Dp, val height: Dp) {
-    val shortest: Dp = min(width, height)
+    val shortest: Dp = if (width < height) width else height
 }
