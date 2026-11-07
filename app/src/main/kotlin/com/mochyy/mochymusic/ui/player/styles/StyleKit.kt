@@ -64,6 +64,7 @@ import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.PlayerStyle
 import com.mochyy.mochymusic.constants.playerStyleRotatedKey
 import com.mochyy.mochymusic.ui.component.LocalPlayerBottomSheetState
+import com.mochyy.mochymusic.ui.utils.rememberWindowSize
 import com.mochyy.mochymusic.utils.rememberPreference
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -854,8 +855,8 @@ class Responsive(val shortSideDp: Float) {
 
 @Composable
 fun rememberResponsive(): Responsive {
-    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    val short = minOf(configuration.screenWidthDp, configuration.screenHeightDp).toFloat()
+    // the window, not the display: a style sized off the full screen is too big in split screen
+    val short = rememberWindowSize().shortest.value
     return remember(short) { Responsive(short) }
 }
 

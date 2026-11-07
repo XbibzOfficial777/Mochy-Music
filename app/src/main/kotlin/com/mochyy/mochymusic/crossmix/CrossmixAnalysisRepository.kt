@@ -22,6 +22,7 @@ import java.io.File
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import timber.log.Timber
 
 /** analyses tracks for crossmix and keeps them on disk, a failed decode is never cached since an expired stream url may work next time */
 @UnstableApi
@@ -63,12 +64,9 @@ class CrossmixAnalysisRepository(
                                 }
                             )?.also { analysis ->
                             failures.remove(mediaId)
-                            android.util.Log.i(
-                                "Crossmix",
-                                "analysed $mediaId: ${analysis.analyzedMs / 1_000} s of audio in " +
+                            Timber.tag("Crossmix").i("analysed $mediaId: ${analysis.analyzedMs / 1_000} s of audio in " +
                                     "${(System.currentTimeMillis() - progress.startedAt) / 1_000} s, " +
-                                    "bpm ${analysis.bpm}, ${analysis.beatsMs.size} beats, complete=${analysis.complete}",
-                            )
+                                    "bpm ${analysis.bpm}, ${analysis.beatsMs.size} beats, complete=${analysis.complete}")
                             // a whole-track result answers head requests too; never overwrite it with less
                             if (memory[mediaId]?.complete != true || analysis.complete) {
                                 memory[mediaId] = analysis

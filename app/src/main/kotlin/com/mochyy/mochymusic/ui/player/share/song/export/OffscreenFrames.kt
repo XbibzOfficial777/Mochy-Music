@@ -9,7 +9,6 @@ import android.graphics.Picture
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.RequiresApi
@@ -28,6 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.yield
 import kotlin.coroutines.resume
+import timber.log.Timber
 
 private const val Tag = "SongShare"
 
@@ -157,10 +157,10 @@ internal class OffscreenFrames(
             } finally {
                 drawn.recycle()
             }
-        }.onFailure { Log.w(Tag, "Drawing the share on the gpu failed, using software", it) }.getOrNull() ?: return null
+        }.onFailure { Timber.tag(Tag).w(it, "Drawing the share on the gpu failed, using software") }.getOrNull() ?: return null
         val frame = FrameImage(copy, width, height)
         if (frame.isBlank()) {
-            Log.w(Tag, "The gpu frame came back empty after $gpuFrames good ones, drawing the share in software instead")
+            Timber.tag(Tag).w("The gpu frame came back empty after $gpuFrames good ones, drawing the share in software instead")
             copy.recycle()
             return null
         }
@@ -181,7 +181,7 @@ internal class OffscreenFrames(
             FrameImage(bitmap, width, height)
         }.onFailure {
             // logged once; a draw that fails keeps failing, and 600 copies of it would bury everything else
-            if (!softwareFailed) Log.w(Tag, "Drawing the share in software failed", it)
+            if (!softwareFailed) Timber.tag(Tag).w(it, "Drawing the share in software failed")
             softwareFailed = true
         }.getOrNull()
         if (frame == null || frame.isBlank()) return null

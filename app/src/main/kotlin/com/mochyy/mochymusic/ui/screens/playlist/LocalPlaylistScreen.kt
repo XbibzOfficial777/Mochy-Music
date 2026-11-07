@@ -593,7 +593,7 @@ fun LocalPlaylistScreen(
                     title = currentPlaylist.playlist.name,
                     creators = if (accountName.isNotBlank()) listOf(CreatorUi(name = accountName, avatarUrl = creatorAvatar)) else emptyList(),
                     stats = playlistStats(
-                        context.resources.getQuantityString(R.plurals.n_song, songs.size, songs.size),
+                        LocalResources.current.getQuantityString(R.plurals.n_song, songs.size, songs.size),
                         playlistLength,
                     ),
                     isPlaying = isThisQueue && isPlaying,

@@ -18,12 +18,16 @@ class CrashHandler private constructor(
     private val defaultHandler: Thread.UncaughtExceptionHandler? =
         Thread.getDefaultUncaughtExceptionHandler()
 
+    // The one place that deliberately logs through android.util.Log instead of Timber: the process
+    // is killed a few lines later, and this handler also runs for crashes that happen before (or
+    // while) the application finishes planting a tree. Timber would drop the line in exactly the
+    // case this exists for, so the LogNotTimber warning is waived with the reason kept here.
+    @Suppress("LogNotTimber")
     override fun uncaughtException(thread: Thread, throwable: Throwable) {
         try {
             val crashLog = buildCrashLog(throwable)
             Timber.e(throwable, "App crashed")
-            // Timber isn't planted in release builds, and the process is killed right after: without
-            // this a release crash left nothing behind at all. Log.e is kept by R8.
+            // Log.e survives R8 and does not depend on a planted tree.
             android.util.Log.e("MochyCrash", crashLog)
             // and on the phone, because logcat has long moved on by the time a crash gets looked at.
             // Read it back with `adb shell run-as <package> cat files/last_crash.txt`.

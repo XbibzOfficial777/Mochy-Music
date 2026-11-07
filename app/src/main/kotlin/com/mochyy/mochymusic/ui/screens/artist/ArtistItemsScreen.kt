@@ -37,7 +37,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -73,6 +72,7 @@ import com.mochyy.mochymusic.ui.menu.YouTubeSongMenu
 import com.mochyy.mochymusic.ui.screens.library.LibraryIndexRail
 import com.mochyy.mochymusic.ui.screens.library.indexSections
 import com.mochyy.mochymusic.ui.utils.backToMain
+import com.mochyy.mochymusic.ui.utils.rememberWindowSize
 import com.mochyy.mochymusic.utils.ArtistVideos
 import com.mochyy.mochymusic.utils.makeTimeString
 import com.mochyy.mochymusic.viewmodels.ArtistItemsViewModel
@@ -145,7 +145,7 @@ fun ArtistItemsScreen(
 
     val lazyListState = rememberLazyListState()
     val revealSeen = rememberRevealSeenState()
-    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    val screenWidth = rememberWindowSize().width
 
     LaunchedEffect(lazyListState) {
         snapshotFlow { lazyListState.layoutInfo.visibleItemsInfo.any { it.key == "loading_more" } }

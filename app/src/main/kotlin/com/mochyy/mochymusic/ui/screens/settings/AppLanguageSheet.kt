@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,7 +67,7 @@ private fun AppLanguagePicker(selected: String, onPick: (String) -> Unit) {
     // every language named in its own words, worked out off the main thread so the sheet opens without a hitch
     val options by produceState(initialValue = emptyList<LanguageOption>()) {
         value = withContext(Dispatchers.Default) {
-            context.resources.getStringArray(R.array.app_language_tags).map { tag ->
+            LocalResources.current.getStringArray(R.array.app_language_tags).map { tag ->
                 LanguageOption(tag, appLanguageNativeName(tag), Locale.forLanguageTag(tag).getDisplayName(Locale.ENGLISH))
             }.sortedBy { it.nativeName.lowercase(Locale.ROOT) }
         }

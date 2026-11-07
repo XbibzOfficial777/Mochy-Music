@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.Executors
 import kotlin.math.abs
+import timber.log.Timber
 
 /**
  * Lyrics auto offset: listens to the song, finds where it's being sung, and moves the lyrics so
@@ -95,7 +96,7 @@ class LyricsAutoSync(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                android.util.Log.w("LyricsAutoSync", "Auto offset for $songId failed", e)
+                Timber.tag("LyricsAutoSync").w(e, "Auto offset for $songId failed")
                 State.Failed(songId, "Couldn't listen to this song. Check your connection and try again.")
             }
             _state.value = result
@@ -120,11 +121,8 @@ class LyricsAutoSync(
         if (alignment == null || alignment.confidence < MinConfidence) {
             return State.Failed(songId, "Couldn't match the singing to these lyrics. They may be for another version, or you can set it by hand.")
         }
-        android.util.Log.i(
-            "LyricsAutoSync",
-            "$songId: offset ${alignment.offsetMs} ms, confidence ${"%.2f".format(alignment.confidence)}, " +
-                "${alignment.strongLines}/${alignment.totalLines} lines clear, drift ${alignment.driftMs}",
-        )
+        Timber.tag("LyricsAutoSync").i("$songId: offset ${alignment.offsetMs} ms, confidence ${"%.2f".format(alignment.confidence)}, " +
+                "${alignment.strongLines}/${alignment.totalLines} lines clear, drift ${alignment.driftMs}")
         saveOffset(songId, alignment.offsetMs)
         return State.Synced(
             songId = songId,

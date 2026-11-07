@@ -15,6 +15,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.Executors
+import timber.log.Timber
 
 // listens to a song and its music video side by side and works out where the song sits in the video; lives in the music service, whose data source can read either
 @UnstableApi
@@ -47,7 +48,7 @@ class VideoAudioSync(
                 val songPrints = printsOf(song) ?: return@withLock null
                 val videoPrints = printsOf(video) ?: return@withLock null
                 val map = AudioMatcher.match(songPrints, videoPrints)
-                android.util.Log.i("VideoAudioSync", "${song.key} in ${video.key}: ${map ?: "no match"}")
+                Timber.tag("VideoAudioSync").i("${song.key} in ${video.key}: ${map ?: "no match"}")
                 found.put(key, Found(map, SystemClock.elapsedRealtime()))
                 map
             }
@@ -72,7 +73,7 @@ class VideoAudioSync(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            android.util.Log.w("VideoAudioSync", "Couldn't listen to ${source.key}", e)
+            Timber.tag("VideoAudioSync").w(e, "Couldn't listen to ${source.key}")
             null
         } finally {
             if (source.listeningOnly) listeningOnly -= source.key

@@ -89,7 +89,6 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -118,6 +117,7 @@ import com.mochyy.mochymusic.ui.player.CanvasArtworkPlaybackCache
 import com.mochyy.mochymusic.ui.player.CanvasArtworkPlayer
 import com.mochyy.mochymusic.ui.player.normalizeCanvasArtistName
 import com.mochyy.mochymusic.ui.player.normalizeCanvasSongTitle
+import com.mochyy.mochymusic.ui.utils.rememberWindowSize
 import com.mochyy.mochymusic.ui.utils.resize
 import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.viewmodels.DailyDiscoverItem
@@ -536,7 +536,7 @@ fun HeroCarousel(
         }
     }
 
-    val heroHeight = (LocalConfiguration.current.screenHeightDp * HeroHeightFraction).dp
+    val heroHeight = rememberWindowSize().height * HeroHeightFraction
 
     // scrolling away it does exactly what a playlist cover does: rides up, zooms, goes soft, fades.
     // the list already carries it up, so it only adds a little on top
@@ -1188,7 +1188,7 @@ private fun Modifier.heroTuck(): Modifier = layout { measurable, constraints ->
 /** the hero's loading look on its own, sized and placed exactly like [HeroCarousel] (Home's shell) */
 @Composable
 fun HeroCarouselBones(modifier: Modifier = Modifier) {
-    val heroHeight = (LocalConfiguration.current.screenHeightDp * HeroHeightFraction).dp
+    val heroHeight = rememberWindowSize().height * HeroHeightFraction
     Box(
         modifier = modifier
             .heroTuck()

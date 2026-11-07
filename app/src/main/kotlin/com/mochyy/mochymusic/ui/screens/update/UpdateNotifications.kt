@@ -13,6 +13,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import com.mochyy.mochymusic.MainActivity
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.core.updater.GithubRelease
@@ -51,7 +52,11 @@ fun maybeNotifyUpdate(context: Context, release: GithubRelease, now: Long = Syst
     val due = ReminderOffsets.count { now >= firstSeenAt + it }
     if (due <= posted) {
         if (!sameRelease) {
-            prefs.edit().putString(KeyRelease, releaseKey).putLong(KeyFirstSeenAt, firstSeenAt).putInt(KeyPosted, posted).apply()
+            prefs.edit {
+                putString(KeyRelease, releaseKey)
+                putLong(KeyFirstSeenAt, firstSeenAt)
+                putInt(KeyPosted, posted)
+            }
         }
         return
     }
@@ -59,12 +64,12 @@ fun maybeNotifyUpdate(context: Context, release: GithubRelease, now: Long = Syst
     // only count it as sent if it actually was (no permission = try again next launch)
     if (!postNotification(context, release)) return
 
-    prefs.edit()
-        .putString(KeyRelease, releaseKey)
-        .putLong(KeyFirstSeenAt, firstSeenAt)
+    prefs.edit {
+        putString(KeyRelease, releaseKey)
+        putLong(KeyFirstSeenAt, firstSeenAt)
         // jump to however many are due, so missed reminders don't fire one per launch
-        .putInt(KeyPosted, due)
-        .apply()
+        putInt(KeyPosted, due)
+    }
 }
 
 private fun postNotification(context: Context, release: GithubRelease): Boolean {

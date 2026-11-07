@@ -4,7 +4,6 @@ import androidx.core.net.toUri
 import com.mochyy.mochymusic.utils.optStringOrNull
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -72,6 +71,7 @@ import java.net.URL
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import timber.log.Timber
 
 data class CommitData(
     val sha: String,
@@ -146,7 +146,7 @@ fun CommitScreen(
                     hasError = false
                 }
             } catch (e: Exception) {
-                Log.e("CommitScreen", "Error fetching commits: ${e.message}")
+                Timber.tag("CommitScreen").e("Error fetching commits: ${e.message}")
                 withContext(Dispatchers.Main) {
                     hasError = true
                     isLoading = false

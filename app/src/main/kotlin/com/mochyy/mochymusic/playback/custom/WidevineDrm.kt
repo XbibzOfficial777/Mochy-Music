@@ -16,6 +16,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import timber.log.Timber
 
 /**
  * Widevine for streams from source modules. The device's own CDM does the decrypting, inside the
@@ -42,7 +43,7 @@ object WidevineDrm {
 
         override fun executeKeyRequest(uuid: UUID, request: ExoMediaDrm.KeyRequest): ByteArray =
             runCatching { license.acquire(request.data) }
-                .onFailure { android.util.Log.w("WidevineDrm", "License request failed", it) }
+                .onFailure { Timber.tag("WidevineDrm").w(it, "License request failed") }
                 .getOrThrow()
     }
 

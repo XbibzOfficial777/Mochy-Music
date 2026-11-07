@@ -5,7 +5,6 @@ package com.mochyy.mochymusic.ui.player.share.song.export
 import android.media.MediaCodecList
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import androidx.compose.runtime.MutableLongState
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -22,6 +21,7 @@ import java.nio.ByteOrder
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.math.min
+import timber.log.Timber
 
 // the song comes in and goes out softly instead of starting and stopping mid-note
 private const val FadeInMs = 250L
@@ -101,7 +101,7 @@ internal class ExportFrames(
             frames.scope.launch(start = CoroutineStart.UNDISPATCHED) {
                 result = runCatching { draw(presentationTimeUs) }
                     .onFailure {
-                        if (failed == 0) Log.e("SongShare", "Couldn't draw the share's frame at $presentationTimeUs us", it)
+                        if (failed == 0) Timber.tag("SongShare").e(it, "Couldn't draw the share's frame at $presentationTimeUs us")
                         failed++
                     }
                     // the frame before stands in, so the card stays in the video instead of blinking out

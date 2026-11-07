@@ -46,7 +46,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -68,6 +67,7 @@ import com.mochyy.mochymusic.ui.player.share.backgroundPageCard
 import com.mochyy.mochymusic.ui.screens.audiolab.LabCard
 import com.mochyy.mochymusic.ui.screens.audiolab.LabSlider
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.ui.utils.rememberWindowSize
 import com.mochyy.mochymusic.ui.utils.resize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -175,7 +175,7 @@ private fun SongBackgroundContent(session: SongShareSession, popup: PopupSheetSt
         val shown = session.background
         if (shown is SongBackground.Video) session.setVideo(shown.copy(dim = value))
     }
-    val cardHeight = (LocalConfiguration.current.screenHeightDp * 0.4f).dp
+    val cardHeight = rememberWindowSize().height * 0.4f
 
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
         Spacer(Modifier.height(10.dp))

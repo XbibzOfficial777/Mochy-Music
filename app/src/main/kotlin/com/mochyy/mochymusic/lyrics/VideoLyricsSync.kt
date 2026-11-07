@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import timber.log.Timber
 
 // lyrics are timed to the album audio, so when the track is a music video they get moved onto the video: by listening to the album version against it, or through its captions
 object VideoLyricsSync {
@@ -47,7 +48,7 @@ object VideoLyricsSync {
         val map = albumSongId?.let { matchAudio(it) }
             ?: captionMap(entity.id, lines)
         checked.put(key, true)
-        android.util.Log.i("VideoLyricsSync", "${entity.id} against ${albumSongId ?: "its captions"}: ${map ?: "no match"}")
+        Timber.tag("VideoLyricsSync").i("${entity.id} against ${albumSongId ?: "its captions"}: ${map ?: "no match"}")
         if (map == null || !map.isShifted) return
 
         val retimed = withContext(Dispatchers.Default) { retime(raw, lines, map) } ?: return

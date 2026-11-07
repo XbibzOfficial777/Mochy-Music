@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.navigation.NavHostController
 import androidx.work.ExistingWorkPolicy
@@ -100,6 +100,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextDecoration
+import timber.log.Timber
 
 data class ChangelogSection(val title: String, val items: List<String>)
 
@@ -555,7 +556,7 @@ fun getUpdateAvailableState(context: Context): Boolean {
 
 fun saveUpdateAvailableState(context: Context, available: Boolean) {
     val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    sharedPrefs.edit().putBoolean(KEY_UPDATE_AVAILABLE, available).apply()
+    sharedPrefs.edit { putBoolean(KEY_UPDATE_AVAILABLE, available) }
 }
 
 fun getAutoUpdateCheckSetting(context: Context): Boolean {
@@ -565,7 +566,7 @@ fun getAutoUpdateCheckSetting(context: Context): Boolean {
 
 fun saveAutoUpdateCheckSetting(context: Context, enabled: Boolean) {
     val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    sharedPrefs.edit().putBoolean(KEY_AUTO_UPDATE_CHECK, enabled).apply()
+    sharedPrefs.edit { putBoolean(KEY_AUTO_UPDATE_CHECK, enabled) }
 }
 
 const val KEY_UPDATE_NOTIFICATIONS = "update_notifications"
@@ -577,12 +578,12 @@ fun getUpdateNotificationsSetting(context: Context): Boolean {
 
 fun saveUpdateNotificationsSetting(context: Context, enabled: Boolean) {
     val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    sharedPrefs.edit().putBoolean(KEY_UPDATE_NOTIFICATIONS, enabled).apply()
+    sharedPrefs.edit { putBoolean(KEY_UPDATE_NOTIFICATIONS, enabled) }
 }
 
 fun saveLastCheckedTime(context: Context, timestamp: String) {
     val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    sharedPrefs.edit().putString(KEY_LAST_CHECKED_TIME, timestamp).apply()
+    sharedPrefs.edit { putString(KEY_LAST_CHECKED_TIME, timestamp) }
 }
 
 fun getLastCheckedTime(context: Context): String {
@@ -597,7 +598,7 @@ fun getBetaUpdatesSetting(context: Context): Boolean {
 
 fun saveBetaUpdatesSetting(context: Context, enabled: Boolean) {
     val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    sharedPrefs.edit().putBoolean(KEY_BETA_UPDATES, enabled).apply()
+    sharedPrefs.edit { putBoolean(KEY_BETA_UPDATES, enabled) }
 }
 
 private fun formatGitHubDate(githubDate: String): String = try {
@@ -694,7 +695,7 @@ suspend fun checkForUpdate(
 
                         val sharedPreferences = context.getSharedPreferences("update_settings", Context.MODE_PRIVATE)
                         if (!BuildConfig.IS_NIGHTLY) {
-                            sharedPreferences.edit().remove("last_installed_nightly_run").apply()
+                            sharedPreferences.edit { remove("last_installed_nightly_run") }
                         }
                         val lastInstalledRun = sharedPreferences.getInt("last_installed_nightly_run", -1)
                         val runNumber = firstRun.getInt("run_number")
@@ -713,7 +714,7 @@ suspend fun checkForUpdate(
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e("UpdateCheck", "Error checking nightly updates: ${e.message}", e)
+                    Timber.tag("UpdateCheck").e(e, "Error checking nightly updates: ${e.message}")
                 }
             }
 
@@ -845,7 +846,7 @@ suspend fun checkForUpdate(
                 onSuccess(currentVersion, false, emptyList(), "", "", null, null, null)
             }
         } catch (e: Exception) {
-            Log.e("UpdateCheck", "Error checking for updates: ${e.message}", e)
+            Timber.tag("UpdateCheck").e(e, "Error checking for updates: ${e.message}")
             withContext(Dispatchers.Main) { onError() }
         }
     }

@@ -1,6 +1,5 @@
 package com.mochyy.mochymusic.utils
 
-import android.util.Log
 import com.mochyy.mochymusic.db.entities.ArtistEntity
 import com.mochyy.mochymusic.ui.utils.resize
 import com.music.innertube.YouTube
@@ -12,6 +11,7 @@ import java.net.URLEncoder
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import timber.log.Timber
 
 object ArtistImageResolver {
     private const val TAG = "ArtistImageResolver"
@@ -96,7 +96,7 @@ object ArtistImageResolver {
                 null
             }
         }.onFailure {
-            Log.d(TAG, "Apple artist profile lookup failed for $artistName", it)
+            Timber.tag(TAG).d(it, "Apple artist profile lookup failed for $artistName")
         }.getOrNull()
     }
 
@@ -132,7 +132,7 @@ object ArtistImageResolver {
                 bestArtwork.takeIf { bestScore >= 8 }
             }
         }.onFailure {
-            Log.d(TAG, "Apple album artwork lookup failed for $artistName", it)
+            Timber.tag(TAG).d(it, "Apple album artwork lookup failed for $artistName")
         }.getOrNull()
     }
 

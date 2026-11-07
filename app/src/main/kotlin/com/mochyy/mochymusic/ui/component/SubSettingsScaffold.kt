@@ -54,7 +54,6 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -68,6 +67,7 @@ import coil3.compose.rememberAsyncImagePainter
 import com.mochyy.mochymusic.LocalPlayerAwareWindowInsets
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.ui.screens.search.rememberScrollCollapseProgress
+import com.mochyy.mochymusic.ui.utils.rememberWindowSize
 import kotlin.math.PI
 import kotlin.math.sin
 import com.mochyy.mochymusic.ui.utils.stableStatusBars
@@ -134,7 +134,7 @@ fun SubSettingsScaffold(
     // top-right, so it reads as one shape warping into a circle rather than one thing fading out
     // while an unrelated icon fades in elsewhere. The two rects are plain layout constants - no
     // live position measurement feeding back into the content a RenderNode is capturing.
-    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    val screenWidth = rememberWindowSize().width
     val expandedBarX = PagePadding
     val expandedBarY = totalHeaderHeight
     val expandedBarWidth = screenWidth - PagePadding * 2

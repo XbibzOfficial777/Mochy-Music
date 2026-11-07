@@ -5,7 +5,6 @@ import com.mochyy.mochymusic.core.updater.isXbibzBuild
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -92,6 +91,7 @@ import java.net.URL
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import timber.log.Timber
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -197,12 +197,12 @@ fun ChangelogScreen(
                             showingCached = false
                         }
                     } else {
-                        Log.e("ChangelogScreen", "HTTP Error ${connection.responseCode} for $tag")
+                        Timber.tag("ChangelogScreen").e("HTTP Error ${connection.responseCode} for $tag")
                         withContext(Dispatchers.Main) { hasError = true; isLoading = false }
                     }
                 }
             } catch (e: Exception) {
-                Log.e("ChangelogScreen", "Error fetching changelog: ${e.message}")
+                Timber.tag("ChangelogScreen").e("Error fetching changelog: ${e.message}")
                 withContext(Dispatchers.Main) {
                     hasError = true
                     isLoading = false
@@ -258,7 +258,7 @@ fun ChangelogScreen(
                         isFetchingOldReleases = false
                     }
                 } else {
-                    Log.e("ChangelogScreen", "GitHub API Error ${connection.responseCode}")
+                    Timber.tag("ChangelogScreen").e("GitHub API Error ${connection.responseCode}")
                     withContext(Dispatchers.Main) { isFetchingOldReleases = false }
                 }
             } catch (e: Exception) {
@@ -480,7 +480,7 @@ private fun cleanupOldChangelogCache(context: Context, currentVersionTag: String
         context.filesDir.listFiles { file -> file.name.startsWith("changelog_cache_") && file.name.endsWith(".json") }?.forEach { file ->
             if (file.name != "changelog_cache_$currentVersionTag.json") file.delete()
         }
-    } catch (e: Exception) { Log.e("ChangelogCache", "Error cleaning up cache", e) }
+    } catch (e: Exception) { Timber.tag("ChangelogCache").e(e, "Error cleaning up cache") }
 }
 
 private fun saveChangelogToCache(context: Context, versionTag: String, sections: List<ChangelogSection>, image: String?, description: String?, warning: String?) {
@@ -502,7 +502,7 @@ private fun saveChangelogToCache(context: Context, versionTag: String, sections:
             put("warning", warning ?: "")
         }
         context.openFileOutput("changelog_cache_$versionTag.json", Context.MODE_PRIVATE).use { it.write(cacheData.toString().toByteArray()) }
-    } catch (e: Exception) { Log.e("ChangelogCache", "Error saving cache", e) }
+    } catch (e: Exception) { Timber.tag("ChangelogCache").e(e, "Error saving cache") }
 }
 
 private fun loadChangelogFromCache(context: Context, versionTag: String): CachedChangelogData? {

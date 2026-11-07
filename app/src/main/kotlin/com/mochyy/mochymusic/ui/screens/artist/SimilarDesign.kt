@@ -61,7 +61,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -116,6 +115,7 @@ import com.mochyy.mochymusic.ui.theme.rememberCoverThemeColor
 import com.mochyy.mochymusic.ui.utils.SnapLayoutInfoProvider
 import com.mochyy.mochymusic.ui.utils.SoftBlurTransformation
 import com.mochyy.mochymusic.ui.utils.backToMain
+import com.mochyy.mochymusic.ui.utils.rememberWindowSize
 import com.mochyy.mochymusic.ui.utils.resize
 import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.viewmodels.SimilarGroups
@@ -180,7 +180,7 @@ internal fun SimilarPage(
     SideEffect { accent.value = themeColor }
     DisposableEffect(Unit) { onDispose { accent.value = null } }
 
-    val bandHeight = (LocalConfiguration.current.screenHeightDp * 0.42f).dp
+    val bandHeight = rememberWindowSize().height * 0.42f
     val bandHeightPx = with(LocalDensity.current) { bandHeight.toPx() }
     val listState = rememberLazyListState()
     val revealSeen = rememberRevealSeenState()

@@ -8,7 +8,6 @@ import android.graphics.Matrix
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -75,6 +74,7 @@ import okhttp3.OkHttpClient
 import java.io.File
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import timber.log.Timber
 
 private const val ExportDir = "song_share"
 
@@ -238,7 +238,7 @@ internal suspend fun exportVideo(
         return out
     } finally {
         // kept in release builds, so a phone where the card goes missing can say why
-        frames?.let { Log.i(Tag, "Share video ${width}x$height at $fps fps: ${it.summary()}, ${source?.summary()}") }
+        frames?.let { Timber.tag(Tag).i("Share video ${width}x$height at $fps fps: ${it.summary()}, ${source?.summary()}") }
         frames?.release()
     }
 }

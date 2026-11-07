@@ -2,7 +2,6 @@
 
 package com.mochyy.mochymusic.ui.screens.search.suggestions
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,6 +21,7 @@ import com.music.innertube.models.WatchEndpoint
 import com.mochyy.mochymusic.playback.PlayerConnection
 import com.mochyy.mochymusic.playback.queues.YouTubeQueue
 import androidx.navigation.NavController
+import timber.log.Timber
 
 @HiltViewModel
 class SuggestionsViewModel @Inject constructor() : ViewModel() {
@@ -76,7 +76,7 @@ class SuggestionsViewModel @Inject constructor() : ViewModel() {
                                 _suggestionArtists.value = AppleMusicScraper.getTrendingArtists(tracks)
                             }
                         } catch (e: Exception) {
-                            Log.e("SuggestionsViewModel", "Failed to fetch songs", e)
+                            Timber.tag("SuggestionsViewModel").e(e, "Failed to fetch songs")
                         }
                     }
 
@@ -87,7 +87,7 @@ class SuggestionsViewModel @Inject constructor() : ViewModel() {
                                 _suggestionAlbums.value = albums
                             }
                         } catch (e: Exception) {
-                            Log.e("SuggestionsViewModel", "Failed to fetch albums", e)
+                            Timber.tag("SuggestionsViewModel").e(e, "Failed to fetch albums")
                         }
                     }
 
@@ -98,14 +98,14 @@ class SuggestionsViewModel @Inject constructor() : ViewModel() {
                                 _suggestionVideos.value = videos
                             }
                         } catch (e: Exception) {
-                            Log.e("SuggestionsViewModel", "Failed to fetch videos", e)
+                            Timber.tag("SuggestionsViewModel").e(e, "Failed to fetch videos")
                         }
                     }
                 }
 
                 currentLoadedRegion = resolvedCode
             } catch (e: Exception) {
-                Log.e("SuggestionsViewModel", "Failed to fetch suggestions", e)
+                Timber.tag("SuggestionsViewModel").e(e, "Failed to fetch suggestions")
             } finally {
                 _isLoading.value = false
                 _isManualLoading.value = false

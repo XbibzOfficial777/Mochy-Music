@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -471,7 +472,7 @@ fun AutoPlaylistScreen(
                     title = playlist,
                     creators = emptyList(),
                     stats = playlistStats(
-                        context.resources.getQuantityString(R.plurals.n_song, current.size, current.size),
+                        LocalResources.current.getQuantityString(R.plurals.n_song, current.size, current.size),
                         totalSeconds,
                     ),
                     isPlaying = isThisQueue && isPlaying,

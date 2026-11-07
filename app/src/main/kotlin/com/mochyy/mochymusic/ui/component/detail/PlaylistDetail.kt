@@ -91,7 +91,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -141,6 +140,7 @@ import com.mochyy.mochymusic.ui.player.BackdropBlurTransformation
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.ui.theme.rememberCoverThemeColor
 import com.mochyy.mochymusic.ui.utils.SoftBlurTransformation
+import com.mochyy.mochymusic.ui.utils.rememberWindowSize
 import com.mochyy.mochymusic.ui.utils.resize
 import com.mochyy.mochymusic.utils.rememberEnumPreference
 import com.mochyy.mochymusic.utils.rememberPreference
@@ -261,7 +261,7 @@ private val LocalPlaylistFramedCover = staticCompositionLocalOf<(@Composable (Mo
 
 /** the cover band at the top of a playlist, shared by the header item and the backdrop behind it */
 @Composable
-fun playlistCoverHeight(): Dp = (LocalConfiguration.current.screenHeightDp * 0.6f).dp
+fun playlistCoverHeight(): Dp = rememberWindowSize().height * 0.6f
 
 /**
  * shell every playlist screen sits in. it's what grows out of the tapped Home card, it takes its
@@ -1063,7 +1063,7 @@ fun playlistCompactHeaderHeight(): Dp = playlistCompactHeaderTop() + 120.dp
 
 // the squared style's cover, most of the screen's width so it reads as the page's picture and not a thumbnail
 @Composable
-private fun playlistClassicCoverSize(): Dp = (LocalConfiguration.current.screenWidthDp * 0.72f).dp.coerceAtMost(340.dp)
+private fun playlistClassicCoverSize(): Dp = rememberWindowSize().width * 0.72f.coerceAtMost(340.dp)
 
 // the squared style's header: the cover, the gap under it and the title block
 @Composable

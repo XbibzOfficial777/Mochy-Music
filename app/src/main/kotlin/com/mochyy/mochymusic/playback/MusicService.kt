@@ -3889,7 +3889,7 @@ class MusicService :
         failedSourcesAt.putIfAbsent(mediaId, System.currentTimeMillis())
         val next = sourceModules.order.value.firstOrNull { it !in skip && sourceModules.isUsable(it) } ?: return false
         Timber.tag(TAG).i("Force playback: $mediaId failed from $failed, trying $next")
-        android.util.Log.i("SourceModules", "Force playback: ${sourceModules.nameOf(failed)} failed on $mediaId, trying ${sourceModules.nameOf(next)}")
+        Timber.tag("SourceModules").i("Force playback: ${sourceModules.nameOf(failed)} failed on $mediaId, trying ${sourceModules.nameOf(next)}")
         resolvedStreamSources.remove(mediaId)
         songUrlCache.remove(mediaId)
         val index = player.currentMediaItemIndex

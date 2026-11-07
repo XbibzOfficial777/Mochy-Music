@@ -24,7 +24,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -38,6 +37,7 @@ import coil3.request.allowHardware
 import coil3.toBitmap
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.ui.theme.PlayerColorExtractor
+import com.mochyy.mochymusic.ui.utils.rememberWindowSize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -105,7 +105,7 @@ fun PlaylistScreenHeader(
 
     val contentColor = if (animatedColor.luminance() > 0.5f) Color.Black else Color.White
 
-    val headerHeight = (LocalConfiguration.current.screenHeightDp * 0.55f).dp
+    val headerHeight = rememberWindowSize().height * 0.55f
 
     val coverHandedOff = morphProgress > 0.001f
 

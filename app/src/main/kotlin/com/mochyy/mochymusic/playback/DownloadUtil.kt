@@ -71,6 +71,7 @@ import java.time.LocalDateTime
 import java.util.concurrent.Executor
 import javax.inject.Inject
 import javax.inject.Singleton
+import timber.log.Timber
 
 @Singleton
 class DownloadUtil
@@ -273,7 +274,7 @@ constructor(
                                     database.updateDownloadedInfo(download.request.id, false, null)
                                     forgetStream(download.request.id)
                                     // kept by R8 in release builds, unlike Timber: the reason is the only clue
-                                    android.util.Log.w(LOG_TAG, "Download of ${download.request.id} failed", finalException)
+                                    Timber.tag(LOG_TAG).w(finalException, "Download of ${download.request.id} failed")
                                 }
                                 Download.STATE_STOPPED,
                                 Download.STATE_REMOVING -> {

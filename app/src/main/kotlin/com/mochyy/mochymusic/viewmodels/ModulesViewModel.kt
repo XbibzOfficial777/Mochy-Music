@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import timber.log.Timber
 
 /** The Modules settings: each module's account, switch, choices, its playback test, and adding new ones. */
 @HiltViewModel
@@ -293,7 +294,7 @@ class ModulesViewModel @Inject constructor(
 
     private fun report(step: DiagnosticStep) {
         // release builds drop Timber; this shows in `adb logcat -s ModuleTest`
-        if (step.ok != null) android.util.Log.i("ModuleTest", "${if (step.ok == true) "OK" else "FAIL"} ${step.name}: ${step.detail}")
+        if (step.ok != null) Timber.tag("ModuleTest").i("${if (step.ok == true) "OK" else "FAIL"} ${step.name}: ${step.detail}")
         val list = _steps.value.toMutableList()
         val at = list.indexOfFirst { it.name == step.name }
         if (at >= 0) list[at] = step else list += step
@@ -335,7 +336,7 @@ class ModulesViewModel @Inject constructor(
             val deadline = System.currentTimeMillis() + 20_000
             while (System.currentTimeMillis() < deadline) {
                 error?.let { e ->
-                    android.util.Log.w("ModuleTest", "Test playback failed", e)
+                    Timber.tag("ModuleTest").w(e, "Test playback failed")
                     throw java.io.IOException(generateSequence<Throwable>(e) { it.cause }.last().message ?: e.errorCodeName)
                 }
                 if (player.currentPosition >= 2_000) return "Decoded ${player.currentPosition / 1000} s here (${stream.qualityLabel})"

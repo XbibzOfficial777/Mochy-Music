@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import timber.log.Timber
 
 @Singleton
 class SourceModules @Inject constructor(
@@ -120,7 +121,7 @@ class SourceModules @Inject constructor(
         // a stream this phone has no decoder for would play in silence: the next provider has it
         DeviceDecoders.canPlay(stream).also { playable ->
             if (!playable) {
-                android.util.Log.i(Tag, "$id: ${track?.title}: this phone can't decode ${stream.codec} at ${stream.sampleRateHz} Hz, passing over")
+                Timber.tag(Tag).i("$id: ${track?.title}: this phone can't decode ${stream.codec} at ${stream.sampleRateHz} Hz, passing over")
                 onUndecodable(id, stream)
             }
         }
@@ -131,7 +132,7 @@ class SourceModules @Inject constructor(
         walk(_downloadOrder.value, track, skip, ::isUsableForDownload) { id, stream ->
             // a download is saved as one file, so a stream in pieces or one only a cdm can open can't be kept
             (stream.format == StreamFormat.Progressive && stream.drm == null && DeviceDecoders.canPlay(stream)).also { savable ->
-                if (!savable) android.util.Log.i(Tag, "$id: ${track?.title}: can't download a ${stream.format} ${stream.codec} stream, passing over")
+                if (!savable) Timber.tag(Tag).i("$id: ${track?.title}: can't download a ${stream.format} ${stream.codec} stream, passing over")
             }
         }
 
@@ -148,16 +149,16 @@ class SourceModules @Inject constructor(
             val module = module(id) ?: continue
             if (track == null) continue
             val result = runCatching { module.resolve(track, picks(id)) }
-                .onFailure { android.util.Log.w(Tag, "$id failed for ${track.title}", it) }
+                .onFailure { Timber.tag(Tag).w(it, "$id failed for ${track.title}") }
                 .getOrNull()
             when (result) {
                 is ResolveResult.Found -> {
                     if (!accept(id, result.stream)) continue
-                    android.util.Log.i(Tag, "$id: ${track.title} -> ${result.stream.matched.title} (${result.stream.qualityLabel})")
+                    Timber.tag(Tag).i("$id: ${track.title} -> ${result.stream.matched.title} (${result.stream.qualityLabel})")
                     return@withContext Route.Module(module, result.stream)
                 }
-                is ResolveResult.NotFound -> android.util.Log.i(Tag, "$id: ${track.title}: ${result.reason}")
-                is ResolveResult.Unavailable -> android.util.Log.i(Tag, "$id unavailable for ${track.title}: ${result.reason}")
+                is ResolveResult.NotFound -> Timber.tag(Tag).i("$id: ${track.title}: ${result.reason}")
+                is ResolveResult.Unavailable -> Timber.tag(Tag).i("$id unavailable for ${track.title}: ${result.reason}")
                 null -> Unit
             }
         }

@@ -52,6 +52,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import timber.log.Timber
 
 /** Resting, the drop sits this far in from the bar's top and bottom (and from its slot's ends, half the gap). */
 private val RestInset = 8.dp
@@ -503,7 +504,7 @@ private fun lensEffect(
         createAgslShader(LensSource).also { LensShader.shader = it }
     } catch (e: RuntimeException) {
         LensShader.failed = true
-        android.util.Log.w("LiquidTabIndicator", "glass lens shader refused, drawing the tabs plain", e)
+        Timber.tag("LiquidTabIndicator").w(e, "glass lens shader refused, drawing the tabs plain")
         return null
     }
     shader.setAgslUniform("center", topLeft.x + dropSize.width / 2f, topLeft.y + dropSize.height / 2f)

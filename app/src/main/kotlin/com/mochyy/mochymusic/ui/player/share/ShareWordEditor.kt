@@ -68,7 +68,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -80,6 +79,7 @@ import com.mochyy.mochymusic.ui.component.SheetPillButton
 import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.ui.utils.rememberWindowSize
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -207,7 +207,7 @@ private fun ColumnScope.WordEditorContent(session: LyricsShareSession) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.4f).dp)
+            .heightIn(max = rememberWindowSize().height * 0.4f)
             .verticalScroll(rememberScrollState())
             .onGloballyPositioned { holder[0] = it }
             .pointerInput(Unit) {

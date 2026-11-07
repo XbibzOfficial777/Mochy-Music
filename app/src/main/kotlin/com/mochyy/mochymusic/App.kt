@@ -49,6 +49,33 @@ import javax.inject.Inject
 // how long after the launch intro the PoToken WebView may boot (Home's reveal runs ~1s)
 private const val PoTokenAfterIntroMillis = 2_500L
 
+/**
+ * Timber tree for release builds.
+ *
+ * Timber drops every call until a tree is planted, and only the debug tree used to be planted, so
+ * anything logged in a release APK went nowhere. Several call sites had therefore fallen back to
+ * `android.util.Log` on purpose (a share export that went missing, a source module that could not
+ * decode a stream), because support needs those lines from a user's phone.
+ *
+ * Rather than keeping two logging styles, release keeps those messages going to logcat through the
+ * same Timber calls the rest of the app uses. Priority, tag and throwable are passed through
+ * unchanged, so `adb logcat` output stays comparable with earlier releases and nothing is logged
+ * that was not already being logged before.
+ */
+private class ReleaseTree : Timber.Tree() {
+
+    override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
+        val logTag = tag ?: "Mochy"
+        when (priority) {
+            android.util.Log.VERBOSE -> android.util.Log.v(logTag, message, t)
+            android.util.Log.DEBUG -> android.util.Log.d(logTag, message, t)
+            android.util.Log.INFO -> android.util.Log.i(logTag, message, t)
+            android.util.Log.WARN -> android.util.Log.w(logTag, message, t)
+            else -> android.util.Log.e(logTag, message, t)
+        }
+    }
+}
+
 @HiltAndroidApp
 class App : Application(), SingletonImageLoader.Factory {
 
@@ -69,9 +96,9 @@ class App : Application(), SingletonImageLoader.Factory {
 
         CipherDeobfuscator.initialize(this)
 
-        if (BuildConfig.DEBUG || BuildConfig.BUILD_TYPE == "fast") {
-            Timber.plant(Timber.DebugTree())
-        }
+        Timber.plant(
+            if (BuildConfig.DEBUG || BuildConfig.BUILD_TYPE == "fast") Timber.DebugTree() else ReleaseTree()
+        )
 
         PreferencesCache.start(this, applicationScope)
         com.mochyy.mochymusic.utils.NotRecommended.init(this)

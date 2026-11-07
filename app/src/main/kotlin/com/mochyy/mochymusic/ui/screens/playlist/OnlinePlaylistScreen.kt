@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -303,7 +304,7 @@ fun OnlinePlaylistScreen(
                     creators = listOfNotNull(
                         currentPlaylist.author?.let { CreatorUi(name = it.name, artistId = it.id) }
                     ),
-                    stats = playlistStats(context.resources.getQuantityString(R.plurals.n_song, songs.size, songs.size), totalSeconds),
+                    stats = playlistStats(LocalResources.current.getQuantityString(R.plurals.n_song, songs.size, songs.size), totalSeconds),
                     isPlaying = isThisQueue && isPlaying,
                     onPlayClick = {
                         if (isThisQueue) {

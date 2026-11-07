@@ -14,7 +14,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.mochyy.mochymusic.R
@@ -29,6 +28,7 @@ import com.mochyy.mochymusic.ui.screens.settings.importsync.CaptureWebContent
 import com.mochyy.mochymusic.ui.screens.settings.importsync.onSignInTick
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.BrowserSheetBar
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.ProviderSquircle
+import com.mochyy.mochymusic.ui.utils.rememberWindowSize
 import com.mochyy.mochymusic.viewmodels.ModulesViewModel
 
 // the import browser's own grey, so both sign-ins look the same
@@ -64,7 +64,7 @@ private fun ModuleSignInContent(
     // apple music is the import's apple music: same page, same scripts pressing sign in and reading musickit's tokens
     val importService = if (id == AppleMusicModule.Id) AccountService.APPLE_MUSIC else null
     // tall enough for apple's whole sign-in, short enough to stay a sheet
-    val pageHeight = (LocalConfiguration.current.screenHeightDp * 0.78f).dp
+    val pageHeight = rememberWindowSize().height * 0.78f
     var url by remember { mutableStateOf(spec.startUrl) }
 
     DisposableEffect(Unit) {

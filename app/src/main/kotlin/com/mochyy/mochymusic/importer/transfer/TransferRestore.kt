@@ -6,7 +6,6 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.util.Log
 import androidx.datastore.preferences.core.edit
 import com.mochyy.mochymusic.MainActivity
 import com.mochyy.mochymusic.db.InternalDatabase
@@ -17,6 +16,7 @@ import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import java.io.File
 import kotlin.system.exitProcess
+import timber.log.Timber
 
 /** finishes an import on the first start after it was unpacked, before room, media3 or the settings open anything */
 object TransferRestore {
@@ -41,7 +41,7 @@ object TransferRestore {
             return
         }
         runCatching { swapIn(app, staging, JSONObject(ready.readText())) }
-            .onFailure { Log.e(Tag, "Couldn't finish the import", it) }
+            .onFailure { Timber.tag(Tag).e(it, "Couldn't finish the import") }
         staging.deleteRecursively()
     }
 

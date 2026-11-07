@@ -87,7 +87,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.graphics.TransformOrigin
@@ -758,8 +757,7 @@ fun HomeScreen(
 
     val lazylistState = rememberLazyListState()
 
-    val configuration = LocalConfiguration.current
-    val carouselHeightDp = (configuration.screenHeightDp * HeroHeightFraction).dp
+    val carouselHeightDp = rememberWindowSize().height * HeroHeightFraction
     val collapseDistancePx = with(LocalDensity.current) {
         if (homeStyle == HomeStyle.MOCHYY) carouselHeightDp.toPx() else 140.dp.toPx()
     }

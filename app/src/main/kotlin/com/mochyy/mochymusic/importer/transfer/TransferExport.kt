@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.media3.database.DatabaseProvider
 import com.mochyy.mochymusic.BuildConfig
@@ -248,8 +249,8 @@ class TransferExporter @Inject constructor(
             context.getSharedPreferences(StatePrefs, Context.MODE_PRIVATE).getLong(ExportedAtKey, 0L)
 
         private fun markExported(context: Context) {
-            context.getSharedPreferences(StatePrefs, Context.MODE_PRIVATE).edit()
-                .putLong(ExportedAtKey, System.currentTimeMillis()).apply()
+            context.getSharedPreferences(StatePrefs, Context.MODE_PRIVATE)
+                .edit { putLong(ExportedAtKey, System.currentTimeMillis()) }
         }
     }
 }

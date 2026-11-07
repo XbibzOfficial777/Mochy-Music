@@ -36,7 +36,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -60,6 +59,7 @@ import com.mochyy.mochymusic.ui.player.share.song.export.takesSticker
 import com.mochyy.mochymusic.ui.screens.audiolab.LabCard
 import com.mochyy.mochymusic.ui.screens.audiolab.LabSlider
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.ui.utils.rememberWindowSize
 import kotlin.math.roundToInt
 
 // the picture, the background that moves under your fingers, and, for a video, the part of the song it plays
@@ -83,7 +83,7 @@ private fun ColumnScope.EditorContent(session: SongShareSession, popup: PopupShe
         stringResource(if (cinematic) R.string.song_share_editor_hint_words else R.string.song_share_editor_hint),
     )
     val regions = remember { ShareRegions() }
-    val height = (LocalConfiguration.current.screenHeightDp * if (timeline) 0.47f else 0.58f).dp
+    val height = rememberWindowSize().height * if (timeline) 0.47f else 0.58f
     Box(Modifier.fillMaxWidth().height(height)) {
         SongSharePreview(
             session = session,

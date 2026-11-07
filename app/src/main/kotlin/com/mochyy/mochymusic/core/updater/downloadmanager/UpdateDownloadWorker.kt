@@ -2,6 +2,7 @@ package com.mochyy.mochymusic.core.updater.downloadmanager
 
 import android.content.Context
 import android.os.Environment
+import androidx.core.content.edit
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
@@ -133,7 +134,7 @@ class UpdateDownloadWorker(private val context: Context, workerParams: WorkerPar
                 val runNumber = runNumberString.toIntOrNull()
                 if (runNumber != null) {
                     val sharedPreferences = context.getSharedPreferences("update_settings", Context.MODE_PRIVATE)
-                    sharedPreferences.edit().putInt("last_installed_nightly_run", runNumber).apply()
+                    sharedPreferences.edit { putInt("last_installed_nightly_run", runNumber) }
                 }
             }
 

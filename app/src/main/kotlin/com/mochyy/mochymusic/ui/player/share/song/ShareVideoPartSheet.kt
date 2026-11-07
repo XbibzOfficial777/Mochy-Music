@@ -27,7 +27,6 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -41,6 +40,7 @@ import com.mochyy.mochymusic.ui.component.PopupSheetState
 import com.mochyy.mochymusic.ui.component.SheetPillButton
 import com.mochyy.mochymusic.ui.player.share.ShareMuted
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.ui.utils.rememberWindowSize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
@@ -64,7 +64,7 @@ private fun VideoPartContent(session: SongShareSession) {
     val context = LocalContext.current
     val own = session.lastOwnVideo ?: return
     val frames by produceState(emptyList<ImageBitmap>(), own.uri) { value = videoFrames(context, own.uri, own.durationMs) }
-    val height = (LocalConfiguration.current.screenHeightDp * 0.42f).dp
+    val height = rememberWindowSize().height * 0.42f
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         Spacer(Modifier.height(10.dp))
         Box(

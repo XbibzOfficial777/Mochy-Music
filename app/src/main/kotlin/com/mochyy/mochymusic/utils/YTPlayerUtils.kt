@@ -3,7 +3,6 @@
 package com.mochyy.mochymusic.utils
 
 import android.net.ConnectivityManager
-import android.util.Log
 import androidx.media3.common.PlaybackException
 import com.music.innertube.NewPipeExtractor
 import com.music.innertube.YouTube
@@ -354,7 +353,7 @@ object YTPlayerUtils {
         if (isAgeRestrictedFromResponse && isLoggedIn) {
 
             Timber.tag(logTag).d("Restricted content detected, trying WEB_CREATOR")
-            Log.i(TAG, "Age-restricted: using WEB_CREATOR for videoId=$videoId")
+            Timber.tag(TAG).i("Age-restricted: using WEB_CREATOR for videoId=$videoId")
             val creatorResponse = YouTube.player(videoId, playlistId, WEB_CREATOR, null, null).getOrNull()
             if (creatorResponse?.playabilityStatus?.status == "OK") {
                 Timber.tag(logTag).d("WEB_CREATOR works for age-restricted content")
@@ -379,7 +378,7 @@ object YTPlayerUtils {
 
         if (isAgeRestricted) {
             Timber.tag(logTag).d("Content is still age-restricted (status: $currentStatus), will try fallback clients")
-            Log.i(TAG, "Age-restricted content detected: videoId=$videoId, status=$currentStatus")
+            Timber.tag(TAG).i("Age-restricted content detected: videoId=$videoId, status=$currentStatus")
         }
 
         val isPrivateTrack = mainPlayerResponse.videoDetails?.musicVideoType == "MUSIC_VIDEO_TYPE_PRIVATELY_OWNED_TRACK"
@@ -536,7 +535,7 @@ object YTPlayerUtils {
                 if (isPrivatelyOwned) {
                     Timber.tag(logTag).d("Using stream without validation: ${currentClient.clientName}")
                     successClient = currentClient
-                    Log.i(TAG, "Playback: client=${currentClient.clientName}, videoId=$videoId, private=$isPrivatelyOwned")
+                    Timber.tag(TAG).i("Playback: client=${currentClient.clientName}, videoId=$videoId, private=$isPrivatelyOwned")
                     break
                 }
 
@@ -552,7 +551,7 @@ object YTPlayerUtils {
                             "bytes=${format.contentLength ?: 0}",
                     )
 
-                    Log.i(TAG, "Playback: client=${currentClient.clientName}, videoId=$videoId")
+                    Timber.tag(TAG).i("Playback: client=${currentClient.clientName}, videoId=$videoId")
                     break
                 } else {
                     Timber.tag(logTag).d("Stream validation failed for client: ${currentClient.clientName}")
@@ -569,7 +568,7 @@ object YTPlayerUtils {
                                     streamUrl = nTransformed
                                     nTransformWorked = true
                                     successClient = currentClient
-                                    Log.i(TAG, "Playback: client=${currentClient.clientName}, videoId=$videoId (cipher n-transform)")
+                                    Timber.tag(TAG).i("Playback: client=${currentClient.clientName}, videoId=$videoId (cipher n-transform)")
                                 }
                             }
                         } catch (e: Exception) {
@@ -986,7 +985,7 @@ object YTPlayerUtils {
                     error.cause?.message?.contains("age-restricted", ignoreCase = true) == true
                 if (isAgeRestricted) {
                     Timber.tag(logTag).d("Age-restricted content detected from NewPipe")
-                    Log.i(TAG, "Age-restricted detected early via NewPipe: videoId=$videoId")
+                    Timber.tag(TAG).i("Age-restricted detected early via NewPipe: videoId=$videoId")
                 } else {
                     Timber.tag(logTag).e(error, "Failed to get signature timestamp")
                     reportException(error)

@@ -3,7 +3,6 @@
 package com.mochyy.mochymusic.ui.player.share.song
 
 import android.content.Context
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -47,7 +46,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -75,6 +73,7 @@ import com.mochyy.mochymusic.ui.player.share.song.export.installedPackage
 import com.mochyy.mochymusic.ui.player.share.song.export.sendTo
 import com.mochyy.mochymusic.ui.player.share.song.export.takesSticker
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.ui.utils.rememberWindowSize
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -84,6 +83,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.FileNotFoundException
 import java.io.IOException
+import timber.log.Timber
 
 // "Share to": the finished picture, the three apps, and export and share for everything else
 internal fun PopupSheetState.showSendPage(session: SongShareSession) {
@@ -138,7 +138,7 @@ private class SendState(val session: SongShareSession) {
                 throw e
             } catch (e: Throwable) {
                 // kept in release builds, where timber logs nothing
-                Log.e("SongShare", "Share export failed", e)
+                Timber.tag("SongShare").e(e, "Share export failed")
                 note = if (e.isConnectionProblem()) R.string.song_share_failed else R.string.song_share_failed_retry
             } finally {
                 job = null
@@ -191,7 +191,7 @@ private fun SendContent(send: SendState, live: Boolean) {
             delay(100)
         }
     }
-    val previewHeight = (LocalConfiguration.current.screenHeightDp * 0.4f).dp
+    val previewHeight = rememberWindowSize().height * 0.4f
 
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
         Text(
