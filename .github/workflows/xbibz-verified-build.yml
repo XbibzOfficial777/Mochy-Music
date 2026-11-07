@@ -124,8 +124,9 @@ jobs:
           fi
           "$tools/zipalign" -c -P 16 4 "$apk"
           version="$(python3 -c 'import json; print(json.load(open("app/src/main/assets/changelog.json"))["versionName"])')"
+          code="$(python3 -c 'import json; print(json.load(open("app/src/main/assets/changelog.json"))["versionCode"])')"
           grep -q "versionName='$version'" apk-badging.txt
-          grep -q "versionCode='81'" apk-badging.txt
+          grep -q "versionCode='$code'" apk-badging.txt
           mkdir -p release-assets
           filename="Mochy-Music-v${version}-universal-gms.apk"
           cp "$apk" "release-assets/$filename"

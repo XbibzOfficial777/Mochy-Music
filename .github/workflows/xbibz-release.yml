@@ -9,6 +9,8 @@ on:
       - xbibz-dual-abi-verify
       - xbibz-animation-verify
       - xbibz-upstream-sync-verify
+      # Builds and verifies all three APKs without publishing; the tag push is what publishes.
+      - optimize/bibz-uiux-fixes
     tags:
       - 'v*'
 

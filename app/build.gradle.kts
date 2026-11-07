@@ -28,8 +28,8 @@ extensions.configure<ApplicationExtension> {
         minSdk = 24
         targetSdk = 36
         // Fork updates must remain installable over earlier Bibz releases.
-        versionCode = 81
-        versionName = "8.3.2-xbibz.8"
+        versionCode = 82
+        versionName = "8.3.2-xbibz.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

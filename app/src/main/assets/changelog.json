@@ -1,39 +1,40 @@
 {
-  "versionName": "8.3.2-xbibz.8",
-  "versionCode": 81,
-  "description": "Mochy Xbibz: perbaikan pencarian, penghematan animasi latar, dan build release terverifikasi.",
+  "versionName": "8.3.2-xbibz.9",
+  "versionCode": 82,
+  "description": "Mochy Xbibz: lint bersih 0 peringatan, animasi baris lirik mengalir, dan rilis tiga APK (arm64-v8a, armeabi-v7a, universal).",
   "changelog": [
     {
       "title": "UI dan animasi",
       "items": [
-        "Indikator loading mengikuti pengaturan animasi aplikasi dan Android.",
-        "Animasi dekoratif berhenti saat aplikasi berada di latar belakang.",
-        "Loading pencarian gagal memiliki tombol Coba lagi dan hasil kosong ditampilkan dengan jelas.",
-        "Tautan changelog memakai area klik dan informasi aksesibilitas yang sesuai."
+        "Pergantian baris lirik memakai spring, bukan tween durasi tetap: sorotan baris mengalir ke baris berikutnya walau lagu cepat, karena animasinya tidak dipotong dan dimulai ulang dari nol.",
+        "Baris yang baru aktif mendarat dengan sedikit overshoot, jadi perpindahannya terasa hidup tanpa teks bergoyang.",
+        "Tebal huruf tidak lagi berubah SemiBold ke Bold di tengah fade; perubahan itu mengukur ulang setiap huruf dengan lebar berbeda dan terlihat melompat.",
+        "Offset animasi memakai overload lambda sehingga animasi tidak lagi memicu recomposition tiap frame.",
+        "State angka primitif memakai mutableIntStateOf/mutableFloatStateOf (16 titik) sehingga tidak ada boxing tiap frame.",
+        "Ukuran sheet, cover, carousel, dan pratinjau share memakai ukuran jendela, bukan ukuran layar, jadi tetap benar di split screen, picture-in-picture, foldable, dan mode desktop.",
+        "Widget pemutar musik menghapus satu container yang hanya mengulang match_parent, sehingga satu pass measure/layout hilang tiap pembaruan widget."
       ]
     },
     {
-      "title": "Perbaikan fitur",
+      "title": "Perbaikan",
       "items": [
-        "Permintaan saran pencarian menunggu jeda mengetik 250 ms untuk mengurangi permintaan berulang.",
-        "Pergantian filter membatalkan permintaan pencarian sebelumnya.",
-        "Pagination mencegah permintaan bersamaan dan berhenti ketika token halaman berulang.",
-        "Riwayat lagu per artis dibaca dalam transaksi Room agar data dan relasinya konsisten.",
-        "Kapabilitas video yang tidak tersedia ditangani secara eksplisit dengan kebijakan fallback yang sama.",
-        "Aksi menu dipanggil langsung dari klik agar tidak dijalankan ulang oleh recomposition.",
-        "Pemanggilan API Bluetooth, audio offload, PixelCopy, dan blur dijaga sesuai versi Android.",
-        "Pembacaan state progres dan kepemilikan tab menggunakan API yang sesuai untuk Compose.",
-        "Format jumlah dalam bahasa Prancis, Portugis, dan Persia diperbaiki; deklarasi activity yang tidak tersedia dihapus."
+        "Format angka untuk pengguna memakai locale FORMAT secara eksplisit di 29 titik, termasuk bahasa Prancis, Portugis, dan Persia.",
+        "Resource dibaca lewat LocalResources (4 titik) agar perubahan bahasa di dalam aplikasi langsung ikut tergambar.",
+        "Timber mendapat ReleaseTree: pesan log build release tidak lagi hilang, dan 55 pemanggilan android.util.Log pindah ke Timber dengan tag serta prioritas yang sama.",
+        "Impor transfer menghitung ruang kosong dengan StorageManager.getAllocatableBytes pada Android 8+ dan jalurnya diturunkan dari dataDir, bukan dari path /data/data yang di-hardcode.",
+        "Kode perangkat audio yang tidak terjangkau dihapus dan penjagaan versi Android yang selalu benar dibersihkan, termasuk cabang Android 16 pada pembangun notifikasi.",
+        "Konstanta API yang di-inline (haptik, fokus audio, tipe perangkat USB, izin pemasangan paket) diberi penjagaan eksplisit.",
+        "Konten dekoratif pada widget pemutar ditandai untuk aksesibilitas, dan helper modifier lirik kini menjadi extension pada Modifier."
       ]
     },
     {
       "title": "Build dan validasi",
       "items": [
-        "Versi dinaikkan menjadi 8.3.2-xbibz.8 (kode 81).",
-        "Signing release menggunakan v2 dan v4 saja, dengan berkas pendamping .idsig; v1 dan v3 dinonaktifkan.",
-        "Plugin Protobuf diperbarui untuk mendukung DSL AGP 9.",
-        "API deprecated dan null-check yang dinyatakan tidak perlu oleh compiler diperbarui.",
-        "170 unit test lulus pada validasi lokal; pengujian perangkat nyata dan pengukuran FPS belum dilakukan."
+        "Versi dinaikkan menjadi 8.3.2-xbibz.9 (kode 82).",
+        "Lint turun dari 1.581 peringatan menjadi 0; gerbang rilis gagal kalau ada warning baru, dan setiap pengecualian punya alasan tertulis di lint.xml.",
+        "Rilis kini menyediakan tiga APK: arm64-v8a, armeabi-v7a, dan universal.",
+        "Unit test lulus, emulator API 30 dan API 35 lulus, APK ditandatangani key Bibz dengan v2 dan v4 serta diverifikasi terhadap sertifikat repository.",
+        "Tidak ada pengukuran FPS di perangkat fisik: perbaikan animasi adalah pengurangan biaya render, bukan klaim peningkatan frame rate terukur."
       ]
     }
   ]
