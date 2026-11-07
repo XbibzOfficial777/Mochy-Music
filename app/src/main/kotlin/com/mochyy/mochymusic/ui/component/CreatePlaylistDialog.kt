@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import com.music.innertube.YouTube
 import com.mochyy.mochymusic.LocalDatabase
@@ -152,6 +153,7 @@ fun CreatePlaylistDialog(
                 extra = if (allowSyncing) {
                     {
                         val ctx = LocalContext.current
+                        val resources = LocalResources.current
                         SheetOptionRow(
                             title = stringResource(R.string.sync_playlist),
                             subtitle = stringResource(R.string.allows_for_sync_witch_youtube),
@@ -167,9 +169,9 @@ fun CreatePlaylistDialog(
                                     // switching off is always allowed
                                     form.sync = false
                                 } else if (!signedIn) {
-                                    Toast.makeText(ctx, ctx.getString(R.string.not_logged_in_youtube), Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(ctx, resources.getString(R.string.not_logged_in_youtube), Toast.LENGTH_SHORT).show()
                                 } else if (!ctx.isSyncEnabled()) {
-                                    Toast.makeText(ctx, ctx.getString(R.string.sync_disabled), Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(ctx, resources.getString(R.string.sync_disabled), Toast.LENGTH_SHORT).show()
                                 } else {
                                     form.sync = true
                                 }

@@ -375,7 +375,7 @@ internal fun BoxScope.VideoSeekRow(
     // the times change once a second, so that's how often this recomposes
     val playedSeconds by remember(connection) {
         connection.progressState.map { it.position / 1000L }.distinctUntilChanged()
-    }.collectAsState(initial = connection.progressState.value.position / 1000L)
+    }.collectAsState(initial = remember(connection) { connection.progressState.value.position / 1000L })
     var dragFraction by remember { mutableStateOf<Float?>(null) }
     val shownMs = dragFraction?.let { (it * durationMs).toLong() } ?: playedSeconds * 1000L
     // moves with the music every frame while the controls are up; paused, it only has to catch a seek

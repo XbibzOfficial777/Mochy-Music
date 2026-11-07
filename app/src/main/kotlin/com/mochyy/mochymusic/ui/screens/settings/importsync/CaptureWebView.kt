@@ -271,7 +271,7 @@ fun CaptureWebContent(
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         addJavascriptInterface(bridge, BRIDGE_NAME)
         // only the web player is watched; the sign-in pages themselves are left untouched
-        if (documentStartSupported && playerOrigins.isNotEmpty()) {
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) && playerOrigins.isNotEmpty()) {
             runCatching { WebViewCompat.addDocumentStartJavaScript(this, HOOK_JS, playerOrigins) }
         }
 

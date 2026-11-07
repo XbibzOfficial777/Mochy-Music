@@ -106,10 +106,12 @@
     <plurals name="n_element">
         <item quantity="one">%d elemento</item>
         <item quantity="other">%d elementos</item>
+        <item quantity="many">%d elementos</item>
     </plurals>
     <plurals name="n_time">
         <item quantity="one">%d vez</item>
         <item quantity="other">%d vezes</item>
+        <item quantity="many">%d vezes</item>
     </plurals>
     <string name="seek_backward">5 segundos para trás</string>
     <string name="seek_forward">5 segundos para frente</string>
@@ -265,6 +267,7 @@
     <plurals name="seconds">
         <item quantity="one">%d segundo</item>
         <item quantity="other">%d segundos</item>
+        <item quantity="many">%d segundos</item>
     </plurals>
     <!-- Player Settings -->
     <string name="disable_load_more_when_repeat_all">Desativar o carregar mais ao repetir tudo</string>
@@ -351,6 +354,7 @@
     <plurals name="scrobble_plays_waiting">
         <item quantity="one">%d play waiting to send</item>
         <item quantity="other">%d plays waiting to send</item>
+        <item quantity="many">%d plays waiting to send</item>
     </plurals>
     <string name="scrobble_plays_waiting_desc">They go out on their own once you\'re online. Tap to send now</string>
     <string name="scrobble_all_sent">All sent</string>
@@ -460,6 +464,7 @@
     <plurals name="profiles_count">
         <item quantity="one">%d Perfil</item>
         <item quantity="other">%d Perfis</item>
+        <item quantity="many">%d Perfis</item>
     </plurals>
     <string name="equalizer_header">Equalizador</string>
     <string name="no_profiles">Sem perfis de equalizador</string>
@@ -469,6 +474,7 @@
     <plurals name="band_count">
         <item quantity="one">%d banda</item>
         <item quantity="other">%d bandas</item>
+        <item quantity="many">%d bandas</item>
     </plurals>
     <string name="delete_profile_desc">Apagar Perfil</string>
     <string name="delete_profile_confirmation">Tem a certeza que pretende apagar %1$s? Esta ação não pode ser desfeita.</string>
@@ -937,6 +943,7 @@
     <plurals name="video_mode_seek_seconds">
         <item quantity="one">%d second</item>
         <item quantity="other">%d seconds</item>
+        <item quantity="many">%d seconds</item>
     </plurals>
     <!-- song share: the share song pages from the player menu and the song menus -->
     <string name="song_share_menu">share song</string>
@@ -1032,8 +1039,9 @@
     <string name="yt_sync_undo_done_both">Undone on this phone and on YouTube. YouTube won\'t be pulled again until you sync now.</string>
     <string name="yt_sync_undo_nothing">Nothing to undo yet. Run a sync first.</string>
     <plurals name="yt_sync_undo_failed">
-        <item quantity="one">Undone, but 1 like couldn\'t come off YouTube. Try again later.</item>
+        <item quantity="one">Undone, but %1$d like couldn\'t come off YouTube. Try again later.</item>
         <item quantity="other">Undone, but %1$d likes couldn\'t come off YouTube. Try again later.</item>
+        <item quantity="many">Undone, but %1$d likes couldn\'t come off YouTube. Try again later.</item>
     </plurals>
     <string name="module_youtube_name">YouTube Music</string>
     <string name="module_youtube_desc">Sync likes, library, playlists and history</string>

@@ -53,6 +53,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -100,6 +101,7 @@ fun ChangelogScreen(
     versionTag: String = "v${BuildConfig.VERSION_NAME}"
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val changelogRepo = if (isXbibzBuild) "XbibzOfficial777/Mochy-Music" else "realidkroo/Mochy-Music"
     var changelogSections by remember { mutableStateOf<List<ChangelogSection>>(emptyList()) }
     var updateImage by remember { mutableStateOf<String?>(null) }
@@ -112,7 +114,7 @@ fun ChangelogScreen(
 
     var currentVersionTag by remember { mutableStateOf(versionTag) }
     var availableReleases by remember { mutableStateOf<List<ReleaseMetadata>>(
-        listOf(ReleaseMetadata(versionTag, versionTag, context.getString(R.string.current), null))
+        listOf(ReleaseMetadata(versionTag, versionTag, resources.getString(R.string.current), null))
     ) }
     var isFetchingOldReleases by remember { mutableStateOf(false) }
 
@@ -251,7 +253,7 @@ fun ChangelogScreen(
                     }
                 }
                     withContext(Dispatchers.Main) {
-                        val currentVersion = ReleaseMetadata(versionTag, versionTag, context.getString(R.string.current), null)
+                        val currentVersion = ReleaseMetadata(versionTag, versionTag, resources.getString(R.string.current), null)
                         availableReleases = (listOf(currentVersion) + list).distinctBy { it.tagName }
                         isFetchingOldReleases = false
                     }

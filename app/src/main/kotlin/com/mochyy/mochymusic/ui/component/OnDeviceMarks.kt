@@ -42,9 +42,9 @@ fun rememberOnDevice(songId: String?): Boolean {
     if (songId == null) return false
     if (isImportedFile(songId)) return true
     val downloadUtil = LocalDownloadUtil.current
-    val downloaded by remember(songId) {
+    val downloaded by remember(songId, downloadUtil) {
         downloadUtil.downloads.map { it[songId]?.state == Download.STATE_COMPLETED }
-    }.collectAsState(initial = downloadUtil.downloads.value[songId]?.state == Download.STATE_COMPLETED)
+    }.collectAsState(initial = remember(songId, downloadUtil) { downloadUtil.downloads.value[songId]?.state == Download.STATE_COMPLETED })
     return downloaded
 }
 

@@ -432,7 +432,7 @@ fun LibraryIndexRail(
         }
     }
 
-    BoxWithConstraints(modifier = modifier) {
+    Box(modifier = modifier) {
         // The screen's edge darkens behind the swollen letters, so they read over any artwork.
         Box(
             modifier = Modifier

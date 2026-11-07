@@ -497,7 +497,7 @@ fun GridAnimation(isHiding: Boolean, thumbnails: List<String>, onSequenceComplet
         onSequenceComplete()
     }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize()) {
 
         val startY = -pxItemSize * 0.25f
 

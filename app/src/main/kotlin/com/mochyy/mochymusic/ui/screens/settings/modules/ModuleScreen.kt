@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -67,15 +68,16 @@ fun ModuleScreen(navController: NavController, id: String, viewModel: ModulesVie
     val checking by viewModel.checking.collectAsState()
     val entry = entries.firstOrNull { it.id == id }
     val context = LocalContext.current
+    val resources = LocalResources.current
     val overlay = LocalZoomOutOverlayState.current
 
     fun signIn() {
         val module = entry?.module ?: return
         overlay.showModuleSignInSheet(module, viewModel) { state ->
             val message = when (state) {
-                is AccountState.SignedIn -> context.getString(R.string.module_signed_in, module.info.name)
-                is AccountState.Expired -> context.getString(R.string.module_sign_in_refused, module.info.name, state.reason)
-                AccountState.SignedOut -> context.getString(R.string.module_sign_in_refused, module.info.name, "")
+                is AccountState.SignedIn -> resources.getString(R.string.module_signed_in, module.info.name)
+                is AccountState.Expired -> resources.getString(R.string.module_sign_in_refused, module.info.name, state.reason)
+                AccountState.SignedOut -> resources.getString(R.string.module_sign_in_refused, module.info.name, "")
             }
             Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         }

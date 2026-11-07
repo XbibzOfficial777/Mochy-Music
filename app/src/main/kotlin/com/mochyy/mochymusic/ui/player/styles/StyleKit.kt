@@ -241,7 +241,7 @@ fun rememberDurationMs(): Long {
     // the length alone: the whole progress state changes 15 times a second, and recomposed the style with it
     val duration by remember(connection) {
         connection.uiState.progressState.map { it.duration }.distinctUntilChanged()
-    }.collectAsState(initial = connection.uiState.progressState.value.duration)
+    }.collectAsState(initial = remember(connection) { connection.uiState.progressState.value.duration })
     return duration.takeIf { it > 0L } ?: 1L
 }
 

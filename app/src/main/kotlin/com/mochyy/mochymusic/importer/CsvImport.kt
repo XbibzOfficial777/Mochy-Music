@@ -95,7 +95,7 @@ fun writeMochyCsv(rows: List<CsvExportRow>): String = buildString {
 private val YOUTUBE_ID_REGEX = Regex("[A-Za-z0-9_-]{11}")
 
 private fun normalizeHeader(name: String): String =
-    name.removePrefix("﻿").trim().lowercase().replace(Regex("[\\s_]+"), " ")
+    name.removePrefix("\uFEFF").trim().lowercase().replace(Regex("[\\s_]+"), " ")
 
 /** "3:25", "1:02:03" or plain seconds */
 private fun parseDurationMs(text: String): Long? {
@@ -122,7 +122,7 @@ private fun StringBuilder.appendCsvLine(fields: List<String>) {
 }
 
 private fun parseCsvRows(text: String): List<List<String>> {
-    val content = text.removePrefix("﻿")
+    val content = text.removePrefix("\uFEFF")
     // excel in some locales saves "csv" with semicolons; pick whichever the header uses more
     val headerLine = content.substringBefore('\n')
     val delimiter = if (headerLine.count { it == ';' } > headerLine.count { it == ',' }) ';' else ','

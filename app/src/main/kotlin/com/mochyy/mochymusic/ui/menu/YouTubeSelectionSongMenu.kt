@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -59,6 +60,7 @@ fun YouTubeSelectionSongMenu(
     clearAction: () -> Unit,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val database = LocalDatabase.current
     val downloadUtil = LocalDownloadUtil.current
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -216,7 +218,7 @@ fun YouTubeSelectionSongMenu(
                     onClick = {
                         playerConnection.playQueue(
                             ListQueue(
-                                title = context.getString(R.string.queue_all_songs),
+                                title = resources.getString(R.string.queue_all_songs),
                                 items = songSelection.map { it.toMediaItem() },
                             ),
                         )
@@ -242,7 +244,7 @@ fun YouTubeSelectionSongMenu(
                         onClick = {
                             playerConnection.playQueue(
                                 ListQueue(
-                                    title = context.getString(R.string.queue_all_songs),
+                                    title = resources.getString(R.string.queue_all_songs),
                                     items = songSelection.shuffled().map { it.toMediaItem() },
                                 ),
                             )

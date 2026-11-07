@@ -245,7 +245,8 @@ fun NavGraphBuilder.navigationBuilder(
     ) { backStackEntry ->
         val sectionId = backStackEntry.arguments?.getString("sectionId") ?: return@coverSourceComposable
 
-        val homeViewModel: HomeViewModel = hiltViewModel(navController.getBackStackEntry(Screens.Home.route))
+        val homeEntry = remember(backStackEntry) { navController.getBackStackEntry(Screens.Home.route) }
+        val homeViewModel: HomeViewModel = hiltViewModel(homeEntry)
         SectionDetailScreen(
             navController = navController,
             sectionId = sectionId,

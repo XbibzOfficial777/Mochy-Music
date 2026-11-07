@@ -128,7 +128,7 @@ fun HistoryScreen(
                     DateAgo.ThisWeek -> stringResource(R.string.this_week)
                     DateAgo.LastWeek -> stringResource(R.string.last_week)
                     // older plays are grouped by month, so the header names the month
-                    is DateAgo.Other -> dateAgo.date.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
+                    is DateAgo.Other -> dateAgo.date.format(DateTimeFormatter.ofPattern("MMMM yyyy", androidx.compose.ui.platform.LocalConfiguration.current.locales[0]))
                 }
                 GeneratedGroupHeader(headerText, modifier = Modifier.animateItem())
             }

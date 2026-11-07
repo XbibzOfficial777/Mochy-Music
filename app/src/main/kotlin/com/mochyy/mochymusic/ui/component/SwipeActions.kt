@@ -57,6 +57,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -466,6 +467,7 @@ fun queueSwipeAction(mediaItem: () -> MediaItem): SwipeAction {
 @Composable
 fun downloadSwipeAction(mediaItem: (() -> MediaItem)?): SwipeAction {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val database = LocalDatabase.current
     val downloadUtil = LocalDownloadUtil.current
     val item = remember(mediaItem) { mediaItem?.invoke() }
@@ -484,7 +486,7 @@ fun downloadSwipeAction(mediaItem: (() -> MediaItem)?): SwipeAction {
         val thumb = target.mediaMetadata.artworkUri?.toString()
         if (isDownloaded) {
             DownloadService.sendRemoveDownload(context, ExoDownloadService::class.java, target.mediaId, false)
-            TopToaster.show(text = context.getString(R.string.remove_download), thumbnail = thumb, iconRes = R.drawable.offline)
+            TopToaster.show(text = resources.getString(R.string.remove_download), thumbnail = thumb, iconRes = R.drawable.offline)
         } else {
             target.metadata?.let { meta -> database.query { insert(meta) } }
             val request = DownloadRequest.Builder(target.mediaId, target.mediaId.toUri())
@@ -492,7 +494,7 @@ fun downloadSwipeAction(mediaItem: (() -> MediaItem)?): SwipeAction {
                 .setData(title.toByteArray())
                 .build()
             DownloadService.sendAddDownload(context, ExoDownloadService::class.java, request, false)
-            TopToaster.show(text = "${context.getString(R.string.downloading)} ${title.ifBlank { "song" }}", thumbnail = thumb, iconRes = R.drawable.download)
+            TopToaster.show(text = "${resources.getString(R.string.downloading)} ${title.ifBlank { "song" }}", thumbnail = thumb, iconRes = R.drawable.download)
         }
     }
 }
@@ -554,7 +556,7 @@ fun detailsSwipeAction(mediaItem: (() -> MediaItem)?): SwipeAction {
 /** the library swipe on a song that's already in the database: into the library, or back out of it */
 @Composable
 fun librarySwipeAction(song: SongEntity): SwipeAction {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val database = LocalDatabase.current
     val inLibrary = song.inLibrary != null
     return SwipeAction(
@@ -568,7 +570,7 @@ fun librarySwipeAction(song: SongEntity): SwipeAction {
         token?.let { SwipeScope.launch { YouTube.feedback(listOf(it)) } }
         database.query { update(song.toggleLibrary()) }
         TopToaster.show(
-            text = context.getString(if (inLibrary) R.string.removed_from_library else R.string.added_to_library),
+            text = resources.getString(if (inLibrary) R.string.removed_from_library else R.string.added_to_library),
             thumbnail = song.thumbnailUrl,
             iconRes = R.drawable.library_add_check,
         )
@@ -581,7 +583,7 @@ fun librarySwipeAction(song: SongEntity): SwipeAction {
  */
 @Composable
 fun removeImportSwipeAction(song: SongEntity, source: ImportSource): SwipeAction {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val database = LocalDatabase.current
     return SwipeAction(
         icon = R.drawable.delete,
@@ -596,7 +598,7 @@ fun removeImportSwipeAction(song: SongEntity, source: ImportSource): SwipeAction
             if (song.inLibrary != null) update(song.toggleLibrary())
         }
         TopToaster.show(
-            text = context.getString(R.string.removed_from_import_and_library, source.label),
+            text = resources.getString(R.string.removed_from_import_and_library, source.label),
             thumbnail = song.thumbnailUrl,
             iconRes = R.drawable.delete,
         )
@@ -606,7 +608,7 @@ fun removeImportSwipeAction(song: SongEntity, source: ImportSource): SwipeAction
 /** the same for a song straight from YouTube, which may not be in the database yet */
 @Composable
 fun librarySwipeAction(song: SongItem): SwipeAction {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val database = LocalDatabase.current
     val inLibrary by remember(song.id) {
         database.song(song.id).map { it?.song?.inLibrary != null }.distinctUntilChanged()
@@ -629,7 +631,7 @@ fun librarySwipeAction(song: SongItem): SwipeAction {
             database.query { inLibrary(song.id, null) }
         }
         TopToaster.show(
-            text = context.getString(if (adding) R.string.added_to_library else R.string.removed_from_library),
+            text = resources.getString(if (adding) R.string.added_to_library else R.string.removed_from_library),
             thumbnail = song.thumbnail,
             iconRes = R.drawable.library_add_check,
         )

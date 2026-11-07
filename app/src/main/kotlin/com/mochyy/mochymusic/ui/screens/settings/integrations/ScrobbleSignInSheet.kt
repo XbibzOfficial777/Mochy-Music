@@ -21,7 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -54,7 +54,7 @@ fun ScrobbleSignInContent(
     viewModel: IntegrationsViewModel,
     onSignedIn: (username: String) -> Unit,
 ) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
     val uriHandler = LocalUriHandler.current
@@ -78,12 +78,12 @@ fun ScrobbleSignInContent(
             } catch (e: AudioscrobblerException) {
                 Timber.tag("Scrobble").w(e, "${site.label} sign-in turned down")
                 problem = if (e.isWrongLogin) {
-                    context.getString(R.string.scrobble_sign_in_wrong)
+                    resources.getString(R.string.scrobble_sign_in_wrong)
                 } else {
-                    context.getString(R.string.scrobble_sign_in_busy, site.label)
+                    resources.getString(R.string.scrobble_sign_in_busy, site.label)
                 }
             } catch (e: Exception) {
-                problem = context.getString(R.string.scrobble_sign_in_offline, site.label)
+                problem = resources.getString(R.string.scrobble_sign_in_offline, site.label)
             } finally {
                 busy = false
             }

@@ -36,7 +36,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
@@ -78,7 +78,7 @@ fun LocalSearchScreen(
     pureBlack: Boolean,
     viewModel: LocalSearchViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -226,7 +226,7 @@ fun LocalSearchScreen(
                                             .map { it.toMediaItem() }
                                         playerConnection.playQueue(
                                             ListQueue(
-                                                title = context.getString(R.string.queue_searched_songs),
+                                                title = resources.getString(R.string.queue_searched_songs),
                                                 items = songs,
                                                 startIndex = songs.indexOfFirst { it.mediaId == item.id },
                                             )

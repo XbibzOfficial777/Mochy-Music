@@ -23,6 +23,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -53,6 +54,7 @@ fun PopupSheetState.showAddItemsSheet(id: String, name: String, viewModel: Modul
 @Composable
 private fun AddItemsContent(id: String, name: String, viewModel: ModulesViewModel, onAdded: () -> Unit) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
     var link by rememberSaveable { mutableStateOf("") }
@@ -63,10 +65,10 @@ private fun AddItemsContent(id: String, name: String, viewModel: ModulesViewMode
 
     fun show(outcome: ItemsOutcome) {
         val message = when (outcome) {
-            is ItemsOutcome.Added -> context.getString(R.string.module_items_added, outcome.names.joinToString(", "))
-            is ItemsOutcome.AddedAsModule -> context.getString(R.string.module_items_added_as_module, outcome.name)
+            is ItemsOutcome.Added -> resources.getString(R.string.module_items_added, outcome.names.joinToString(", "))
+            is ItemsOutcome.AddedAsModule -> resources.getString(R.string.module_items_added_as_module, outcome.name)
             is ItemsOutcome.Problem -> {
-                problem = context.getString(problemText(outcome.problem), name)
+                problem = resources.getString(problemText(outcome.problem), name)
                 return
             }
         }

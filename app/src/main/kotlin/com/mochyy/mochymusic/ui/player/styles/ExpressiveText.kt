@@ -1086,7 +1086,9 @@ private const val BlurShownPx = 0.5f
  */
 private fun DrawScope.drawBlurred(layer: GraphicsLayer, radius: Float, content: DrawScope.() -> Unit) {
     val res = if (radius >= 12f) 0.5f else 1f
-    layer.renderEffect = BlurEffectCache.get(radius * res, Shader.TileMode.DECAL)
+    layer.renderEffect = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        BlurEffectCache.get(radius * res, Shader.TileMode.DECAL)
+    } else null
     val box = androidx.compose.ui.unit.IntSize((size.width * res).roundToInt().coerceAtLeast(1), (size.height * res).roundToInt().coerceAtLeast(1))
     layer.record(box) { scale(res, res, pivot = Offset.Zero) { content() } }
     scale(1f / res, 1f / res, pivot = Offset.Zero) { drawLayer(layer) }
@@ -1137,7 +1139,7 @@ private fun DrawScope.drawWord(cell: WordCell, scale: Float, head: Float, t: Lon
         if (glow > GlowCutoff) glowing = true
     }
     // the glowing letters once more in their glow colour, blurred on the gpu; as text shadows they were blurred again on the cpu every frame they moved
-    if (glowing && glowLayer != null) {
+    if (glowing && glowLayer != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
         // one radius for the word, so the glow doesn't step through blur sizes as an emphasised word grows
         glowLayer.renderEffect = BlurEffectCache.get(cell.sizePx * GlowSoftness * GlowRes, Shader.TileMode.DECAL)
         val half = androidx.compose.ui.unit.IntSize((size.width * GlowRes).roundToInt().coerceAtLeast(1), (size.height * GlowRes).roundToInt().coerceAtLeast(1))

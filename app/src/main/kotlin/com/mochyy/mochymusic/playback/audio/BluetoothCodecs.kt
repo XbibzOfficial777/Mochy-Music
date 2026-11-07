@@ -124,7 +124,9 @@ class BluetoothCodecWatcher(context: Context) {
         val outputs = runCatching { audio?.getDevices(AudioManager.GET_DEVICES_OUTPUTS)?.toList() }.getOrNull().orEmpty()
         val a2dp = outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP }
         if (a2dp == null) {
-            val le = outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLE_HEADSET || it.type == AudioDeviceInfo.TYPE_BLE_SPEAKER }
+            val le = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLE_HEADSET || it.type == AudioDeviceInfo.TYPE_BLE_SPEAKER }
+            } else null
             return le?.let { State.LeAudio(it.productName?.toString().orEmpty()) } ?: State.None
         }
         val name = a2dp.productName?.toString()?.trim().orEmpty().ifEmpty { "Bluetooth" }
@@ -138,7 +140,8 @@ class BluetoothCodecWatcher(context: Context) {
     @SuppressLint("MissingPermission")
     private fun codecOf(proxy: BluetoothA2dp, output: AudioDeviceInfo): BluetoothCodec? = runCatching {
         val connected = proxy.connectedDevices
-        val device = connected.firstOrNull { output.address.isNotEmpty() && it.address.equals(output.address, ignoreCase = true) }
+        val address = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) output.address else ""
+        val device = connected.firstOrNull { address.isNotEmpty() && it.address.equals(address, ignoreCase = true) }
             ?: connected.firstOrNull()
             ?: return null
         val status = proxy.javaClass.getMethod("getCodecStatus", BluetoothDevice::class.java).invoke(proxy, device)

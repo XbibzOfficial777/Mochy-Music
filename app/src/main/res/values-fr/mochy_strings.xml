@@ -106,10 +106,12 @@
     <plurals name="n_element">
         <item quantity="one">%d élément</item>
         <item quantity="other">%d éléments</item>
+        <item quantity="many">%d éléments</item>
     </plurals>
     <plurals name="n_time">
         <item quantity="one">%d fois</item>
         <item quantity="other">%d fois</item>
+        <item quantity="many">%d fois</item>
     </plurals>
 
     <string name="seek_backward">5 secondes en arrière</string>
@@ -271,8 +273,9 @@
     <string name="empty_playlist">Playlist vide</string>
     <string name="empty_playlist_desc">Cette playlist ne contient aucun titre.</string>
     <plurals name="seconds">
-        <item quantity="one">1 seconde</item>
+        <item quantity="one">%d seconde</item>
         <item quantity="other">%d secondes</item>
+        <item quantity="many">%d secondes</item>
     </plurals>
 
     <!-- Player Settings -->
@@ -444,6 +447,7 @@
     <plurals name="profiles_count">
         <item quantity="one">%d profil</item>
         <item quantity="other">%d profils</item>
+        <item quantity="many">%d profils</item>
     </plurals>
     <string name="equalizer_header">Égaliseur</string>
     <string name="no_profiles">Aucun profil d\'égaliseur</string>
@@ -453,6 +457,7 @@
     <plurals name="band_count">
         <item quantity="one">%d bande</item>
         <item quantity="other">%d bandes</item>
+        <item quantity="many">%d bandes</item>
     </plurals>
     <string name="delete_profile_desc">Supprimer le profil</string>
     <string name="delete_profile_confirmation">Êtes-vous sûr de vouloir supprimer « %1$s » ? Cette action

@@ -89,3 +89,29 @@ temporary fixture key, and exercises the verifier. It accepts v2/v4-only APKs an
 a wrong certificate, and a corrupted v4 signature. These fixture tests validate the verification
 policy; they do not establish that the application APK has been built or verified. The actual
 repository release key is available only to the repository's GitHub Actions signing job.
+
+## GitHub Actions evidence and subsequent fixes
+
+Commit `c57b4f4` built an actual universal GMS release APK in run
+[42320069265](https://github.com/XbibzOfficial777/Mochy-Music/actions/runs/42320069265).
+The original repository certificate and v2/v4-only signatures passed verification; APK metadata,
+ZIP integrity, native ELF checks, and 16 KB ZIP alignment also passed. Unit tests passed and the
+compiler/resource warning checker reported zero. However, the strict lint gate FAILED with
+112 errors and 1588 warnings. This run is not a warning-free release.
+
+The independent Android CI run
+[42320069278](https://github.com/XbibzOfficial777/Mochy-Music/actions/runs/42320069278)
+passed, including emulator launch checks on API 30 and 35. These are launch checks, not search,
+playback, or frame-time benchmarks.
+
+Follow-up source fixes remove the nonexistent CrashActivity manifest entry, guard newer Android
+APIs, use observable resources/locales, remember initial flow snapshots, and remember the parent
+navigation entry. NewAction now accepts an ordinary click callback: previously it invoked a
+composable callback during composition, allowing side effects to repeat on recomposition.
+Tab ownership reads the public ComposeNavigator back stack rather than restricted NavController
+internals; this app's tab destinations use the Compose navigator. French/Portuguese plural categories
+and Persian quantity/seek placeholders are repaired. UTF-8 BOM characters inside CSV string literals
+are expressed as explicit escapes. The CI debuggable-APK guard now exits explicitly on a match.
+
+Lint remains strict: existing findings are not baselined or globally suppressed. Check the latest
+run before claiming these follow-up fixes pass release validation or that all lint debt is gone.

@@ -116,7 +116,10 @@ jobs:
             "$apk" "$apk.idsig" "$(cat .github/release-certificate.sha256)" | tee -a signatures.txt
           python3 .github/scripts/verify_release_native.py "$apk" universal
           "$tools/aapt" dump badging "$apk" > apk-badging.txt
-          ! grep -q application-debuggable apk-badging.txt
+          if grep -q application-debuggable apk-badging.txt; then
+            echo 'Refusing a debuggable release APK' >&2
+            exit 1
+          fi
           "$tools/zipalign" -c -P 16 4 "$apk"
           version="$(python3 -c 'import json; print(json.load(open("app/src/main/assets/changelog.json"))["versionName"])')"
           grep -q "versionName='$version'" apk-badging.txt

@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -65,6 +66,7 @@ internal fun PopupSheetState.showKindPage(session: SongShareSession): PopupSheet
     val popup = this
     return showWithHandle(buttonBar = { GoBackButton(popup::dismiss) }) {
         val context = LocalContext.current
+        val resources = LocalResources.current
         ShareTitle(stringResource(R.string.song_share_music_title))
         Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 20.dp)) {
             ChoiceTile(
@@ -95,7 +97,7 @@ internal fun PopupSheetState.showKindPage(session: SongShareSession): PopupSheet
                 enabled = session.link != null,
                 onClick = {
                     if (copySongLink(context, session)) {
-                        TopToaster.show(context.getString(R.string.song_share_link_copied), thumbnail = session.song.thumbnailUrl)
+                        TopToaster.show(resources.getString(R.string.song_share_link_copied), thumbnail = session.song.thumbnailUrl)
                     }
                     popup.dismissAll()
                 },

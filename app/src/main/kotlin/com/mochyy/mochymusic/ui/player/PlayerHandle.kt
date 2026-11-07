@@ -257,6 +257,7 @@ private fun rememberOnLightBehind(sheet: BottomSheetState, targetBounds: FloatAr
     val density = LocalDensity.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(view, sheet, density) {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O) return@LaunchedEffect
         val window = view.context.findActivity()?.window ?: return@LaunchedEffect
         val bitmap = Bitmap.createBitmap(SampleBitmapWidth, SampleBitmapHeight, Bitmap.Config.ARGB_8888)
         val pixels = IntArray(SampleBitmapWidth * SampleBitmapHeight)
@@ -294,6 +295,7 @@ private fun rememberOnLightBehind(sheet: BottomSheetState, targetBounds: FloatAr
     return onLight
 }
 
+@androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.O)
 private suspend fun copyWindow(window: Window, rect: android.graphics.Rect, bitmap: Bitmap, handler: Handler): Boolean =
     suspendCancellableCoroutine { continuation ->
         try {

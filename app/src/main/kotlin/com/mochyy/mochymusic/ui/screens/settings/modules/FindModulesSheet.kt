@@ -36,7 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -76,7 +76,7 @@ fun PopupSheetState.showFindModulesSheet(viewModel: ModulesViewModel, onAdded: (
 
 @Composable
 private fun FindModulesContent(viewModel: ModulesViewModel, onAdded: (String) -> Unit) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
     var link by rememberSaveable { mutableStateOf("") }
@@ -92,13 +92,13 @@ private fun FindModulesContent(viewModel: ModulesViewModel, onAdded: (String) ->
     fun show(result: LinkCheck) {
         when (result) {
             is LinkCheck.Ready -> ready = result
-            LinkCheck.NotALink -> problem = context.getString(R.string.modules_link_not_a_link)
-            LinkCheck.Unreachable -> problem = context.getString(R.string.modules_link_unreachable)
-            LinkCheck.NotAModule -> problem = context.getString(R.string.modules_link_not_a_module)
-            LinkCheck.Website -> problem = context.getString(R.string.modules_link_website)
-            LinkCheck.NotAZip -> problem = context.getString(R.string.modules_file_not_a_zip)
-            LinkCheck.NeedsUrl -> problem = context.getString(R.string.modules_file_needs_url)
-            LinkCheck.NotSigned -> problem = context.getString(R.string.modules_file_not_signed)
+            LinkCheck.NotALink -> problem = resources.getString(R.string.modules_link_not_a_link)
+            LinkCheck.Unreachable -> problem = resources.getString(R.string.modules_link_unreachable)
+            LinkCheck.NotAModule -> problem = resources.getString(R.string.modules_link_not_a_module)
+            LinkCheck.Website -> problem = resources.getString(R.string.modules_link_website)
+            LinkCheck.NotAZip -> problem = resources.getString(R.string.modules_file_not_a_zip)
+            LinkCheck.NeedsUrl -> problem = resources.getString(R.string.modules_file_needs_url)
+            LinkCheck.NotSigned -> problem = resources.getString(R.string.modules_file_not_signed)
         }
     }
 
@@ -154,7 +154,7 @@ private fun FindModulesContent(viewModel: ModulesViewModel, onAdded: (String) ->
                         checking = false
                         ready = null
                         problemFromFile = true
-                        problem = context.getString(R.string.modules_code_broken)
+                        problem = resources.getString(R.string.modules_code_broken)
                     }
                 },
                 onCancel = { ready = null },

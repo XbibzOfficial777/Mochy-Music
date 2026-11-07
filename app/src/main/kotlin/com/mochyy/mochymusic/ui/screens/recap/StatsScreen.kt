@@ -617,6 +617,7 @@ private fun SongCard(s: ListeningStats, top: RecapSong, expanded: MutableMap<Str
 
 @Composable
 private fun WeekdayCard(s: ListeningStats, thisWhat: String, expanded: MutableMap<String, Boolean>) {
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     val best = s.weekdayMs.indices.maxByOrNull { s.weekdayMs[it] } ?: 0
     val day = DayOfWeek.of(best + 1)
     StatsCardBox(
@@ -625,12 +626,12 @@ private fun WeekdayCard(s: ListeningStats, thisWhat: String, expanded: MutableMa
         detail = {
             WeekdayBars(
                 values = s.weekdayMs,
-                labels = DayOfWeek.entries.map { it.getDisplayName(JavaTextStyle.NARROW, Locale.getDefault()) },
+                labels = DayOfWeek.entries.map { it.getDisplayName(JavaTextStyle.NARROW, locale) },
             )
         },
     ) {
         Text("$thisWhat, you like to listen to music every", style = statsText(13f, FontWeight.SemiBold))
-        Text(day.getDisplayName(JavaTextStyle.FULL, Locale.getDefault()), style = statsText(32f, tracking = -1.2f), modifier = Modifier.padding(vertical = 2.dp))
+        Text(day.getDisplayName(JavaTextStyle.FULL, locale), style = statsText(32f, tracking = -1.2f), modifier = Modifier.padding(vertical = 2.dp))
         Text("totaling ${formatHoursDecimal(s.weekdayMs[best])} hours", style = statsText(12f, FontWeight.SemiBold, StatsInkSecondary, 0f))
     }
 }

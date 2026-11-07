@@ -74,6 +74,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -168,6 +169,7 @@ fun LocalPlaylistScreen(
     viewModel: LocalPlaylistViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val menuState = LocalMenuState.current
     val database = LocalDatabase.current
     val haptic = LocalHapticFeedback.current
@@ -453,7 +455,7 @@ fun LocalPlaylistScreen(
                             }
                         }
                         coroutineScope.launch(Dispatchers.Main) {
-                            snackbarHostState.showSnackbar(context.getString(R.string.playlist_synced))
+                            snackbarHostState.showSnackbar(resources.getString(R.string.playlist_synced))
                         }
                     },
                     onDelete = { showDeletePlaylistDialog = true },
@@ -653,7 +655,7 @@ fun LocalPlaylistScreen(
                         text = "Removed ${removed.song.song.title} from ${playlist?.playlist?.name ?: "playlist"}",
                         thumbnail = removed.song.song.thumbnailUrl,
                         iconRes = R.drawable.playlist_add,
-                        actionLabel = context.getString(R.string.undo),
+                        actionLabel = resources.getString(R.string.undo),
                         onAction = {
                             coroutineScope.launch {
                                 database.transaction {

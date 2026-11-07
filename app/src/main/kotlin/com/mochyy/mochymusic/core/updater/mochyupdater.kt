@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -120,6 +121,7 @@ sealed class MochyUpdateStatus {
 @Composable
 fun UpdateScreen(navController: NavHostController) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf<MochyUpdateStatus>(MochyUpdateStatus.NoUpdate(BuildConfig.VERSION_NAME)) }
     var isDownloading by remember { mutableStateOf(false) }
@@ -157,7 +159,7 @@ fun UpdateScreen(navController: NavHostController) {
                     WorkInfo.State.FAILED -> {
                         isDownloading = false
                         scope.launch {
-                            snackbarHostState.showSnackbar(context.getString(R.string.download_failed))
+                            snackbarHostState.showSnackbar(resources.getString(R.string.download_failed))
                         }
                     }
                     WorkInfo.State.CANCELLED -> {
@@ -204,7 +206,7 @@ fun UpdateScreen(navController: NavHostController) {
                     }
                 },
                 onError = {
-                    status = MochyUpdateStatus.Error(context.getString(R.string.cant_check_updates))
+                    status = MochyUpdateStatus.Error(resources.getString(R.string.cant_check_updates))
                 }
             )
         }

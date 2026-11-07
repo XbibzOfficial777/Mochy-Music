@@ -18,7 +18,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -46,7 +46,7 @@ fun PopupSheetState.showAddServerSheet(id: String, viewModel: ModulesViewModel) 
 
 @Composable
 private fun AddServerContent(id: String, viewModel: ModulesViewModel, onAdded: () -> Unit) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
     var link by rememberSaveable { mutableStateOf("") }
@@ -65,7 +65,7 @@ private fun AddServerContent(id: String, viewModel: ModulesViewModel, onAdded: (
                 onAdded()
                 return@launch
             }
-            problem = context.getString(
+            problem = resources.getString(
                 when (result) {
                     ServerProblem.NotALink -> R.string.modules_link_not_a_link
                     ServerProblem.Unreachable -> R.string.modules_link_unreachable

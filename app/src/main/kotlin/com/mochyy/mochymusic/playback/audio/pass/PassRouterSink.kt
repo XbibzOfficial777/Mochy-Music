@@ -195,8 +195,12 @@ class PassRouterSink(
     override fun setOutputStreamOffsetUs(outputStreamOffsetUs: Long) = normal.setOutputStreamOffsetUs(outputStreamOffsetUs)
     override fun enableTunnelingV21() = normal.enableTunnelingV21()
     override fun disableTunneling() = normal.disableTunneling()
-    override fun setOffloadMode(offloadMode: Int) = normal.setOffloadMode(offloadMode)
-    override fun setOffloadDelayPadding(delayInFrames: Int, paddingInFrames: Int) = normal.setOffloadDelayPadding(delayInFrames, paddingInFrames)
+    override fun setOffloadMode(offloadMode: Int) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) normal.setOffloadMode(offloadMode)
+    }
+    override fun setOffloadDelayPadding(delayInFrames: Int, paddingInFrames: Int) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) normal.setOffloadDelayPadding(delayInFrames, paddingInFrames)
+    }
     override fun getFormatOffloadSupport(format: Format) = normal.getFormatOffloadSupport(format)
     override fun setVolume(volume: Float) {
         normal.setVolume(volume)

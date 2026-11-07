@@ -105,9 +105,17 @@ class TransportFadingPlayer(
 
     override fun isCommandAvailable(command: Int): Boolean = (dac != null && command in DacCommands) || super.isCommandAvailable(command)
 
+    // Older media controllers still request the legacy volume commands.
+    @Suppress("DEPRECATION")
     override fun getAvailableCommands(): Player.Commands {
         val commands = super.getAvailableCommands()
-        return if (dac != null) commands.buildUpon().addAll(*DacCommands.toIntArray()).build() else commands
+        return if (dac != null) commands.buildUpon()
+            .add(Player.COMMAND_GET_DEVICE_VOLUME)
+            .add(Player.COMMAND_SET_DEVICE_VOLUME)
+            .add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
+            .add(Player.COMMAND_ADJUST_DEVICE_VOLUME)
+            .add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
+            .build() else commands
     }
 
     private fun announceDacVolume() {

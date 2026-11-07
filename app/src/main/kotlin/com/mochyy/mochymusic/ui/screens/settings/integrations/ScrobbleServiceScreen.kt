@@ -13,6 +13,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -45,6 +46,7 @@ fun ScrobbleServiceScreen(
     viewModel: IntegrationsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val overlay = LocalZoomOutOverlayState.current
     val accounts by viewModel.accounts.collectAsState()
     val pending by viewModel.pending.collectAsState()
@@ -67,7 +69,7 @@ fun ScrobbleServiceScreen(
                 viewModel = viewModel,
                 onSignedIn = { name ->
                     sheet?.dismiss()
-                    Toast.makeText(context, context.getString(R.string.scrobble_signed_in, site.label, name), Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, resources.getString(R.string.scrobble_signed_in, site.label, name), Toast.LENGTH_LONG).show()
                 },
             )
         }

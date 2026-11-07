@@ -9,11 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
@@ -47,7 +42,7 @@ fun NewActionGrid(
                     SheetActionCard(
                         icon = { WhiteIcon(24.dp, action.icon) },
                         title = action.text,
-                        onClick = rememberTapTrigger(action),
+                        onClick = action.onClick,
                         enabled = action.enabled,
                         modifier = Modifier.weight(1f),
                     )
@@ -58,26 +53,12 @@ fun NewActionGrid(
             MenuItemRow(
                 icon = { WhiteIcon(SheetIconSize, action.icon) },
                 enabled = action.enabled,
-                onClick = rememberTapTrigger(action),
+                onClick = action.onClick,
             ) {
                 Text(text = action.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
-}
-
-/**
- * [NewAction.onClick] is a composable, so a tap can't call it directly. The tap raises a flag,
- * the next composition runs the action once, and the flag drops again.
- */
-@Composable
-private fun rememberTapTrigger(action: NewAction): () -> Unit {
-    var tapped by remember { mutableStateOf(false) }
-    if (tapped) {
-        action.onClick()
-        LaunchedEffect(Unit) { tapped = false }
-    }
-    return { tapped = true }
 }
 
 /** The actions bring icons tinted for the old grey buttons; this draws them white whatever they ask for. */
@@ -96,7 +77,7 @@ private fun WhiteIcon(size: Dp, icon: @Composable () -> Unit) {
 data class NewAction(
     val icon: @Composable () -> Unit,
     val text: String,
-    val onClick: @Composable () -> Unit,
+    val onClick: () -> Unit,
     val enabled: Boolean = true,
     val backgroundColor: Color = Color.Unspecified,
     val contentColor: Color = Color.Unspecified
