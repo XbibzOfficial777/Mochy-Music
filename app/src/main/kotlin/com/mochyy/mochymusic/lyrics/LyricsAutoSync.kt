@@ -121,8 +121,10 @@ class LyricsAutoSync(
         if (alignment == null || alignment.confidence < MinConfidence) {
             return State.Failed(songId, "Couldn't match the singing to these lyrics. They may be for another version, or you can set it by hand.")
         }
-        Timber.tag("LyricsAutoSync").i("$songId: offset ${alignment.offsetMs} ms, confidence ${"%.2f".format(alignment.confidence)}, " +
-                "${alignment.strongLines}/${alignment.totalLines} lines clear, drift ${alignment.driftMs}")
+        val summary = "$songId: offset ${alignment.offsetMs} ms, " +
+            "confidence ${"%.2f".format(alignment.confidence)}, " +
+            "${alignment.strongLines}/${alignment.totalLines} lines clear, drift ${alignment.driftMs}"
+        Timber.tag("LyricsAutoSync").i(summary)
         saveOffset(songId, alignment.offsetMs)
         return State.Synced(
             songId = songId,

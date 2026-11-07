@@ -18,6 +18,11 @@ object CipherDeobfuscator {
         appContext = context.applicationContext
     }
 
+    // Process-scoped on purpose: building a WebView and loading the player script costs hundreds of
+    // milliseconds and it is reused for every song, and the reference is dropped (see resetWebView)
+    // whenever the player hash changes. A static WebView is what the warning objects to, and here it
+    // is the cache rather than a leaked Activity.
+    @Suppress("StaticFieldLeak")
     private var cipherWebView: CipherWebView? = null
     private var currentPlayerHash: String? = null
 

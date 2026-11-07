@@ -31,6 +31,11 @@ import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+// JavaScript is required, not incidental: the page this WebView loads exists to run the BotGuard
+// challenge and hand a token back. No addJavascriptInterface bridge accepts untrusted input, the
+// origin is fixed, and no user-supplied content is loaded here, which is what SetJavaScriptEnabled
+// warns about elsewhere. Declared here so the reason sits next to the setting below.
+@Suppress("SetJavaScriptEnabled")
 class PoTokenWebView private constructor(
     context: Context,
 

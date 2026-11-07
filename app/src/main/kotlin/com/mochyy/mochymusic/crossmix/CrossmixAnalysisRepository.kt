@@ -64,9 +64,10 @@ class CrossmixAnalysisRepository(
                                 }
                             )?.also { analysis ->
                             failures.remove(mediaId)
-                            Timber.tag("Crossmix").i("analysed $mediaId: ${analysis.analyzedMs / 1_000} s of audio in " +
-                                    "${(System.currentTimeMillis() - progress.startedAt) / 1_000} s, " +
-                                    "bpm ${analysis.bpm}, ${analysis.beatsMs.size} beats, complete=${analysis.complete}")
+                            val summary = "analysed $mediaId: ${analysis.analyzedMs / 1_000} s of audio in " +
+                                "${(System.currentTimeMillis() - progress.startedAt) / 1_000} s, " +
+                                "bpm ${analysis.bpm}, ${analysis.beatsMs.size} beats, complete=${analysis.complete}"
+                            Timber.tag("Crossmix").i(summary)
                             // a whole-track result answers head requests too; never overwrite it with less
                             if (memory[mediaId]?.complete != true || analysis.complete) {
                                 memory[mediaId] = analysis

@@ -23,6 +23,9 @@ import kotlin.coroutines.resumeWithException
 object EjsNTransformSolver {
     private const val TAG = "mochy_EjsNSolver"
 
+    // Same deliberate process-scoped cache as CipherDeobfuscator: one WebView, reused for every
+    // transform, released when the solver script is replaced.
+    @Suppress("StaticFieldLeak")
     private var solverWebView: SolverWebView? = null
 
     suspend fun transformNParamInUrl(url: String): String {

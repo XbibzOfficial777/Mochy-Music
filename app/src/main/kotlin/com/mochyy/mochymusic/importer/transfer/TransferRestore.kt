@@ -108,6 +108,10 @@ object TransferRestore {
     }
 
     // merged into what's there, so anything set during onboarding that the old app never had stays
+    // commit(), not apply(): the import is reported as finished as soon as this returns, and the app
+    // may be restarted (or killed by the user) before an asynchronous write would land. The writes
+    // are small and this runs once per import.
+    @Suppress("ApplySharedPref")
     private fun restorePrefs(context: Context, folder: File) {
         for (file in folder.listFiles().orEmpty()) {
             val fileName = TransferArchive.PrefsToCarry[file.name.removeSuffix(".json")] ?: continue

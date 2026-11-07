@@ -62,8 +62,11 @@ private const val PoTokenAfterIntroMillis = 2_500L
  * unchanged, so `adb logcat` output stays comparable with earlier releases and nothing is logged
  * that was not already being logged before.
  */
+@Suppress("LogNotTimber")
 private class ReleaseTree : Timber.Tree() {
 
+    // This class exists only to forward Timber's output to android.util.Log in release builds, so
+    // the LogNotTimber warning is inherent to it rather than a call site that forgot Timber.
     override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
         val logTag = tag ?: "Mochy"
         when (priority) {

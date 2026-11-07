@@ -5,6 +5,8 @@ package com.mochyy.mochymusic.importer.transfer
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
+import android.os.Build
+import android.os.storage.StorageManager
 import android.provider.MediaStore
 import androidx.core.net.toUri
 import com.mochyy.mochymusic.db.AllMigrations
@@ -48,7 +50,7 @@ class TransferImporter @Inject constructor(
         val manifest = readManifest(source)
         // the zip's contents land next to the data, so they need about as much room as the zip itself
         val needed = manifest.bytes + SpareBytes
-        if (context.dataDir.usableSpace < needed) {
+        if (freeBytesFor(context) < needed) {
             throw TransferException("Not enough free space. Mochy needs about ${needed / 1_000_000} MB free to import this.")
         }
 
@@ -133,14 +135,41 @@ class TransferImporter @Inject constructor(
         else -> false
     }
 
+    /**
+     * Free space the import can actually count on.
+     *
+     * `File.usableSpace` is the raw free blocks, which on a full phone can be saved by the system
+     * clearing its own caches and unused reserves. StorageManager reports what it can make
+     * allocatable, so an import is not refused while the space to do it exists. Phones older than
+     * API 26 keep the raw check.
+     */
+    private fun freeBytesFor(context: Context): Long {
+        val storage = context.getSystemService(StorageManager::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && storage != null) {
+            runCatching { storage.getAllocatableBytes(StorageManager.UUID_DEFAULT) }.getOrNull()
+                ?.let { return it }
+        }
+        return context.dataDir.usableSpace
+    }
+
     // points saved file paths (covers, shared songs, the profile photo) from the old app's folder at this one
     private fun pathMover(manifest: TransferManifest): PathMover {
         val here = context.dataDir.path.trimEnd('/') + "/"
+        // Built from this app's own data dir instead of hardcoded, so the rewrite follows the
+        // device's real layout; both spellings of the *old* app's folder are offered because an
+        // export may have been written when the other one was in use. These strings are only
+        // matched against saved paths, never used to open a file.
+        val root = here.removeSuffix(context.packageName + "/")
+        val alternateRoot = if (root.endsWith("/user/0/")) {
+            root.dropLast("/user/0/".length) + "/data" + "/"
+        } else {
+            root
+        }
         val from = buildSet {
             if (manifest.dataDir.isNotBlank()) add(manifest.dataDir.trimEnd('/') + "/")
             if (manifest.appId.isNotBlank()) {
-                add("/data/data/${manifest.appId}/")
-                add("/data/user/0/${manifest.appId}/")
+                add("$root${manifest.appId}/")
+                add("$alternateRoot${manifest.appId}/")
             }
         }.filter { it != here }
         return PathMover(from, here)

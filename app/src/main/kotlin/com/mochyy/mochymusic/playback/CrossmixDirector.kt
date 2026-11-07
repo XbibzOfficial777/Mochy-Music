@@ -220,11 +220,18 @@ class CrossmixDirector(
         val outAnalysis = analyses.analyze(item, wholeTrack = true)
         val inAnalysis = analyses.analyze(next, wholeTrack = false)
         val took = (System.currentTimeMillis() - startedAt) / 1_000f
-        Timber.tag(Tag).i("analysed in %.1f s: this %s bpm (%.2f), next %s bpm (%.2f)".format(
-                took, outAnalysis?.bpm?.let { "%.1f".format(it) } ?: "?", outAnalysis?.bpmConfidence ?: 0f,
-                inAnalysis?.bpm?.let { "%.1f".format(it) } ?: "?", inAnalysis?.bpmConfidence ?: 0f,
-            ) + (analyses.lastFailure(item.mediaId)?.let { " · this failed: $it" } ?: "") +
-                (analyses.lastFailure(next.mediaId)?.let { " · next failed: $it" } ?: ""))
+        // built first and logged as a value: a format literal passed straight to Timber is treated
+        // as Timber's own format string, which it is not here
+        val analysedLine = "analysed in %.1f s: this %s bpm (%.2f), next %s bpm (%.2f)".format(
+            took,
+            outAnalysis?.bpm?.let { "%.1f".format(it) } ?: "?",
+            outAnalysis?.bpmConfidence ?: 0f,
+            inAnalysis?.bpm?.let { "%.1f".format(it) } ?: "?",
+            inAnalysis?.bpmConfidence ?: 0f,
+        ) +
+            (analyses.lastFailure(item.mediaId)?.let { " · this failed: $it" } ?: "") +
+            (analyses.lastFailure(next.mediaId)?.let { " · next failed: $it" } ?: "")
+        Timber.tag(Tag).i(analysedLine)
 
         // an album that runs straight from one track into the next is already continuous: any
         // mix would only break it, so it plays gapless as recorded
@@ -255,10 +262,12 @@ class CrossmixDirector(
                 (if (plan.yieldAmount > 0f) ", voices kept apart" else "") +
                 (if (plan.inCueMs > 1_000) ", landing on ${clock(plan.inCueMs.toDouble())} of the next" else "")
         )
-        Timber.tag(Tag).i("plan: %s %d beats from %d ms, swap on beat %d, beat %.1f ms, lands at %d ms, start beat %.1f, speed in %.4f out %.4f, yield %.2f".format(
+        val planLine = "plan: %s %d beats from %d ms, swap on beat %d, beat %.1f ms, lands at %d ms, " +
+            "start beat %.1f, speed in %.4f out %.4f, yield %.2f".format(
                 plan.style.name, plan.lengthBeats, plan.outStartMs, plan.swapBeat, plan.outBeatMs, plan.inCueMs,
                 plan.inStartBeat, plan.inSpeed, plan.outSpeed, plan.yieldAmount,
-            ))
+            )
+        Timber.tag(Tag).i(planLine)
 
         // the earliest moment either side does anything: the outgoing effects start at beat 0, the
         // next player may start a little before that on a silent run-up

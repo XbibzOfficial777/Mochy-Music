@@ -49,6 +49,9 @@ private const val MiuiShowWhenLockedOp = 10020
 private val PromptShape = RoundedCornerShape(24.dp)
 private val PromptFill = Color(0xFF1C1C1E)
 
+// Reads a hidden system property: no public API exposes the vendor keyguard switch this needs, and
+// every call is wrapped so a device without the class simply gets null.
+@Suppress("PrivateApi")
 private fun systemProperty(key: String): String? = try {
     Class.forName("android.os.SystemProperties").getMethod("get", String::class.java).invoke(null, key) as? String
 } catch (e: Exception) {
