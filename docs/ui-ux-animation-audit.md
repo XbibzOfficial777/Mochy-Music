@@ -56,6 +56,29 @@ audited search/motion fixes and the signed-release verification pipeline).
 - `CrashHandler` keeps `android.util.Log` deliberately and is annotated with the reason: it must
   work when the process is about to die and when no tree has been planted yet.
 
+### Lyrics line changes
+
+The line emphasis on the lyrics page ran on a fixed 600 ms tween for brightness, zoom and colour,
+plus its own tween for the blur by distance. Three things made a line change read as stiff:
+
+1. **A tween restarts from a standstill.** A verse that changes line every beat (1.2-1.8 s) cancels
+   the previous ramp before it has settled; the new one starts again from zero velocity, so every
+   change looks like the animation is being cut and restarted. Brightness, zoom, colour, the blur
+   radius and the wave amplitude now ride springs, which carry their velocity across the
+   interruption, so one line's emphasis flows into the next.
+2. **The zoom had no body.** The line taking over now settles with a slight overshoot
+   (`dampingRatio = 0.74`, `stiffness = StiffnessLow`) instead of arriving flat. Only the zoom is
+   allowed to overshoot; brightness, colour and blur are critically damped.
+3. **The glyph weight changed mid-fade.** A line without word timing rendered `SemiBold` while it
+   was lining up and switched to `Bold` the instant it became the current line, which re-measures
+   every glyph at a wider advance - a visible jump that no fade can hide, and inconsistent with the
+   line breaks, which were always measured against `Bold`. That path now uses one weight; the
+   emphasis comes from brightness (1.0 vs 0.5/0.38/0.24), zoom and colour.
+
+The karaoke sweep keeps its existing run-up: while a line's wave amplitude is still decaying it
+stays on the sweep path, so the hand-over to the plain path happens after the fade, not in the
+middle of it.
+
 ### Warning cleanup
 
 **Verified green.** Release run

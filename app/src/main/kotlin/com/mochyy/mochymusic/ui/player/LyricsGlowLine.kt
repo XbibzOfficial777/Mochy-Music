@@ -5,10 +5,12 @@ package com.mochyy.mochymusic.ui.player
 import android.os.Build
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
@@ -245,24 +247,40 @@ fun LyricsGlowLine(
     val targetAlpha = restingAlphaOf(state)
     val targetScale = restingScaleOf(state)
 
-    val animSpec = tween<Float>(durationMillis = 600)
-    val alpha by animateFloatAsState(targetAlpha, animSpec, label = "lyricsLineAlpha")
-    val scale by animateFloatAsState(targetScale, animSpec, label = "lyricsLineScale")
+    // Springs, not a fixed 600ms ramp. A line change often lands before the previous one has
+    // finished - a fast verse changes line every beat - and a tween has to stop and restart from a
+    // standstill every time, which is exactly what reads as the line snapping into place. A spring
+    // carries its velocity through the interruption, so one line's emphasis flows into the next
+    // instead of being cut and started again.
+    val emphasis = spring<Float>(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = Spring.StiffnessMediumLow,
+        visibilityThreshold = 0.001f,
+    )
+    // The zoom is the one part allowed a little body: a touch of overshoot when a line takes over,
+    // so the hand-over has some life in it without the text visibly wobbling.
+    val emphasisPop = spring<Float>(
+        dampingRatio = 0.74f,
+        stiffness = Spring.StiffnessLow,
+        visibilityThreshold = 0.001f,
+    )
+    val alpha by animateFloatAsState(targetAlpha, emphasis, label = "lyricsLineAlpha")
+    val scale by animateFloatAsState(targetScale, emphasisPop, label = "lyricsLineScale")
 
     // Only lines without word timing move as a whole; word-synced ones rise word by word.
     val wholeLineRise = wordMotion && entry.words.isNullOrEmpty()
     val drop by animateFloatAsState(
         targetValue = if (state == LyricsLineState.ACTIVE || !wholeLineRise) 0f else 1f,
-        animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessVeryLow,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessVeryLow,
         ),
         label = "lyricsLineDrop",
     )
 
     val blurRadius by animateFloatAsState(
         targetValue = BlurStageRadii[blurStage.coerceIn(0, BlurStageRadii.lastIndex)],
-        animationSpec = tween(durationMillis = 350),
+        animationSpec = emphasis,
         label = "lyricsLineBlur",
     )
 
@@ -270,7 +288,10 @@ fun LyricsGlowLine(
     // eased with the alpha and scale, and read only while drawing so the fade doesn't recompose the line every frame
     val lineColor = androidx.compose.animation.animateColorAsState(
         targetValue = if (state == LyricsLineState.ACTIVE) Color.White else baseColor,
-        animationSpec = tween(durationMillis = 600),
+        animationSpec = spring<Color>(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
         label = "lyricsLineColor",
     )
     val textColor = remember(lineColor) { ColorProducer { lineColor.value } }
@@ -381,7 +402,7 @@ fun LyricsGlowLine(
 
         val waveAmplitude by animateFloatAsState(
             targetValue = if (state == LyricsLineState.ACTIVE) 1f else 0f,
-            animationSpec = animSpec,
+            animationSpec = emphasis,
             label = "lyricsWaveAmplitude",
         )
 
@@ -424,9 +445,10 @@ fun LyricsGlowLine(
             BasicText(
                 // same characters as the lead text, with a line break wherever the bold line wraps
                 text = steadyWrap.text,
-                style = leadStyle.copy(
-                    fontWeight = if (state == LyricsLineState.ACTIVE) FontWeight.Bold else FontWeight.SemiBold,
-                ),
+                // One weight on this path. Swapping SemiBold for Bold the moment the line started
+                // re-measured every glyph at a wider advance, an instant jump that no fade could
+                // hide; the emphasis comes from the brightness, zoom and colour instead.
+                style = leadStyle.copy(fontWeight = FontWeight.Bold),
                 color = textColor,
                 // No maxLines cap. A capped line ellipsised into "..." and simply lost the rest of
                 // the words — a long line is meant to wrap, not to be truncated, and there is
