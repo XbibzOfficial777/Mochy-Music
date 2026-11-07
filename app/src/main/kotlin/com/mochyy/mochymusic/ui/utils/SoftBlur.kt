@@ -3,6 +3,7 @@
 package com.mochyy.mochymusic.ui.utils
 
 import android.graphics.Bitmap
+import androidx.core.graphics.scale
 import coil3.size.Size
 import coil3.transform.Transformation
 import kotlin.math.roundToInt
@@ -25,7 +26,7 @@ class SoftBlurTransformation(
 
     override suspend fun transform(input: Bitmap, size: Size): Bitmap {
         val height = (input.height * width / input.width.toFloat()).roundToInt().coerceAtLeast(1)
-        val scaled = Bitmap.createScaledBitmap(input, width, height, true)
+        val scaled = input.scale(width, height)
         val pixels = IntArray(width * height)
         scaled.getPixels(pixels, 0, width, 0, 0, width, height)
         if (scaled !== input) scaled.recycle()

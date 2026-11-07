@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -29,7 +30,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.mochyy.mochymusic.utils.dataStore
 import com.mochyy.mochymusic.constants.SetupCompletedKey
@@ -49,7 +49,7 @@ fun SetupWizardContainer(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val overlayProgress = remember { Animatable(0f) }
-    var dragOffsetY by remember { mutableStateOf(0f) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
     var isFirstLaunch by remember { mutableStateOf(true) }
     val topInset = WindowInsets.systemBars.asPaddingValues().calculateTopPadding()
 

@@ -10,7 +10,7 @@
     <string name="failed_to_download_version_error">Erreur lors de l\'analyse de la version %1$s : %2$s</string>
     <string name="downloading_update">Téléchargement en cours…</string>
     <string name="version_file_size">Version %1$s ~ %2$s Mo</string>
-    <string name="starting">C\'est parti...</string>
+    <string name="starting">C\'est parti…</string>
     <string name="version_progress">Version %1$s (%2$d%%)</string>
     <string name="update_ready">Prêt pour la mise à jour</string>
     <string name="tap_to_install_version">Appuyez pour installer la version %1$s</string>

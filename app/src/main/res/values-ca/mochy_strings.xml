@@ -502,7 +502,7 @@
     <string name="unblock">Desblocar</string>
     <string name="user_blocked_by_host">Usuari blocat per l\'amfitrió</string>
     <string name="ai_lyrics_translation">Lletra traduïda per IA</string>
-    <string name="ai_translating_lyrics">Traduint lletra...</string>
+    <string name="ai_translating_lyrics">Traduint lletra…</string>
     <string name="ai_lyrics_translated">Lletra traduïda</string>
     <string name="ai_provider">Proveïdor</string>
     <string name="ai_base_url">URL Base</string>

@@ -12,8 +12,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.createBitmap
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.ui.component.damageBoundary
 import kotlinx.coroutines.Dispatchers
@@ -66,7 +67,7 @@ private class MarqueeStrip(val image: ImageBitmap, val capHeight: Float, val mar
 fun NameMarquee(modifier: Modifier = Modifier, speed: Dp = 34.dp) {
     val context = LocalContext.current
     val speedPx = with(LocalDensity.current) { speed.toPx() }
-    var bandHeight by remember { mutableStateOf(0) }
+    var bandHeight by remember { mutableIntStateOf(0) }
 
     // the words are drawn into a picture once, off the main thread, so every frame after that only slides the picture
     val strip by produceState<MarqueeStrip?>(null, bandHeight) {
@@ -135,7 +136,7 @@ private fun buildStrip(context: Context, bandHeight: Int): MarqueeStrip {
     val margin = ceil(capHeight * 0.05f) + 2f
     val width = ceil(paint.measureText(MarqueeText) + margin * 2).toInt()
     val height = ceil(capHeight + margin * 2).toInt()
-    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val bitmap = createBitmap(width, height, Bitmap.Config.ARGB_8888)
     Canvas(bitmap).drawText(MarqueeText, margin, margin + capHeight, paint)
     bitmap.prepareToDraw()
     return MarqueeStrip(bitmap.asImageBitmap(), capHeight, margin)

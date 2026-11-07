@@ -29,7 +29,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -75,6 +74,7 @@ import com.mochyy.mochymusic.ui.screens.audiolab.rememberOnScreen
 import com.mochyy.mochymusic.ui.screens.audiolab.rememberPicturesHeld
 import com.mochyy.mochymusic.ui.screens.audiolab.trackOnScreen
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.utils.UiNumberFormat
 import com.mochyy.mochymusic.viewmodels.filterTypeLabel
 import com.mochyy.mochymusic.viewmodels.frequencyLabel
 import com.mochyy.mochymusic.viewmodels.gainLabel
@@ -434,7 +434,7 @@ private fun NodeDetail(
                     fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color.White,
                 )
                 Text(
-                    "${filterTypeLabel(node.filterType).lowercase()} · Q ${String.format("%.1f", node.q)}" +
+                    "${filterTypeLabel(node.filterType).lowercase()} · Q ${UiNumberFormat.decimal("%.1f", node.q)}" +
                         if (node.filterType == FilterType.LPQ || node.filterType == FilterType.HPQ) "" else " · ${gainLabel(node.gain)}",
                     fontFamily = InterFontFamily, fontSize = 13.sp, color = LabColors.Secondary,
                 )
@@ -479,7 +479,7 @@ private fun NodeDetail(
         Spacer(Modifier.height(10.dp))
         LabSlider(
             label = "FREQUENCY",
-            valueText = if (node.frequency >= 1000) String.format("%.2f kHz", node.frequency / 1000) else "${node.frequency.roundToInt()} Hz",
+            valueText = if (node.frequency >= 1000) UiNumberFormat.decimal("%.2f kHz", node.frequency / 1000) else "${node.frequency.roundToInt()} Hz",
             value = log10(node.frequency).toFloat(),
             onValueChange = { v -> onUpdate { it.copy(frequency = 10.0.pow(v.toDouble()).roundToInt().toDouble()) } },
             valueRange = MinLog.toFloat()..MaxLog.toFloat(),
@@ -487,7 +487,7 @@ private fun NodeDetail(
         Spacer(Modifier.height(10.dp))
         LabSlider(
             label = "Q",
-            valueText = String.format("%.2f", node.q),
+            valueText = UiNumberFormat.decimal("%.2f", node.q),
             value = log10(node.q).toFloat(),
             onValueChange = { v -> onUpdate { it.copy(q = (10.0.pow(v.toDouble()) * 100).roundToInt() / 100.0) } },
             valueRange = -1f..1f,

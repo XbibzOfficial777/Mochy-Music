@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
+import androidx.core.graphics.createBitmap
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -259,7 +260,7 @@ private fun rememberOnLightBehind(sheet: BottomSheetState, targetBounds: FloatAr
     LaunchedEffect(view, sheet, density) {
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O) return@LaunchedEffect
         val window = view.context.findActivity()?.window ?: return@LaunchedEffect
-        val bitmap = Bitmap.createBitmap(SampleBitmapWidth, SampleBitmapHeight, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(SampleBitmapWidth, SampleBitmapHeight, Bitmap.Config.ARGB_8888)
         val pixels = IntArray(SampleBitmapWidth * SampleBitmapHeight)
         val handler = Handler(Looper.getMainLooper())
         val halfBar = with(density) { HandleLength.toPx() } / 2f

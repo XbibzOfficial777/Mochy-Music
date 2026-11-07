@@ -3,6 +3,7 @@ package com.mochyy.mochymusic.playback.custom
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Timeline
@@ -92,7 +93,7 @@ class DynamicResolvingMediaSource(
                 return@launch
             }
 
-            val builder = originalMediaItem.buildUpon().setUri(Uri.parse(result.streamUrl))
+            val builder = originalMediaItem.buildUpon().setUri(result.streamUrl.toUri())
             result.cacheKey?.let(builder::setCustomCacheKey)
 
             if (result.isDash || result.streamUrl.endsWith(".mpd")) {

@@ -56,6 +56,7 @@ import com.mochyy.mochymusic.db.entities.Song
 import com.mochyy.mochymusic.ui.component.LocalBottomSheetPageState
 import com.mochyy.mochymusic.ui.component.shimmer.ShimmerHost
 import com.mochyy.mochymusic.ui.component.shimmer.TextPlaceholder
+import com.mochyy.mochymusic.utils.UiNumberFormat
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -375,7 +376,7 @@ fun InfoItem(
 fun shortNumberFormatter(count: Int): String {
     return when {
         count < 1000 -> count.toString()
-        count < 1_000_000 -> String.format("%.1fk", count / 1000.0)
-        else -> String.format("%.1fM", count / 1_000_000.0)
+        count < 1_000_000 -> UiNumberFormat.decimal("%.1fk", count / 1000.0)
+        else -> UiNumberFormat.decimal("%.1fM", count / 1_000_000.0)
     }
 }

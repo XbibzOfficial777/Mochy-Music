@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.mochyy.mochymusic.constants.ThumbnailCornerRadius
 
@@ -56,11 +57,15 @@ fun RandomizeGridItem(
         val dotColor = MaterialTheme.colorScheme.onSecondaryContainer
         val dotSize = 14.dp
         val padding = 24.dp
+        // Read inside the offset lambdas below instead of at composition: offset() only runs in the
+        // layout phase, so animating the dots re-lays-out without recomposing this grid item's
+        // content on every frame.
+        val dotOffset = padding * dotOffsetMultiplier
 
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = -padding * dotOffsetMultiplier, y = -padding * dotOffsetMultiplier)
+                .offset { IntOffset((-dotOffset).roundToPx(), (-dotOffset).roundToPx()) }
                 .size(dotSize)
                 .clip(CircleShape)
                 .background(dotColor)
@@ -69,7 +74,7 @@ fun RandomizeGridItem(
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = padding * dotOffsetMultiplier, y = -padding * dotOffsetMultiplier)
+                .offset { IntOffset(dotOffset.roundToPx(), (-dotOffset).roundToPx()) }
                 .size(dotSize)
                 .clip(CircleShape)
                 .background(dotColor)
@@ -86,7 +91,7 @@ fun RandomizeGridItem(
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = -padding * dotOffsetMultiplier, y = padding * dotOffsetMultiplier)
+                .offset { IntOffset((-dotOffset).roundToPx(), dotOffset.roundToPx()) }
                 .size(dotSize)
                 .clip(CircleShape)
                 .background(dotColor)
@@ -95,7 +100,7 @@ fun RandomizeGridItem(
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = padding * dotOffsetMultiplier, y = padding * dotOffsetMultiplier)
+                .offset { IntOffset(dotOffset.roundToPx(), dotOffset.roundToPx()) }
                 .size(dotSize)
                 .clip(CircleShape)
                 .background(dotColor)

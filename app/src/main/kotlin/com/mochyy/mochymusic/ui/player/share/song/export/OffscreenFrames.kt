@@ -19,6 +19,7 @@ import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.core.graphics.createBitmap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -173,7 +174,7 @@ internal class OffscreenFrames(
 
     private fun captureInSoftware(): FrameImage? {
         val bitmap = softwareFrames[softwareTurn]
-            ?: Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { softwareFrames[softwareTurn] = it }
+            ?: createBitmap(width, height, Bitmap.Config.ARGB_8888).also { softwareFrames[softwareTurn] = it }
         val frame = runCatching {
             bitmap.eraseColor(Color.TRANSPARENT)
             view.draw(Canvas(bitmap))

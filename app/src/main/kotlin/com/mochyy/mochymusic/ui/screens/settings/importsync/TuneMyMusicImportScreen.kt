@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.mochyy.mochymusic.R
@@ -72,7 +73,7 @@ fun TuneMyMusicImportScreen(
                     iconShape = CircleShape,
                     onClick = {
                         try {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(TUNEMYMUSIC_URL)))
+                            context.startActivity(Intent(Intent.ACTION_VIEW, TUNEMYMUSIC_URL.toUri()))
                         } catch (_: ActivityNotFoundException) {
                             Toast.makeText(context, "No browser found", Toast.LENGTH_SHORT).show()
                         }

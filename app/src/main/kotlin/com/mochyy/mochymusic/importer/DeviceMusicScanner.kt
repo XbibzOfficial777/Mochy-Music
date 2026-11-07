@@ -11,6 +11,7 @@ import android.os.Build
 import android.provider.MediaStore
 import androidx.compose.runtime.Immutable
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -88,5 +89,5 @@ object DeviceMusicScanner {
         songs
     }
 
-    private val AlbumArtUri: Uri = Uri.parse("content://media/external/audio/albumart")
+    private val AlbumArtUri: Uri = "content://media/external/audio/albumart".toUri()
 }

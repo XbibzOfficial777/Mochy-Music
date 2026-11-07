@@ -305,7 +305,7 @@
     <string name="wrapped_intro_button">cominciamo!</string>
     <string name="wrapped_end_thanks">Grazie per aver ascoltato con mochy!</string>
     <string name="wrapped_end_create_playlist">Crea la tua playlist del Wrapped</string>
-    <string name="wrapped_end_creating_playlist">Creazione...</string>
+    <string name="wrapped_end_creating_playlist">Creazione…</string>
     <string name="wrapped_end_playlist_saved">Playlist Salvata</string>
     <string name="wrapped_logo_content_description">Logo di mochy</string>
     <string name="wrapped_year">2025</string>
@@ -528,7 +528,7 @@
     <string name="enter_room_code">Inserisci codice stanza</string>
     <string name="listen_together_settings_desc">Configura server, nome utente e altro</string>
     <string name="ai_lyrics_translation">Traduzione Testi con AI</string>
-    <string name="ai_translating_lyrics">Traduzione del testo...</string>
+    <string name="ai_translating_lyrics">Traduzione del testo…</string>
     <string name="ai_lyrics_translated">Testo tradotto</string>
     <string name="ai_provider">Fornitore</string>
     <string name="ai_base_url">URL Base</string>

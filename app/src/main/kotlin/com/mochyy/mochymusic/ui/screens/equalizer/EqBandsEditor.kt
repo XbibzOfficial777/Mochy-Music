@@ -44,6 +44,7 @@ import com.mochyy.mochymusic.ui.screens.audiolab.LabCard
 import com.mochyy.mochymusic.ui.screens.audiolab.LabColors
 import com.mochyy.mochymusic.ui.screens.audiolab.LabSectionLabel
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.utils.UiNumberFormat
 import com.mochyy.mochymusic.viewmodels.frequencyLabel
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -194,7 +195,7 @@ private fun BandSliders(nodes: List<ParametricEQBand>, onGain: (Int, Double) -> 
             )
             val value = measurer.measure(
                 (if (node.gain > 0) "+" else "") + (if (node.gain == node.gain.roundToInt().toDouble()) node.gain.roundToInt().toString()
-                else String.format("%.1f", node.gain)),
+                else UiNumberFormat.decimal("%.1f", node.gain)),
                 if (isActive) valueStyle.copy(color = Color.White) else valueStyle,
             )
             drawText(value, topLeft = Offset(cx - value.size.width / 2f, top - value.size.height - 8.dp.toPx()))

@@ -419,7 +419,7 @@
     <string name="wrapped_intro_button">hadi başlayalım!</string>
     <string name="wrapped_end_thanks">mochy ile dinlediğiniz için teşekkürler!</string>
     <string name="wrapped_end_create_playlist">Özet Çalma Listeni Oluştur</string>
-    <string name="wrapped_end_creating_playlist">Oluşturuluyor...</string>
+    <string name="wrapped_end_creating_playlist">Oluşturuluyor…</string>
     <string name="wrapped_end_playlist_saved">Çalma Listesi Kaydedildi</string>
     <string name="wrapped_logo_content_description">mochy Logosu</string>
     <string name="wrapped_year">2025</string>
@@ -602,7 +602,7 @@
 
     <!-- AI Lyrics Translation -->
     <string name="ai_lyrics_translation">Yapay zeka ile şarkı sözü çevirisi</string>
-    <string name="ai_translating_lyrics">Sözler çeviriliyor...</string>
+    <string name="ai_translating_lyrics">Sözler çeviriliyor…</string>
     <string name="ai_lyrics_translated">Sözler çevirildi</string>
     <string name="ai_provider">Sağlayıcı</string>
     <string name="ai_base_url">Temel URL</string>

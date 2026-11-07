@@ -543,7 +543,7 @@ private fun DeviceVolumeRow() {
         audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1)
     }
     var volume by remember {
-        mutableStateOf(
+        mutableFloatStateOf(
             audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC).toFloat() / maxVolume
         )
     }

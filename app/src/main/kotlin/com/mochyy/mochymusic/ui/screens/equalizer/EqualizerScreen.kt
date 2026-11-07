@@ -44,6 +44,7 @@ import com.mochyy.mochymusic.ui.screens.audiolab.LabTextAction
 import com.mochyy.mochymusic.ui.screens.audiolab.LabToggleRow
 import com.mochyy.mochymusic.ui.screens.audiolab.ListenToAudio
 import com.mochyy.mochymusic.ui.screens.audiolab.animatedDim
+import com.mochyy.mochymusic.utils.UiNumberFormat
 import com.mochyy.mochymusic.viewmodels.AudioLabViewModel
 import com.mochyy.mochymusic.viewmodels.isFlat
 import kotlin.math.roundToInt
@@ -203,7 +204,7 @@ private fun Output(eq: EqSettings, headroom: Double, viewModel: AudioLabViewMode
     LabCard(padding = 16.dp) {
         LabSlider(
             label = "Preamp",
-            valueText = (if (eq.preamp > 0) "+" else "") + String.format("%.1f dB", eq.preamp),
+            valueText = (if (eq.preamp > 0) "+" else "") + UiNumberFormat.decimal("%.1f dB", eq.preamp),
             value = eq.preamp.toFloat(),
             onValueChange = { viewModel.setPreamp((it * 2).roundToInt() / 2.0) },
             valueRange = -12f..6f,
@@ -212,7 +213,7 @@ private fun Output(eq: EqSettings, headroom: Double, viewModel: AudioLabViewMode
         LabToggleRow(
             title = "Auto preamp",
             subtitle = if (eq.autoPreamp) {
-                if (headroom < -0.05) "Lowering by ${String.format("%.1f", -headroom)} dB, the limiter catches the rest"
+                if (headroom < -0.05) "Lowering by ${UiNumberFormat.decimal("%.1f", -headroom)} dB, the limiter catches the rest"
                 else "Nothing to lower, the limiter catches any peaks"
             } else "Off: louder, but big boosts get squashed on loud songs",
             checked = eq.autoPreamp,

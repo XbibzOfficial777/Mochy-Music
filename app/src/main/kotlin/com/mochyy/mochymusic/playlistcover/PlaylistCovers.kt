@@ -2,6 +2,8 @@
 
 package com.mochyy.mochymusic.playlistcover
 
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
 import com.mochyy.mochymusic.R
 import androidx.core.content.res.ResourcesCompat
 import android.content.Context
@@ -166,7 +168,7 @@ object PlaylistCoverGenerator {
         artwork: Bitmap?,
         size: Int = ExportSize,
     ): Bitmap {
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val s = size.toFloat()
 
@@ -268,7 +270,7 @@ object PlaylistCoverGenerator {
             (src.width + side) / 2,
             (src.height + side) / 2,
         )
-        val tiny = Bitmap.createBitmap(BackdropPixels, BackdropPixels, Bitmap.Config.ARGB_8888)
+        val tiny = createBitmap(BackdropPixels, BackdropPixels, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(tiny)
         canvas.drawColor(AColor.BLACK)
         canvas.drawBitmap(src, crop, Rect(0, 0, BackdropPixels, BackdropPixels), Paint(Paint.FILTER_BITMAP_FLAG))
@@ -441,7 +443,7 @@ object PlaylistCoverStore {
 
     private fun centerCropSquare(src: Bitmap, size: Int): Bitmap {
         val side = minOf(src.width, src.height)
-        val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val out = createBitmap(size, size, Bitmap.Config.ARGB_8888)
         Canvas(out).drawBitmap(
             src,
             Rect((src.width - side) / 2, (src.height - side) / 2, (src.width + side) / 2, (src.height + side) / 2),

@@ -2,7 +2,9 @@ name: Xbibz verified release build
 
 on:
   push:
-    branches: [fix/search-motion-release]
+    branches:
+      - fix/search-motion-release
+      - optimize/bibz-uiux-fixes
   workflow_dispatch:
 
 permissions:

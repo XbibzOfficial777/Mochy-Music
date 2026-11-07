@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.utils.UiNumberFormat
 import kotlin.math.roundToInt
 
 internal val StorageCard = Color(0xFF1C1C1E)
@@ -90,7 +91,7 @@ internal fun formatSize(bytes: Long): String {
         value /= 1000
         unit++
     }
-    val number = if (value >= 10 || unit == 0) value.roundToInt().toString() else String.format("%.1f", value)
+    val number = if (value >= 10 || unit == 0) value.roundToInt().toString() else UiNumberFormat.decimal("%.1f", value)
     return "$number ${units[unit]}"
 }
 

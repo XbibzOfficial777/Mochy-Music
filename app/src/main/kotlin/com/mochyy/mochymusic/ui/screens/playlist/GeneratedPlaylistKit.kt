@@ -32,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.ui.component.detail.CreatorUi
 import com.mochyy.mochymusic.ui.component.detail.PlaylistDetailScaffold
@@ -230,7 +232,7 @@ fun generatedStats(songCount: Int, totalSeconds: Int): String {
 @Composable
 fun rememberSongsDownloadState(songIds: List<String>): Int {
     val downloadUtil = com.mochyy.mochymusic.LocalDownloadUtil.current
-    var state by remember { mutableStateOf(androidx.media3.exoplayer.offline.Download.STATE_STOPPED) }
+    var state by remember { mutableIntStateOf(androidx.media3.exoplayer.offline.Download.STATE_STOPPED) }
     androidx.compose.runtime.LaunchedEffect(songIds) {
         if (songIds.isEmpty()) return@LaunchedEffect
         downloadUtil.downloads.collect { downloads ->
@@ -265,7 +267,7 @@ fun toggleSongsDownload(
     } else {
         songs.forEach { song ->
             val request = androidx.media3.exoplayer.offline.DownloadRequest
-                .Builder(song.song.id, android.net.Uri.parse(song.song.id))
+                .Builder(song.song.id, song.song.id.toUri())
                 .setCustomCacheKey(song.song.id)
                 .setData(song.song.title.toByteArray())
                 .build()

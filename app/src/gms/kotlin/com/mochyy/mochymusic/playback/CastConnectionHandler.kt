@@ -5,6 +5,7 @@ package com.mochyy.mochymusic.playback
 import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.Stable
+import androidx.core.net.toUri
 import androidx.media3.common.Player
 import androidx.mediarouter.media.MediaRouteSelector
 import androidx.mediarouter.media.MediaRouter
@@ -539,7 +540,7 @@ class CastConnectionHandler(
             metadata.thumbnailUrl?.let { thumbUrl ->
 
                 val highQualityUrl = thumbUrl.resize(1080, 1080)
-                addImage(WebImage(Uri.parse(highQualityUrl)))
+                addImage(WebImage(highQualityUrl.toUri()))
             }
         }
 

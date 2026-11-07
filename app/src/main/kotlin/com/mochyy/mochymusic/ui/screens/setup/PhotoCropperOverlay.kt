@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.scale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -84,7 +86,7 @@ fun PhotoCropperContainer(
                         val ratio = (maxDim.toFloat() / maxOf(bmp.width, bmp.height))
                         val newWidth = (bmp.width * ratio).toInt()
                         val newHeight = (bmp.height * ratio).toInt()
-                        Bitmap.createScaledBitmap(bmp, newWidth, newHeight, true)
+                        bmp.scale(newWidth, newHeight)
                     } else {
                         bmp
                     }
@@ -104,7 +106,7 @@ fun PhotoCropperContainer(
 
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
     var cropCenter by remember { mutableStateOf(Offset.Zero) }
-    var cropRadius by remember { mutableStateOf(0f) }
+    var cropRadius by remember { mutableFloatStateOf(0f) }
     val minRadius = 100f
 
     LaunchedEffect(containerSize) {

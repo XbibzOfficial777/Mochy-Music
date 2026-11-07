@@ -8,6 +8,7 @@
 package com.mochyy.mochymusic.ui.screens.recap
 
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.runtime.mutableIntStateOf
 import com.mochyy.mochymusic.ui.component.BlurEffectCache
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.animation.AnimatedVisibility
@@ -113,8 +114,8 @@ fun StatsScreen(navController: NavController) {
     val today = remember { LocalDate.now() }
 
     var kind by rememberSaveable { mutableStateOf(StatsRange.Kind.Month) }
-    var year by rememberSaveable { mutableStateOf(today.year) }
-    var month by rememberSaveable { mutableStateOf(today.monthValue) }
+    var year by rememberSaveable { mutableIntStateOf(today.year) }
+    var month by rememberSaveable { mutableIntStateOf(today.monthValue) }
     val range = StatsRange(kind, year, if (kind == StatsRange.Kind.Month) month else 1)
 
     var firstDay by remember { mutableStateOf<LocalDate?>(null) }
@@ -672,8 +673,8 @@ private fun ColumnScope.StatsPicker(
     onDone: (StatsRange.Kind, Int, Int) -> Unit,
 ) {
     var k by remember { mutableStateOf(kind) }
-    var y by remember { mutableStateOf(year) }
-    var m by remember { mutableStateOf(month) }
+    var y by remember { mutableIntStateOf(year) }
+    var m by remember { mutableIntStateOf(month) }
     val years = (firstDay.year..today.year).toList()
     val months = remember(y) {
         val from = if (y == firstDay.year) firstDay.monthValue else 1

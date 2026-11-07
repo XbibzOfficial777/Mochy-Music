@@ -334,7 +334,7 @@
     <string name="wrapped_intro_button">ไปดูกันเลย!</string>
     <string name="wrapped_end_thanks">ขอบคุณที่ฟังเพลงกับ mochy!</string>
     <string name="wrapped_end_create_playlist">สร้างเพลย์ลิสต์ Wrapped ของคุณ</string>
-    <string name="wrapped_end_creating_playlist">กำลังสร้าง...</string>
+    <string name="wrapped_end_creating_playlist">กำลังสร้าง…</string>
     <string name="wrapped_end_playlist_saved">บันทึกเพลย์ลิสต์แล้ว</string>
     <string name="wrapped_logo_content_description">โลโก้ mochy</string>
     <string name="wrapped_year">2025</string>
@@ -497,7 +497,7 @@
     <string name="unblock">เลิกบล็อก</string>
     <string name="user_blocked_by_host">ผู้ใช้ถูกบล็อกโดยโฮสต์</string>
     <string name="ai_lyrics_translation">แปลเนื้อเพลงด้วย AI</string>
-    <string name="ai_translating_lyrics">กำลังแปลเนื้อเพลง...</string>
+    <string name="ai_translating_lyrics">กำลังแปลเนื้อเพลง…</string>
     <string name="ai_lyrics_translated">แปลเนื้อเพลงแล้ว</string>
     <string name="ai_provider">ผู้ให้บริการ</string>
     <string name="ai_base_url">Base URL</string>

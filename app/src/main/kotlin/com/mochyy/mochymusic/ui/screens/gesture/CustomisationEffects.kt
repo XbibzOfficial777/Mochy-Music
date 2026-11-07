@@ -43,9 +43,11 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.scale
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.AnimationSpeedKey
 import androidx.compose.ui.res.stringResource
@@ -384,7 +386,7 @@ private fun MiniSegmented(options: List<String>, selectedIndex: Int, onSelect: (
         val offset by animateDpAsState(segment * selectedIndex, spring(dampingRatio = 0.82f, stiffness = 520f), label = "miniSegment")
         Box(
             Modifier
-                .offset(x = offset)
+                .offset { IntOffset(offset.roundToPx(), 0) }
                 .width(segment)
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(10.dp))

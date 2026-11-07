@@ -19,6 +19,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.core.graphics.createBitmap
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.OverlaySettings
@@ -302,7 +303,7 @@ private class CarrierUnderVideo(private val size: Size) : VideoCompositorSetting
 private fun carrierImage(context: Context): File {
     val file = File(exportDir(context), "carrier.png")
     if (!file.exists()) {
-        val black = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLACK) }
+        val black = createBitmap(16, 16, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLACK) }
         file.outputStream().use { black.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
     return file

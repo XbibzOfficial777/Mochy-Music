@@ -1,5 +1,6 @@
 package com.mochyy.mochymusic.core.commitscreen
 
+import androidx.core.net.toUri
 import com.mochyy.mochymusic.utils.optStringOrNull
 import android.content.Intent
 import android.net.Uri
@@ -220,7 +221,7 @@ fun CommitScreen(
                             CommitItem(
                                 commit = commit,
                                 onClick = {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(commit.htmlUrl)))
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, commit.htmlUrl.toUri()))
                                 }
                             )
                             if (index < commits.lastIndex) {

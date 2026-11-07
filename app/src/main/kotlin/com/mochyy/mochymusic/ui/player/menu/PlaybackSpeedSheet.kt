@@ -41,6 +41,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalContext
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.di.AudioLabEntryPoint
+import com.mochyy.mochymusic.utils.UiNumberFormat
 import dagger.hilt.android.EntryPointAccessors
 import kotlin.math.abs
 import kotlin.math.log2
@@ -148,7 +149,7 @@ private fun ValueSlider(label: String, value: Float, onValueChange: (Float) -> U
                 modifier = Modifier.weight(1f),
             )
             Text(
-                text = String.format("%.2f×", value),
+                text = UiNumberFormat.decimal("%.2f×", value),
                 color = Color(0xFFB3B3B3),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,

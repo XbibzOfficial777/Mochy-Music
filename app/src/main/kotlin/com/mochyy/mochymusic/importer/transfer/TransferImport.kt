@@ -6,6 +6,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import android.provider.MediaStore
+import androidx.core.net.toUri
 import com.mochyy.mochymusic.db.AllMigrations
 import com.mochyy.mochymusic.db.MusicDatabaseVersion
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -201,7 +202,7 @@ class TransferImporter @Inject constructor(
             val song = songs.optJSONObject(i) ?: continue
             val id = song.optString("id")
             if (id.isBlank()) continue
-            val uri = Uri.parse(song.optString("uri"))
+            val uri = song.optString("uri").toUri()
             if (uri.scheme != "content" || uri.authority == MediaStore.AUTHORITY) continue
             val found = song.optString("mediaUri").takeIf { it.isNotBlank() }
                 ?: findInMediaStore(song.optString("name"), song.optLong("size", -1L))

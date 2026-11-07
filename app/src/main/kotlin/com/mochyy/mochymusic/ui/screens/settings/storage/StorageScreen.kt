@@ -40,6 +40,7 @@ import com.mochyy.mochymusic.constants.MaxSongCacheSizeKey
 import com.mochyy.mochymusic.ui.component.LocalMenuState
 import com.mochyy.mochymusic.ui.component.SubSettingsScaffold
 import com.mochyy.mochymusic.ui.screens.library.showConfirm
+import com.mochyy.mochymusic.utils.UiNumberFormat
 import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.viewmodels.StorageUsage
 import com.mochyy.mochymusic.viewmodels.StorageViewModel
@@ -143,7 +144,7 @@ private fun percentOf(part: Long, total: Long): String {
     val p = part * 100.0 / total
     return when {
         p < 0.1 -> "<0.1%"
-        p < 10 -> String.format("%.1f%%", p)
+        p < 10 -> UiNumberFormat.decimal("%.1f%%", p)
         else -> "${p.toInt()}%"
     }
 }

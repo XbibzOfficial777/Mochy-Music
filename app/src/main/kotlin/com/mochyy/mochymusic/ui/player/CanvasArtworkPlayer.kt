@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.core.graphics.createBitmap
 import com.mochyy.mochymusic.ui.utils.rememberSettled
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -244,7 +245,7 @@ fun CanvasArtworkPlayer(
     val sampling = onFrameColors != null
     LaunchedEffect(isVideoReady, sampling, shouldPlay) {
         if (!isVideoReady || !sampling) return@LaunchedEffect
-        val sample = android.graphics.Bitmap.createBitmap(CanvasSamplePx, CanvasSamplePx, android.graphics.Bitmap.Config.ARGB_8888)
+        val sample = createBitmap(CanvasSamplePx, CanvasSamplePx, android.graphics.Bitmap.Config.ARGB_8888)
         val pixels = IntArray(CanvasSamplePx * CanvasSamplePx)
         // a paused canvas never changes, so it's read once and left alone
         do {

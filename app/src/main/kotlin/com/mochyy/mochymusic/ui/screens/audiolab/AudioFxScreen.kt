@@ -50,6 +50,7 @@ import com.mochyy.mochymusic.eq.MinSpeed
 import com.mochyy.mochymusic.eq.ReverbPresets
 import com.mochyy.mochymusic.eq.audio.SpatialMode
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.utils.UiNumberFormat
 import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.viewmodels.AudioLabViewModel
 import kotlinx.coroutines.Dispatchers
@@ -150,7 +151,7 @@ private fun LoudnessCard(viewModel: AudioLabViewModel) {
             )
             Spacer(Modifier.height(10.dp))
             LabPanel {
-                LabSlider("Boost", "+${String.format("%.1f", loudness.boostDb)} dB", loudness.boostDb,
+                LabSlider("Boost", "+${UiNumberFormat.decimal("%.1f", loudness.boostDb)} dB", loudness.boostDb,
                     { v -> viewModel.updateLoudness { it.copy(boostDb = (v * 2).roundToInt() / 2f) } }, 0f..12f)
                 LabSlider("Compression", pct(loudness.compression), loudness.compression,
                     { v -> viewModel.updateLoudness { it.copy(compression = (v * 100).roundToInt() / 100f) } }, 0f..1f)
@@ -182,7 +183,7 @@ private fun LoudnessCard(viewModel: AudioLabViewModel) {
                             }
                         },
                     )
-                    LabSlider("Preamp", (if (rg.preampDb > 0) "+" else "") + String.format("%.1f dB", rg.preampDb), rg.preampDb,
+                    LabSlider("Preamp", (if (rg.preampDb > 0) "+" else "") + UiNumberFormat.decimal("%.1f dB", rg.preampDb), rg.preampDb,
                         { v -> viewModel.updateNormalize { it.copy(preampDb = (v * 2).roundToInt() / 2f) } }, -6f..6f)
                     Text(
                         "Songs that carry ReplayGain (Monochrome's FLACs, many of your own files) even out by it: Track keeps every song level, Album keeps an album's quiet and loud songs as mastered. YouTube songs use YouTube's loudness.",
@@ -237,7 +238,7 @@ private fun SpatialCard(viewModel: AudioLabViewModel) {
                 LabPanel {
                     LabSlider("Head shadow", "${spatial.cutoffHz.roundToInt()} Hz", spatial.cutoffHz,
                         { v -> viewModel.updateSpatial { it.copy(cutoffHz = (v / 10).roundToInt() * 10f) } }, 300f..1500f)
-                    LabSlider("Crossfeed", "−${String.format("%.1f", spatial.feedDb)} dB", 16f - spatial.feedDb,
+                    LabSlider("Crossfeed", "−${UiNumberFormat.decimal("%.1f", spatial.feedDb)} dB", 16f - spatial.feedDb,
                         { v -> viewModel.updateSpatial { it.copy(feedDb = ((16f - v) * 2).roundToInt() / 2f) } }, 1f..15f)
                     LabSlider("Amount", pct(spatial.amount), spatial.amount,
                         { v -> viewModel.updateSpatial { it.copy(amount = v) } }, 0f..1f)
@@ -378,7 +379,7 @@ private fun SpeedCard(viewModel: AudioLabViewModel) {
                 }
                 StepButton("−") { viewModel.updatePlayback { it.copy(speed = ((it.speed - 0.05f) * 100).roundToInt() / 100f) } }
                 Text(
-                    String.format("%.2f×", playback.speed),
+                    UiNumberFormat.decimal("%.2f×", playback.speed),
                     fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White,
                     modifier = Modifier.padding(horizontal = 10.dp),
                 )
@@ -413,7 +414,7 @@ private fun SpeedCard(viewModel: AudioLabViewModel) {
             Spacer(Modifier.height(10.dp))
             LabPanel {
                 LabSlider(
-                    "Speed", String.format("%.2f×", playback.speed), log10(playback.speed),
+                    "Speed", UiNumberFormat.decimal("%.2f×", playback.speed), log10(playback.speed),
                     { v -> viewModel.updatePlayback { it.copy(speed = (10f.pow(v) * 100).roundToInt() / 100f) } },
                     log10(MinSpeed)..log10(MaxSpeed),
                 )
@@ -478,7 +479,7 @@ private fun VolumeCard(viewModel: AudioLabViewModel) {
             )
             Spacer(Modifier.height(10.dp))
             LabPanel {
-                LabSlider("Curve", String.format("x^%.1f", volume.exponent), volume.exponent,
+                LabSlider("Curve", UiNumberFormat.decimal("x^%.1f", volume.exponent), volume.exponent,
                     { v -> viewModel.updateVolume { it.copy(exponent = (v * 10).roundToInt() / 10f) } }, 1f..4f)
                 LabSlider("Volume limit", pct(volume.limit), volume.limit,
                     { v -> viewModel.updateVolume { it.copy(limit = (v * 100).roundToInt() / 100f) } }, 0.2f..1f)

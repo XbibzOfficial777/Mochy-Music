@@ -8,6 +8,7 @@ package com.mochyy.mochymusic.importer
 
 import android.content.Context
 import android.net.Uri
+import androidx.core.net.toUri
 import com.mochyy.mochymusic.db.MusicDatabase
 import com.mochyy.mochymusic.db.entities.AlbumArtistMap
 import com.mochyy.mochymusic.db.entities.AlbumEntity
@@ -122,7 +123,7 @@ suspend fun importLocalAudio(
 suspend fun groupLocalAlbums(context: Context, database: MusicDatabase) {
     database.localSongsWithoutAlbum().forEach { song ->
         val tags = song.song.localUri?.let { uri ->
-            withContext(Dispatchers.IO) { extractAudioMetadata(context, Uri.parse(uri)) }
+            withContext(Dispatchers.IO) { extractAudioMetadata(context, uri.toUri()) }
         }
         val title = (tags?.album ?: song.song.albumName)?.trim()?.takeIf { it.isNotEmpty() } ?: return@forEach
         val albumArtist = tags?.albumArtist?.trim()?.takeIf { it.isNotEmpty() }

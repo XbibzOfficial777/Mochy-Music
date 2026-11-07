@@ -28,6 +28,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.graphics.createBitmap
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
@@ -166,7 +167,7 @@ fun YouTubeVideoSurface(
 
     LaunchedEffect(session) {
         snapshotFlow { session.hasFrame }.first { it }
-        val sample = Bitmap.createBitmap(SampleSize, SampleSize, Bitmap.Config.ARGB_8888)
+        val sample = createBitmap(SampleSize, SampleSize, Bitmap.Config.ARGB_8888)
         val pixels = IntArray(SampleSize * SampleSize)
         val vertical = LetterboxStabilizer()
         val horizontal = LetterboxStabilizer()

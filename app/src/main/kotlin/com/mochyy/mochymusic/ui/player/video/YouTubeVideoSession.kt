@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
@@ -64,7 +65,7 @@ private const val MaxBufferMs = 40_000
 private const val BufferToStartMs = 800
 private const val BufferToResumeMs = 1_600
 
-private val ManifestUri: Uri = Uri.parse("https://www.youtube.com/mochy-video.mpd")
+private val ManifestUri: Uri = "https://www.youtube.com/mochy-video.mpd".toUri()
 
 // the youtube video's own thread: building, loading and letting go of a player never lands on a frame
 private object YouTubeVideoThread {

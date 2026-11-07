@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -85,6 +86,7 @@ import com.mochyy.mochymusic.ui.screens.audiolab.LabSlider
 import com.mochyy.mochymusic.ui.screens.audiolab.LabTextAction
 import com.mochyy.mochymusic.ui.screens.audiolab.LabToggleRow
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.utils.UiNumberFormat
 import com.mochyy.mochymusic.viewmodels.AudioLabViewModel
 import com.mochyy.mochymusic.viewmodels.AutoEqIndex
 import kotlinx.coroutines.launch
@@ -265,7 +267,7 @@ private fun SelectedHeadphone(
             Spacer(Modifier.height(12.dp))
             LabSlider(
                 label = "Bass",
-                valueText = (if (tuning.bassDb > 0) "+" else "") + String.format("%.0f dB", tuning.bassDb),
+                valueText = (if (tuning.bassDb > 0) "+" else "") + UiNumberFormat.decimal("%.0f dB", tuning.bassDb),
                 value = tuning.bassDb.toFloat(),
                 onValueChange = { v -> if (canTune) viewModel.tune { it.copy(bassDb = Math.round(v).toDouble()) } },
                 valueRange = -6f..6f,
@@ -274,7 +276,7 @@ private fun SelectedHeadphone(
             Spacer(Modifier.height(6.dp))
             LabSlider(
                 label = "Tilt",
-                valueText = (if (tuning.tiltDbPerOctave > 0) "+" else "") + String.format("%.1f dB/oct", tuning.tiltDbPerOctave),
+                valueText = (if (tuning.tiltDbPerOctave > 0) "+" else "") + UiNumberFormat.decimal("%.1f dB/oct", tuning.tiltDbPerOctave),
                 value = tuning.tiltDbPerOctave.toFloat(),
                 onValueChange = { v -> if (canTune) viewModel.tune { it.copy(tiltDbPerOctave = Math.round(v * 10) / 10.0) } },
                 valueRange = -1f..1f,
@@ -322,7 +324,7 @@ private fun Database(viewModel: AudioLabViewModel, selectedPath: String?, loadin
             val ready = index as? AutoEqIndex.Ready
             if (ready != null) {
                 Text(
-                    "${String.format("%,d", ready.models.size)} models",
+                    "${UiNumberFormat.decimal("%,d", ready.models.size)} models",
                     fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = LabColors.Secondary,
                 )
             }
@@ -496,7 +498,7 @@ private fun ModelRow(
 @Composable
 private fun AlphabetRail(modifier: Modifier, onLetter: (Char) -> Unit) {
     val letters = ('A'..'Z').toList() + '#'
-    var railHeight by remember { mutableStateOf(1) }
+    var railHeight by remember { mutableIntStateOf(1) }
     Column(
         modifier = modifier
             .fillMaxHeight()

@@ -312,7 +312,7 @@
     <string name="wrapped_intro_button">Zaczynamy!</string>
     <string name="wrapped_end_thanks">Dzięki, że słuchasz z mochy!</string>
     <string name="wrapped_end_create_playlist">Stwórz swoją playlistę Wrapped</string>
-    <string name="wrapped_end_creating_playlist">Tworzenie...</string>
+    <string name="wrapped_end_creating_playlist">Tworzenie…</string>
     <string name="wrapped_end_playlist_saved">Zapisano Playlistę</string>
     <string name="wrapped_logo_content_description">Logo mochy</string>
     <string name="wrapped_year">2026</string>

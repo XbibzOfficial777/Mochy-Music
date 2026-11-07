@@ -894,9 +894,11 @@ object YTPlayerUtils {
         }
 
         Timber.tag(logTag).d(
-            "Format candidates ($effectiveQuality): " + candidates.take(8).joinToString {
+            "Format candidates (%s): %s",
+            effectiveQuality,
+            candidates.take(8).joinToString {
                 "${it.mimeType}@${it.bitrate}${if (it.url.isNullOrEmpty()) " (cipher)" else ""}"
-            }
+            },
         )
 
         return candidates

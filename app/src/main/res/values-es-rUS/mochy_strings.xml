@@ -326,7 +326,7 @@
     <string name="wrapped_intro_button">¡vamos!</string>
     <string name="wrapped_end_thanks">¡Gracias por escuchar con mochy!</string>
     <string name="wrapped_end_create_playlist">Crea tu lista de reproducción Recap</string>
-    <string name="wrapped_end_creating_playlist">Creando...</string>
+    <string name="wrapped_end_creating_playlist">Creando…</string>
     <string name="wrapped_end_playlist_saved">Lista de reproducción guardada</string>
     <string name="wrapped_logo_content_description">Logo de mochy</string>
     <string name="wrapped_year">2025</string>
@@ -514,7 +514,7 @@
     <string name="unblock">Desbloquear</string>
     <string name="user_blocked_by_host">Usuario bloqueado por el anfitrión</string>
     <string name="ai_lyrics_translation">Traducción de letras con IA</string>
-    <string name="ai_translating_lyrics">Traduciendo letras...</string>
+    <string name="ai_translating_lyrics">Traduciendo letras…</string>
     <string name="ai_lyrics_translated">Letras traducidas</string>
     <string name="ai_provider">Proovedor</string>
     <string name="ai_base_url">URL base</string>

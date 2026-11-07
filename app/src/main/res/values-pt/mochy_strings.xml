@@ -240,7 +240,7 @@
     <string name="wrapped_intro_button">vamos lá!</string>
     <string name="wrapped_end_thanks">Obrigado por ouvires com o mochy!</string>
     <string name="wrapped_end_create_playlist">Criar a tua lista de reprodução do Wrapped</string>
-    <string name="wrapped_end_creating_playlist">A criar...</string>
+    <string name="wrapped_end_creating_playlist">A criar…</string>
     <string name="wrapped_end_playlist_saved">Lista de reprodução guardada</string>
     <string name="wrapped_logo_content_description">Logo do mochy</string>
     <string name="wrapped_year">2026</string>

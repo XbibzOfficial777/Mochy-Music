@@ -10,6 +10,7 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Shader
+import androidx.core.graphics.createBitmap
 import com.mochyy.mochymusic.ui.utils.resize
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -88,7 +89,7 @@ internal class SpinningArtwork(
     private suspend fun render(source: Bitmap, style: SpinStyle): ByteArray = withContext(Dispatchers.Default) {
         val (frames, frameCentis) = framesFor(style)
         val square = centerSquare(source)
-        val frame = Bitmap.createBitmap(Size, Size, Bitmap.Config.ARGB_8888)
+        val frame = createBitmap(Size, Size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(frame)
         val shader = BitmapShader(square, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply { this.shader = shader }

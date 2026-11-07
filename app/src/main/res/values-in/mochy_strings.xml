@@ -315,7 +315,7 @@
     <string name="wrapped_intro_button">ayo mulai!</string>
     <string name="wrapped_end_thanks">Terima kasih telah mendengarkan bersama mochy!</string>
     <string name="wrapped_end_create_playlist">Buat Playlist Wrapped Anda</string>
-    <string name="wrapped_end_creating_playlist">Membuat...</string>
+    <string name="wrapped_end_creating_playlist">Membuat…</string>
     <string name="wrapped_end_playlist_saved">Playlist Tersimpan</string>
     <string name="wrapped_logo_content_description">Logo mochy</string>
     <string name="wrapped_year">2025</string>
@@ -553,7 +553,7 @@
     <string name="unblock">Buka blokir</string>
     <string name="user_blocked_by_host">Pengguna diblokir oleh host</string>
     <string name="ai_lyrics_translation">Terjemahan Lirik AI</string>
-    <string name="ai_translating_lyrics">Menerjemahkan lirik...</string>
+    <string name="ai_translating_lyrics">Menerjemahkan lirik…</string>
     <string name="ai_lyrics_translated">Lirik diterjemahkan</string>
     <string name="ai_provider">Penyedia</string>
     <string name="ai_base_url">URL dasar</string>

@@ -297,7 +297,7 @@
     <string name="glow">発光</string>
     <string name="slide">スライド</string>
     <string name="wrapped_top_song_album_art_content_description">アルバムアート</string>
-    <string name="wrapped_end_creating_playlist">作成中...</string>
+    <string name="wrapped_end_creating_playlist">作成中…</string>
     <string name="wrapped_end_playlist_saved">プレイリストを保存しました</string>
     <string name="wrapped_playlist_saved">プレイリストを保存しました</string>
     <string name="system_equalizer">システムイコライザー</string>
@@ -529,7 +529,7 @@
     <string name="audio_offload_disabled_by_crossfade">クロスフェードを使用中は有効にできません</string>
     <string name="together">Together</string>
     <string name="ai_lyrics_translation">AI歌詞翻訳</string>
-    <string name="ai_translating_lyrics">歌詞を翻訳中...</string>
+    <string name="ai_translating_lyrics">歌詞を翻訳中…</string>
     <string name="ai_lyrics_translated">翻訳しました</string>
     <string name="ai_provider">提供元</string>
     <string name="ai_base_url">ベースURL</string>

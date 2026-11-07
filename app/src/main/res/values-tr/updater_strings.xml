@@ -8,9 +8,9 @@
     <string name="update_failed">Güncelleme Başarısız</string>
     <string name="failed_to_download_version">Sürüm %1$s indirilemedi</string>
     <string name="failed_to_download_version_error">Sürüm %1$s ayrıştırılırken hata oluştu : %2$s</string>
-    <string name="downloading_update">Güncelleme indiriliyor...</string>
+    <string name="downloading_update">Güncelleme indiriliyor…</string>
     <string name="version_file_size">Versiyon %1$s ~ %2$s MB</string>
-    <string name="starting">Başlıyor...</string>
+    <string name="starting">Başlıyor…</string>
     <string name="version_progress">Versiyon %1$s (%2$d%%)</string>
     <string name="update_ready">Güncelleme hazır</string>
     <string name="tap_to_install_version">Versiyon %1$s yüklemek için dokunun</string>

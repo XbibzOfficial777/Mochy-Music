@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -68,8 +69,8 @@ internal fun OnboardingBrowserSheet(
 ) {
     val scope = rememberCoroutineScope()
     var url by remember { mutableStateOf("https://") }
-    var dragPx by remember { mutableStateOf(0f) }
-    var sheetHeightPx by remember { mutableStateOf(1f) }
+    var dragPx by remember { mutableFloatStateOf(0f) }
+    var sheetHeightPx by remember { mutableFloatStateOf(1f) }
 
     Box(
         modifier = Modifier

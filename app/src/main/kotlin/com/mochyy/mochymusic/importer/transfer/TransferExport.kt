@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import androidx.core.net.toUri
 import androidx.media3.database.DatabaseProvider
 import com.mochyy.mochymusic.BuildConfig
 import com.mochyy.mochymusic.db.MusicDatabase
@@ -160,7 +161,7 @@ class TransferExporter @Inject constructor(
                     val id = cursor.getString(0) ?: continue
                     val uri = cursor.getString(1) ?: continue
                     val entry = JSONObject().put("id", id).put("uri", uri)
-                    val parsed = Uri.parse(uri)
+                    val parsed = uri.toUri()
                     if (parsed.scheme == "content" && parsed.authority != MediaStore.AUTHORITY) {
                         mediaStoreUri(parsed)?.let { entry.put("mediaUri", it.toString()) }
                         describeFile(parsed)?.let { (name, size) -> entry.put("name", name).put("size", size) }

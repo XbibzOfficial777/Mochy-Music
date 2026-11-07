@@ -25,6 +25,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.runtime.mutableIntStateOf
 import com.mochyy.mochymusic.ui.component.LocalSharedTransitionScope
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -288,7 +289,7 @@ class MainActivity : ComponentActivity() {
     private var playerConnection by mutableStateOf<PlayerConnection?>(null)
 
     /** Bumped when launched from an update notification; the composition opens the version sheet. */
-    private var openUpdateRequests by mutableStateOf(0)
+    private var openUpdateRequests by mutableIntStateOf(0)
 
     /** A fresh launch from the launcher plays the launch intro (ui/launch/LaunchIntro.kt). */
     private var introRequested = false
@@ -434,7 +435,7 @@ class MainActivity : ComponentActivity() {
             lifecycle,
         )
         setContent(parent = motionRecomposer) {
-            mochyApp(
+            MochyApp(
                 playerConnection = playerConnection,
                 database = database,
                 downloadUtil = downloadUtil,
@@ -446,7 +447,7 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     @OptIn(ExperimentalMaterial3Api::class, androidx.compose.animation.ExperimentalSharedTransitionApi::class)
     @Composable
-    private fun mochyApp(
+    private fun MochyApp(
         playerConnection: PlayerConnection?,
         database: MusicDatabase,
         downloadUtil: DownloadUtil,

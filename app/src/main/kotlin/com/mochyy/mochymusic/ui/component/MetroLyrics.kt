@@ -426,7 +426,7 @@ private fun WordLevelCanvasLyrics(
 
     val charToWordData = remember(mainText, effectiveWords, isBackground) {
         val wordIdxMap = IntArray(mainText.length) { -1 }
-        val charInWordMap = IntArray(mainText.length) { 0 }
+        val charInWordMap = IntArray(mainText.length)
         val wordLenMap = IntArray(mainText.length) { 1 }
         var currentPos = 0
         effectiveWords.forEachIndexed { wordIdx, word ->

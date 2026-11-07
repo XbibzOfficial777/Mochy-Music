@@ -33,6 +33,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import androidx.navigation.NavHostController
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
@@ -80,6 +82,7 @@ import com.mochyy.mochymusic.ui.component.detachedItemShape
 import com.mochyy.mochymusic.ui.component.AnimatedActionButton
 import com.mochyy.mochymusic.ui.component.ExpressiveIconButton
 import com.mochyy.mochymusic.ui.component.ErrorSnackbar
+import com.mochyy.mochymusic.utils.UiNumberFormat
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -125,7 +128,7 @@ fun UpdateScreen(navController: NavHostController) {
     val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf<MochyUpdateStatus>(MochyUpdateStatus.NoUpdate(BuildConfig.VERSION_NAME)) }
     var isDownloading by remember { mutableStateOf(false) }
-    var downloadProgress by remember { mutableStateOf(0f) }
+    var downloadProgress by remember { mutableFloatStateOf(0f) }
     var isDownloadComplete by remember { mutableStateOf(false) }
     var downloadedFile by remember { mutableStateOf<File?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -309,7 +312,7 @@ fun UpdateScreen(navController: NavHostController) {
                                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                                     if (!context.packageManager.canRequestPackageInstalls()) {
                                                         val intent = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                                                            data = Uri.parse("package:${context.packageName}")
+                                                            data = "package:${context.packageName}".toUri()
                                                         }
                                                         context.startActivity(intent)
                                                         return@let
@@ -649,7 +652,7 @@ suspend fun checkForUpdate(
                         onSuccess(
                             release.tag, true,
                             listOf(ChangelogSection(context.getString(R.string.changelog), notes)),
-                            String.format("%.1f", release.apkSizeBytes / (1024.0 * 1024.0)),
+                            UiNumberFormat.decimal("%.1f", release.apkSizeBytes / (1024.0 * 1024.0)),
                             formatGitHubDate(release.publishedAt), null, null, release.apkUrl,
                         )
                     } else {
@@ -823,7 +826,7 @@ suspend fun checkForUpdate(
                         val assetName = asset.getString("name")
                         if (assetName == "mochy.apk") {
                             val apkSizeInBytes = asset.getLong("size")
-                            apkSizeInMB = String.format("%.1f", apkSizeInBytes / (1024.0 * 1024.0))
+                            apkSizeInMB = UiNumberFormat.decimal("%.1f", apkSizeInBytes / (1024.0 * 1024.0))
                             apkDownloadUrl = asset.getString("browser_download_url")
                             break
                         }

@@ -1,6 +1,7 @@
 package com.mochyy.mochymusic.eq.data
 
 import java.io.File
+import com.mochyy.mochymusic.utils.UiNumberFormat
 
 object ParametricEQParser {
 
@@ -127,7 +128,7 @@ object ParametricEQParser {
                 "Filter ${index + 1}: ON ${band.filterType} " +
                         "Fc ${band.frequency.toInt()} Hz " +
                         "Gain ${band.gain} dB " +
-                        "Q ${String.format("%.2f", band.q)}"
+                        "Q ${UiNumberFormat.decimal("%.2f", band.q)}"
             )
         }
         return sb.toString()

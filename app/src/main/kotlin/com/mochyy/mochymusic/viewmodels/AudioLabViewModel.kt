@@ -17,6 +17,7 @@ import com.mochyy.mochymusic.eq.autoeq.AutoEqRepository
 import com.mochyy.mochymusic.eq.autoeq.AutoEqTuning
 import com.mochyy.mochymusic.eq.data.FilterType
 import com.mochyy.mochymusic.eq.data.ParametricEQBand
+import com.mochyy.mochymusic.utils.UiNumberFormat
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -245,11 +246,11 @@ private fun AutoEqCorrection.toEntry() = AutoEqEntry(model, source, rig, path, f
 /** how a node's frequency reads on a chip: 31Hz, 120Hz, 1.0k, 16k */
 fun frequencyLabel(hz: Double): String = when {
     hz >= 10_000 -> "${(hz / 1000).toInt()}k"
-    hz >= 1000 -> String.format("%.1fk", hz / 1000)
+    hz >= 1000 -> UiNumberFormat.decimal("%.1fk", hz / 1000)
     else -> "${hz.toInt()}Hz"
 }
 
-fun gainLabel(db: Double): String = (if (db > 0.04) "+" else if (db < -0.04) "−" else "") + String.format("%.1f dB", abs(db))
+fun gainLabel(db: Double): String = (if (db > 0.04) "+" else if (db < -0.04) "−" else "") + UiNumberFormat.decimal("%.1f dB", abs(db))
 
 fun filterTypeLabel(type: FilterType): String = when (type) {
     FilterType.PK -> "Peak"

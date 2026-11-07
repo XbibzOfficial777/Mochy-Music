@@ -15,6 +15,7 @@ package com.mochyy.mochymusic.ui.screens.recap
 
 import androidx.compose.ui.unit.IntSize
 import android.os.SystemClock
+import androidx.core.graphics.drawable.toDrawable
 import com.mochyy.mochymusic.ui.component.rememberDeviceTilt
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
@@ -333,7 +334,7 @@ internal fun RecapStoryHost(
                 setWindowAnimations(0)
                 setDimAmount(0f)
                 clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-                setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+                setBackgroundDrawable(android.graphics.Color.TRANSPARENT.toDrawable())
                 setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
                 // without this flag the system paints both bars solid black behind a dialog, whatever
                 // their colour is set to; with it (and the translucent flags off) they show the story

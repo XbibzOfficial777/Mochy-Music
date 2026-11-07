@@ -21,6 +21,7 @@ import android.provider.MediaStore
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.FileProvider
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.createBitmap
@@ -101,7 +102,7 @@ object ComposeToImage {
                 if (coverArtBitmap != null) {
                     try {
 
-                        val scaledBitmap = Bitmap.createScaledBitmap(coverArtBitmap, imageWidth / 10, imageHeight / 10, true)
+                        val scaledBitmap = coverArtBitmap.scale(imageWidth / 10, imageHeight / 10)
                         val blurredBitmap = fastBlur(scaledBitmap, 1f, 20)
 
                         if (blurredBitmap != null) {
@@ -239,7 +240,7 @@ object ComposeToImage {
 
         canvas.drawOval(logoBoxRect, logoBgPaint)
 
-        val rawLogo = context.getDrawable(R.drawable.mochy_icon)?.toBitmap()
+        val rawLogo = AppCompatResources.getDrawable(context, R.drawable.mochy_icon)?.toBitmap()
         rawLogo?.let {
             val logoPaint = Paint().apply {
 

@@ -533,7 +533,7 @@
     <string name="enter_room_code">Введите код комнаты</string>
     <string name="listen_together_settings_desc">Настройка сервера, имени пользователя и прочего</string>
     <string name="ai_lyrics_translation">ИИ-перевод текста</string>
-    <string name="ai_translating_lyrics">Перевод текста...</string>
+    <string name="ai_translating_lyrics">Перевод текста…</string>
     <string name="ai_lyrics_translated">Текст переведён</string>
     <string name="ai_provider">Провайдер</string>
     <string name="ai_base_url">Базовый URL</string>

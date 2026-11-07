@@ -310,7 +310,7 @@
     <string name="wrapped_intro_button">Ходімо!</string>
     <string name="wrapped_end_thanks">Дякую, що вислухали mochy!</string>
     <string name="wrapped_end_create_playlist">Створіть свій підсумковий список відтворення</string>
-    <string name="wrapped_end_creating_playlist">Створення...</string>
+    <string name="wrapped_end_creating_playlist">Створення…</string>
     <string name="wrapped_end_playlist_saved">Список відтворення збережено</string>
     <string name="wrapped_logo_content_description">Логотип mochy</string>
     <string name="wrapped_year">2025</string>

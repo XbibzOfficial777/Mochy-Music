@@ -306,7 +306,7 @@
     <string name="wrapped_intro_button">să mergem!</string>
     <string name="wrapped_end_thanks">Mulțumim că asculți folosind mochy!</string>
     <string name="wrapped_end_create_playlist">Creează-ți playlistul tău Wrapped</string>
-    <string name="wrapped_end_creating_playlist">Se creează...</string>
+    <string name="wrapped_end_creating_playlist">Se creează…</string>
     <string name="wrapped_end_playlist_saved">Playlist salvat</string>
     <string name="wrapped_logo_content_description">Logo-ul mochy</string>
     <string name="wrapped_year">2025</string>
@@ -518,7 +518,7 @@
     <string name="unblock">Deblochează</string>
     <string name="user_blocked_by_host">Utilizator blocat de gazdă</string>
     <string name="ai_lyrics_translation">Traducerea versurilor cu AI</string>
-    <string name="ai_translating_lyrics">Se traduc versurile...</string>
+    <string name="ai_translating_lyrics">Se traduc versurile…</string>
     <string name="ai_lyrics_translated">Versuri traduse</string>
     <string name="ai_provider">Furnizor</string>
     <string name="ai_base_url">URL de bază</string>

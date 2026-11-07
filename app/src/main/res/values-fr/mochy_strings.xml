@@ -430,7 +430,7 @@
     <string name="wrapped_intro_button">C\'est parti !</string>
     <string name="wrapped_end_thanks">Merci d\'avoir écouté mochy Music !</string>
     <string name="wrapped_end_create_playlist">Créez votre playlist personnalisée</string>
-    <string name="wrapped_end_creating_playlist">Création en cours...</string>
+    <string name="wrapped_end_creating_playlist">Création en cours…</string>
     <string name="wrapped_end_playlist_saved">Playlist enregistrée</string>
     <string name="wrapped_logo_content_description">Logo mochy Music</string>
     <string name="wrapped_year">2025</string>
@@ -617,7 +617,7 @@ est irréversible.
 
     <!-- AI Lyrics Translation -->
     <string name="ai_lyrics_translation">Traduction des paroles par IA</string>
-    <string name="ai_translating_lyrics">Traduction des paroles...</string>
+    <string name="ai_translating_lyrics">Traduction des paroles…</string>
     <string name="ai_lyrics_translated">Paroles traduites</string>
     <string name="ai_provider">Fournisseur</string>
     <string name="ai_base_url">URL de base</string>

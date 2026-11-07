@@ -31,6 +31,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,7 +81,7 @@ fun CastDevicesSection() {
     val isCasting by handler?.isCasting?.collectAsState() ?: remember { mutableStateOf(false) }
     val isConnecting by handler?.isConnecting?.collectAsState() ?: remember { mutableStateOf(false) }
     val deviceName by handler?.castDeviceName?.collectAsState() ?: remember { mutableStateOf(null) }
-    val castVolume by handler?.castVolume?.collectAsState() ?: remember { mutableStateOf(1f) }
+    val castVolume by handler?.castVolume?.collectAsState() ?: remember { mutableFloatStateOf(1f) }
     val castPlaying by handler?.castIsPlaying?.collectAsState() ?: remember { mutableStateOf(false) }
     val connectionError by handler?.connectionError?.collectAsState() ?: remember { mutableStateOf(null) }
     val metadata by connection?.mediaMetadata?.collectAsState() ?: remember { mutableStateOf(null) }

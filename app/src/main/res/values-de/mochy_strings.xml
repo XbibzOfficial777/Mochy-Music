@@ -300,7 +300,7 @@
     <string name="wrapped_intro_button">Auf geht\'s!</string>
     <string name="wrapped_end_thanks">Danke für dein Musikerlebnis mit mochy!</string>
     <string name="wrapped_end_create_playlist">Erstelle deine Wrapped-Playlist</string>
-    <string name="wrapped_end_creating_playlist">Erstellen...</string>
+    <string name="wrapped_end_creating_playlist">Erstellen…</string>
     <string name="wrapped_end_playlist_saved">Playlist gespeichert</string>
     <string name="wrapped_ready_title">Dein Wrapped ist bereit!</string>
     <string name="wrapped_ready_subtitle">Zeit, einen Blick auf die Highlights des Jahres zu werfen.</string>
@@ -521,7 +521,7 @@
     <string name="enter_room_code">Gebe den Raum-Code ein.</string>
     <string name="listen_together_settings_desc">Server, Benutzernamen und mehr konfigurieren</string>
     <string name="ai_lyrics_translation">KI-Song-Text-Übersetzung</string>
-    <string name="ai_translating_lyrics">Songtexte übersetzen...</string>
+    <string name="ai_translating_lyrics">Songtexte übersetzen…</string>
     <string name="ai_lyrics_translated">Songtext übersetzt</string>
     <string name="ai_provider">Anbieter</string>
     <string name="ai_base_url">Basis-URL</string>

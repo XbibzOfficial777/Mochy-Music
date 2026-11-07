@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 
 // the mock's measures: 34dp page sides, 24dp cards
@@ -40,6 +41,6 @@ internal fun devFigureSp(dp: Float): TextUnit = with(LocalDensity.current) { dp.
 
 internal fun Context.openDevUrl(url: String) {
     runCatching {
-        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        startActivity(Intent(Intent.ACTION_VIEW, url.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }

@@ -309,7 +309,7 @@
     <string name="wrapped_intro_button">هيا بنا!</string>
     <string name="wrapped_end_thanks">شكرًا لاستماعكم مع متروليست !</string>
     <string name="wrapped_end_create_playlist">أنشئ قائمة التشغيل الخاصة بك</string>
-    <string name="wrapped_end_creating_playlist">جارٍ الإنشاء...</string>
+    <string name="wrapped_end_creating_playlist">جارٍ الإنشاء…</string>
     <string name="wrapped_end_playlist_saved">تم حفظ قائمة التشغيل</string>
     <string name="wrapped_logo_content_description">شعار متروليست</string>
     <string name="wrapped_year">2025</string>
@@ -543,7 +543,7 @@
     <string name="ai_translation_mode">وضع الترجمة</string>
     <string name="ai_model">نموذج</string>
     <string name="re_listen">إعادة الاستماع</string>
-    <string name="ai_translating_lyrics">ترجمة كلمات الأغاني...</string>
+    <string name="ai_translating_lyrics">ترجمة كلمات الأغاني…</string>
     <string name="ai_api_key">مفتاح API</string>
     <string name="clear_recognition_history_confirm">هل أنت متأكد من رغبتك في مسح جميع سجلات التعرف؟</string>
     <string name="no_match_found">لم يتم العثور على تطابق</string>

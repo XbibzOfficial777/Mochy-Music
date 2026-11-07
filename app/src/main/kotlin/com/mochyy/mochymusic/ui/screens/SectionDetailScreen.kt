@@ -60,6 +60,7 @@ import com.mochyy.mochymusic.ui.screens.playlist.GeneratedNoResults
 import com.mochyy.mochymusic.ui.screens.playlist.GeneratedPlaylistPage
 import com.mochyy.mochymusic.ui.screens.playlist.generatedStats
 import com.mochyy.mochymusic.ui.utils.backToMain
+import com.mochyy.mochymusic.utils.UiNumberFormat
 import com.mochyy.mochymusic.utils.makeTimeString
 import com.mochyy.mochymusic.viewmodels.HomeViewModel
 import com.music.innertube.models.AlbumItem
@@ -364,5 +365,5 @@ fun Long.formatAsDuration(): String {
     val seconds = this
     val h = seconds / 3600
     val m = (seconds % 3600) / 60
-    return if (h > 0) String.format("%dh %02dm", h, m) else String.format("%dm", m)
+    return if (h > 0) UiNumberFormat.decimal("%dh %02dm", h, m) else UiNumberFormat.decimal("%dm", m)
 }

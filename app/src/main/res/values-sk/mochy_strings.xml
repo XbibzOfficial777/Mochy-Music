@@ -309,7 +309,7 @@
     <string name="wrapped_intro_button">poďme!</string>
     <string name="wrapped_end_thanks">Ďakujeme za počúvanie s mochyom!</string>
     <string name="wrapped_end_create_playlist">Vytvorte si svoj Wrapped zoznam skladieb</string>
-    <string name="wrapped_end_creating_playlist">Vytvára sa...</string>
+    <string name="wrapped_end_creating_playlist">Vytvára sa…</string>
     <string name="wrapped_end_playlist_saved">Zoznam skladieb bol uložený</string>
     <string name="wrapped_logo_content_description">mochy Logo</string>
     <string name="wrapped_year">2025</string>

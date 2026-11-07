@@ -4,6 +4,7 @@ package com.mochyy.mochymusic.viewmodels
 
 import android.content.Context
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mochyy.mochymusic.R
@@ -82,7 +83,7 @@ class LibraryImportViewModel @Inject constructor(
         if (!withMediaStore) return uris.toSet()
         return uris.toHashSet().apply {
             uris.filter { it.startsWith("content://") && !it.startsWith("content://media/") }.forEach { uri ->
-                LocalFolders.mediaStoreUri(context, Uri.parse(uri))?.let { add(it.toString()) }
+                LocalFolders.mediaStoreUri(context, uri.toUri())?.let { add(it.toString()) }
             }
         }
     }

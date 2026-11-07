@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.core.graphics.scale
 import com.mochyy.mochymusic.constants.PlayerBottomBarStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -192,7 +193,7 @@ internal fun softBackdrop(image: ImageBitmap): ImageBitmap {
     }
     val w = (source.width / 8).coerceAtLeast(1)
     val h = (source.height / 8).coerceAtLeast(1)
-    val small = Bitmap.createScaledBitmap(source, w, h, true)
+    val small = source.scale(w, h)
     val a = IntArray(w * h)
     small.getPixels(a, 0, w, 0, 0, w, h)
     val b = IntArray(w * h)

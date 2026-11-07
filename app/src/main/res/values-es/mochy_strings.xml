@@ -299,7 +299,7 @@
     <string name="wrapped_intro_button">¡vamos!</string>
     <string name="wrapped_end_thanks">¡Gracias por escuchar con mochy!</string>
     <string name="wrapped_end_create_playlist">Crea tu lista de reproducción Recap</string>
-    <string name="wrapped_end_creating_playlist">Creando...</string>
+    <string name="wrapped_end_creating_playlist">Creando…</string>
     <string name="wrapped_end_playlist_saved">Lista de reproducción guardada</string>
     <string name="wrapped_ready_title">¡TU RECAP ESTÁ LISTO!</string>
     <string name="wrapped_ready_subtitle">Es hora de ver lo que te gustó este año.</string>
@@ -528,7 +528,7 @@
     <string name="enter_room_code">Ingresar código de sala</string>
     <string name="listen_together_settings_desc">Configurar servidor, nombre de usuario y más</string>
     <string name="ai_lyrics_translation">Traducción de letras con IA</string>
-    <string name="ai_translating_lyrics">Traduciendo letras...</string>
+    <string name="ai_translating_lyrics">Traduciendo letras…</string>
     <string name="ai_lyrics_translated">Letras traducidas</string>
     <string name="ai_provider">Proveedor</string>
     <string name="ai_base_url">URL base</string>

@@ -8,7 +8,7 @@
     <string name="no_title">Χωρίς τίτλο</string>
     <string name="unknown_artist">Άγνωστος καλλιτέχνης</string>
     <string name="unknown_item_type">Άγνωστος τύπος στοιχείου</string>
-    <string name="loading_charts">Φόρτωση διαγραμμάτων...</string>
+    <string name="loading_charts">Φόρτωση διαγραμμάτων…</string>
     <string name="retry_button">Επανάληψη</string>
     <string name="album_cover_desc">Εξώφυλλο άλμπουμ</string>
     <string name="top_music_videos">Διάσημα Μουσικά Βίντεο</string>
@@ -305,7 +305,7 @@
     <string name="wrapped_intro_subtitle">ήρθε η ώρα να δείτε τι έχετε ακούσει</string>
     <string name="wrapped_intro_button">Πάμε!</string>
     <string name="wrapped_end_thanks">Ευχαριστούμε που ακούτε με το mochy!</string>
-    <string name="wrapped_end_creating_playlist">Δημιουργία...</string>
+    <string name="wrapped_end_creating_playlist">Δημιουργία…</string>
     <string name="wrapped_end_playlist_saved">Η Λίστα Αναπαραγωγής Αποθηκεύτηκε</string>
     <string name="wrapped_logo_content_description">Λογότυπο mochy</string>
     <string name="wrapped_year">2025</string>

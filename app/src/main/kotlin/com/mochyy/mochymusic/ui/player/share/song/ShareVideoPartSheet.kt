@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.scale
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.ui.component.PopupSheetState
 import com.mochyy.mochymusic.ui.component.SheetPillButton
@@ -148,7 +149,7 @@ private suspend fun videoFrames(context: Context, uri: Uri, durationMs: Long): L
                 (0 until StripFrames).mapNotNull { i ->
                     getFrameAtTime((i * step + step / 2) * 1000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)?.let { frame ->
                         val scale = 96f / frame.height.coerceAtLeast(1)
-                        Bitmap.createScaledBitmap(frame, (frame.width * scale).toInt().coerceAtLeast(1), 96, true)
+                        frame.scale((frame.width * scale).toInt().coerceAtLeast(1), 96)
                             .also { if (it !== frame) frame.recycle() }
                             .asImageBitmap()
                     }

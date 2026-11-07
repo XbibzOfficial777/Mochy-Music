@@ -3,7 +3,9 @@ package com.mochyy.mochymusic.core.updater
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import com.mochyy.mochymusic.BuildConfig
+import com.mochyy.mochymusic.utils.UiNumberFormat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
@@ -322,7 +324,7 @@ fun requestInstallPermission(context: Context) {
         context.startActivity(
             Intent(
                 android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                android.net.Uri.parse("package:" + context.packageName),
+                ("package:" + context.packageName).toUri(),
             ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     }
@@ -344,6 +346,6 @@ fun installApk(context: Context, apk: File): Boolean {
 
 fun formatBytes(bytes: Long): String = when {
     bytes <= 0 -> "unknown size"
-    bytes >= 1_000_000 -> String.format("%.1f MB", bytes / 1_000_000f)
-    else -> String.format("%.0f KB", bytes / 1000f)
+    bytes >= 1_000_000 -> UiNumberFormat.decimal("%.1f MB", bytes / 1_000_000f)
+    else -> UiNumberFormat.decimal("%.0f KB", bytes / 1000f)
 }

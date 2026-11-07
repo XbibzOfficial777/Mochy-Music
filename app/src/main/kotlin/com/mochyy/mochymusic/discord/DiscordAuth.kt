@@ -5,6 +5,7 @@ package com.mochyy.mochymusic.discord
 import android.content.Context
 import android.net.Uri
 import android.util.Base64
+import androidx.core.net.toUri
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -92,7 +93,7 @@ class DiscordAuth @Inject constructor(
             it[DiscordLoginVerifierKey] = verifier
         }
         _login.value = DiscordLogin.InBrowser
-        return Uri.parse("https://discord.com/oauth2/authorize").buildUpon()
+        return "https://discord.com/oauth2/authorize".toUri().buildUpon()
             .appendQueryParameter("client_id", ClientId)
             .appendQueryParameter("response_type", "code")
             .appendQueryParameter("redirect_uri", RedirectUri)
