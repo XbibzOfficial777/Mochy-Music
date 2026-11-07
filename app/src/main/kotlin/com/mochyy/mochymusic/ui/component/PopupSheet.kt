@@ -597,7 +597,7 @@ private fun BoxWithConstraintsScope.PopupSheetFrame(
     Box(
         modifier = Modifier
             .align(if (metrics.isTablet) Alignment.Center else Alignment.BottomCenter)
-            .then(sheetSizeModifier(metrics.isTablet))
+            .sheetSizeModifier(metrics.isTablet, maxHeight)
             // Lifts the sheet clear of the keyboard (and shrinks its room by the same amount), for
             // the sheets with a text field. After the size cap and before the measurement below,
             // so what is measured - and what the stack geometry works from - is the sheet itself.
@@ -665,8 +665,8 @@ private fun sheetSurfaceShape(isTablet: Boolean): Shape =
     )
 
 @Composable
-private fun BoxWithConstraintsScope.sheetSizeModifier(isTablet: Boolean): Modifier =
-    if (isTablet) {
+private fun Modifier.sheetSizeModifier(isTablet: Boolean, maxHeight: Dp): Modifier =
+    then(if (isTablet) {
         Modifier
             .widthIn(max = 460.dp)
             .fillMaxHeight(0.84f)
@@ -678,7 +678,7 @@ private fun BoxWithConstraintsScope.sheetSizeModifier(isTablet: Boolean): Modifi
         Modifier
             .fillMaxWidth()
             .heightIn(max = minOf(maxHeight * MaxSheetHeightFraction, belowStatusBar).coerceAtLeast(0.dp))
-    }
+    })
 
 /** Space kept between the status bar and the highest a sheet's peek strip can reach. */
 private val StatusBarGap = 6.dp

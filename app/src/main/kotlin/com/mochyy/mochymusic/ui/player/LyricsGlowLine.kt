@@ -435,7 +435,7 @@ fun LyricsGlowLine(
                 onTextLayout = { plainLayout[0] = it },
                 // No karaoke head on an inactive line, so nothing is lit — the readings stay
                 // uniformly dim, matching the words above them.
-                modifier = rememberRubyOverlay(
+                modifier = Modifier.rememberRubyOverlay(
                     layoutHolder = plainLayout,
                     ruby = ruby,
                     textLength = leadText.length,
@@ -602,7 +602,7 @@ enum class RubyPlacement { ABOVE, BELOW }
  *   while the words underneath it sweep.
  */
 @Composable
-private fun rememberRubyOverlay(
+private fun Modifier.rememberRubyOverlay(
     layoutHolder: Array<TextLayoutResult?>,
     ruby: List<com.mochyy.mochymusic.lyrics.RubyToken>?,
     textLength: Int,
@@ -611,7 +611,7 @@ private fun rememberRubyOverlay(
     litColor: ColorProducer,
     headProvider: () -> Float,
 ): Modifier {
-    if (ruby.isNullOrEmpty()) return Modifier
+    if (ruby.isNullOrEmpty()) return this
     val measurer = androidx.compose.ui.text.rememberTextMeasurer()
     // Colour is deliberately NOT part of this style: baking the per-frame colour into the measure
     // call would miss the TextMeasurer cache on every frame and re-lay-out every reading. The
@@ -624,7 +624,7 @@ private fun rememberRubyOverlay(
     // the measurer only keeps 8 layouts, so a line with more readings re-measured them every frame
     val measuredTokens = remember(ruby, style, measurer) { arrayOfNulls<TextLayoutResult>(ruby.size) }
 
-    return Modifier.drawWithContent {
+    return drawWithContent {
         drawContent()
         val layout = layoutHolder[0] ?: return@drawWithContent
         val head = headProvider()
@@ -1062,12 +1062,12 @@ internal fun KaraokeSweepText(
     val effect: Modifier
     val motion: Modifier
     if (wordMotion) {
-        effect = rememberBloomModifier(layoutHolder, head, text.length, waveAmplitudeProvider, highBloom)
+        effect = Modifier.rememberBloomModifier(layoutHolder, head, text.length, waveAmplitudeProvider, highBloom)
         // Letters move by drawing, inside the bloom layer so the glow sees them where they are.
         // Without AGSL there's no bloom pass, so a soft light behind a held word stands in for it
         // (only while the lyrics shader setting is on - off means no glow at all).
         val fakeGlow = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
-        motion = rememberWordMotionModifier(
+        motion = Modifier.rememberWordMotionModifier(
             layoutHolder = layoutHolder,
             head = head,
             riseAmplitudeProvider = riseAmplitudeProvider,
@@ -1075,12 +1075,12 @@ internal fun KaraokeSweepText(
             motionScale = motionScale,
         )
     } else {
-        effect = rememberLegacyWaveModifier(layoutHolder, head, text.length, waveAmplitudeProvider, highBloom)
+        effect = Modifier.rememberLegacyWaveModifier(layoutHolder, head, text.length, waveAmplitudeProvider, highBloom)
         motion = Modifier
     }
     // Applied outside the wave shader so the readings stay still while the sung word lifts — a
     // reading that rides the wave with its word reads as jitter at this size.
-    val rubyOverlay = rememberRubyOverlay(
+    val rubyOverlay = Modifier.rememberRubyOverlay(
         layoutHolder = layoutHolder,
         ruby = ruby,
         textLength = text.length,
@@ -1483,7 +1483,7 @@ private var sharedLegacyShader: Any? = null
 /** Style 1: the bloom pass. Skipped (no render effect at all) whenever nothing is glowing. */
 @Suppress("NewApi")
 @Composable
-private fun rememberBloomModifier(
+private fun Modifier.rememberBloomModifier(
     layoutHolder: Array<TextLayoutResult?>,
     head: KaraokeHead,
     textLength: Int,
@@ -1497,11 +1497,11 @@ private fun rememberBloomModifier(
             null
         }
     }
-    if (shader == null) return Modifier
+    if (shader == null) return this
 
     val cache = remember { WaveEffectCache() }
 
-    return Modifier.graphicsLayer {
+    return graphicsLayer {
         val layout = layoutHolder[0]
         val amp = amplitudeProvider().coerceIn(0f, 1f)
         val glow = head.glow.floatValue
@@ -1558,7 +1558,7 @@ private fun rememberBloomModifier(
 /** Style 2: the original wave - a lift-and-zoom bell that follows the head across the letters. */
 @Suppress("NewApi")
 @Composable
-private fun rememberLegacyWaveModifier(
+private fun Modifier.rememberLegacyWaveModifier(
     layoutHolder: Array<TextLayoutResult?>,
     head: KaraokeHead,
     textLength: Int,
@@ -1575,11 +1575,11 @@ private fun rememberLegacyWaveModifier(
             null
         }
     }
-    if (shader == null) return Modifier
+    if (shader == null) return this
 
     val cache = remember { WaveEffectCache() }
 
-    return Modifier.graphicsLayer {
+    return graphicsLayer {
         val layout = layoutHolder[0]
         val h = head.offset.floatValue
         val amp = amplitudeProvider().coerceIn(0f, 1f)
@@ -2272,7 +2272,7 @@ private fun settledSwell(swell: Float): Float = if (swell < 0.002f) 0f else swel
  * draw, so the cost is a handful of draws around the sweep, not one per letter.
  */
 @Composable
-private fun rememberWordMotionModifier(
+private fun Modifier.rememberWordMotionModifier(
     layoutHolder: Array<TextLayoutResult?>,
     head: KaraokeHead,
     riseAmplitudeProvider: () -> Float,
@@ -2280,7 +2280,7 @@ private fun rememberWordMotionModifier(
     motionScale: Float = 1f,
 ): Modifier {
     val cache = remember(head) { MotionLayoutCache() }
-    return Modifier.drawWithContent {
+    return drawWithContent {
         // Subscribes this draw to the per-letter springs.
         @Suppress("UNUSED_VARIABLE") val tick = head.motionTick.intValue
         val layout = layoutHolder[0]
