@@ -11,7 +11,7 @@ class VerifyKeystore {
         char[] storePassword = System.getenv("STORE_PASSWORD").toCharArray();
         char[] keyPassword = System.getenv("KEY_PASSWORD").toCharArray();
         try {
-            KeyStore store = KeyStore.getInstance("JKS");
+            KeyStore store = KeyStore.getInstance(System.getenv().getOrDefault("RELEASE_STORE_TYPE", "PKCS12"));
             try (var input = new FileInputStream(args[0])) { store.load(input, storePassword); }
             String alias = System.getenv("KEY_ALIAS");
             if (!(store.getKey(alias, keyPassword) instanceof PrivateKey)) {

@@ -47,6 +47,7 @@ jobs:
           cache-disabled: true
       - name: Test the native release verifier
         run: |
+          python3 .github/scripts/check_release_inputs.py
           python3 .github/scripts/test_release_native.py
           python3 .github/scripts/test_release_artifacts.py
       - name: Restore and validate release keystore
@@ -124,6 +125,8 @@ jobs:
             exit 1
           fi
           "$build_tools/apksigner" verify --verbose --print-certs "$apk" | tee /tmp/apk-certificate.txt
+          java --class-path "$build_tools/lib/apksigner.jar" tools/VerifyApkSignatures.java \
+            "$apk" "$apk.idsig" "$(cat .github/release-certificate.sha256)"
           grep -qx 'Number of signers: 1' /tmp/apk-certificate.txt
           actual="$(sed -n 's/^.*certificate SHA-256 digest: //p' /tmp/apk-certificate.txt | tr '[:upper:]' '[:lower:]' | sort -u)"
           trusted="$(tr -d '[:space:]' < .github/release-certificate.sha256)"
@@ -138,6 +141,8 @@ jobs:
           mkdir -p release-assets
           filename="Mochy-Music-v${version}-${ABI}-gms.apk"
           cp "$apk" "release-assets/$filename"
+          cp "$apk.idsig" "release-assets/$filename.idsig"
+          cp app/src/main/assets/changelog.json release-assets/changelog.json
           (cd release-assets && sha256sum "$filename" > "SHA256SUMS-${ABI}.txt")
           ABI="$ABI" VERSION="$version" CODE="$code" CERT="$actual" python3 - <<'PY'
           import json, os
@@ -194,22 +199,16 @@ jobs:
             echo 'Release already exists; leaving its assets unchanged.'
             exit 0
           fi
-          cat > /tmp/release-notes.md <<'NOTES'
-          Unofficial Xbibz release for Android 7.0 or newer, with Google Cast support.
-
-          Download **arm64-v8a** for 64-bit ARM devices, **armeabi-v7a** for 32-bit ARMv7 devices, or **universal** for ARM and x86/x86_64 devices. All three APKs are optimized, non-debuggable, and signed with the same Bibz release key. Each build selects only its corresponding future fork update.
-
-          App language may follow the device or be chosen in Settings → General → App language; missing translations fall back to English. Existing translations and some older hardcoded screens remain incomplete, and RTL layout is not yet supported. Liquid Glass remains exclusive to this fork.
-
-          This fork uses a different signing key from official Mochy Music and cannot directly update an official installation. Back up or export data before uninstalling; app data may otherwise be lost. Some newer devices do not support 32-bit apps, so use the 64-bit APK on those devices.
-
-          Builds and emulator tests do not replace testing on physical devices or real accounts. Availability of media, decoders, Cast receivers and third-party services varies.
-          NOTES
+          version="${GITHUB_REF_NAME#v}"
+          cp "release-notes/$version.md" /tmp/release-notes.md
+          cp app/src/main/assets/changelog.json release-assets/changelog.json
+          (cd release-assets && sha256sum *.apk *.idsig changelog.json > SHA256SUMS.txt)
           if [ -z "$LASTFM_API_KEY" ] || [ -z "$LASTFM_SECRET" ]; then
             printf '\nLast.fm credentials are not configured in this build.\n' >> /tmp/release-notes.md
           fi
           if [ -z "$DISCORD_CLIENT_ID" ]; then
             printf '\nDiscord client ID is not configured in this build.\n' >> /tmp/release-notes.md
           fi
-          gh release create "$GITHUB_REF_NAME" release-assets/*.apk release-assets/SHA256SUMS.txt \
+          gh release create "$GITHUB_REF_NAME" release-assets/*.apk release-assets/*.idsig \
+            release-assets/changelog.json release-assets/SHA256SUMS.txt \
             --verify-tag --title "Mochy Music $GITHUB_REF_NAME · GMS" --notes-file /tmp/release-notes.md

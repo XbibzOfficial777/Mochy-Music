@@ -32,7 +32,7 @@ improved on physical devices.
   those devices cannot draw dark navigation icons. The existing legacy call-state fallback remains
   limited to Android 7–11; newer Android uses AudioManager's mode listener.
 - The release keystore can live outside the repository through `RELEASE_STORE_FILE` and
-  `RELEASE_STORE_TYPE`. Explicit signing enables APK Signature Scheme v2, v3 and v4. v4 needs its
+  `RELEASE_STORE_TYPE`. Release signing explicitly disables v1/v3 and enables v2/v4. v4 needs its
   matching `.apk.idsig` companion file. No passwords or keys are stored in source.
 - The shell helper handles both GNU and macOS sed and copies v4 companion files alongside APKs.
 - Plugin resolution includes the official Google/Maven/plugin repositories. Android library
@@ -41,8 +41,9 @@ improved on physical devices.
 ## Reproduce
 
 Use JDK 21, SDK 36, NDK 27.0.12077973, CMake 3.22.1, and an Android SDK path in
-`local.properties`. Set `RELEASE_STORE_FILE`, `RELEASE_STORE_TYPE`, `STORE_PASSWORD`, `KEY_ALIAS`,
-and `KEY_PASSWORD` in the process environment without committing them.
+`local.properties`. GitHub Actions restores the repository's existing `MOCHY_RELEASE_KEYSTORE_BASE64`,
+`MOCHY_RELEASE_STORE_PASSWORD`, `MOCHY_RELEASE_KEY_ALIAS` and `MOCHY_RELEASE_KEY_PASSWORD`
+secrets to the default PKCS12 keystore path. The earlier uploaded JKS is not used.
 
 ```sh
 ./gradlew :app:testUniversalGmsDebugUnitTest -PbuildAbis=universal \
@@ -76,3 +77,15 @@ filters during a request, interrupt/retry network access, scroll through multipl
 background/foreground while loading, and toggle both app and Android animation settings. Compare
 frame timing and visual captures on the same device/build type; static inspection is not a frame
 benchmark.
+
+## Signing policy verification
+
+Both release workflows use the repository's existing `MOCHY_RELEASE_*` secrets and trusted
+`.github/release-certificate.sha256` fingerprint. They require v2/v4, reject v1/v3, and retain the
+matching `.apk.idsig` sidecar. No uploaded JKS or new signing bundle secret is used.
+
+`test_signature_schemes.py` constructs a small real APK using Android build tools, signs it with a
+temporary fixture key, and exercises the verifier. It accepts v2/v4-only APKs and rejects v1, v3,
+a wrong certificate, and a corrupted v4 signature. These fixture tests validate the verification
+policy; they do not establish that the application APK has been built or verified. The actual
+repository release key is available only to the repository's GitHub Actions signing job.

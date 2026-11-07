@@ -156,8 +156,9 @@ extensions.configure<ApplicationExtension> {
             create("release") {
                 storeFile = releaseStoreFile
                 storeType = System.getenv("RELEASE_STORE_TYPE") ?: "PKCS12"
+                enableV1Signing = false
                 enableV2Signing = true
-                enableV3Signing = true
+                enableV3Signing = false
                 enableV4Signing = true
                 storePassword = System.getenv("STORE_PASSWORD")
                 keyAlias = System.getenv("KEY_ALIAS")
