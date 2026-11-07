@@ -8,37 +8,33 @@
     android:padding="12dp"
     android:theme="@style/Theme.Widget.mochy">
 
-    <!-- Album Art Container -->
-    <FrameLayout
+    <!-- The album art and the play button are the root FrameLayout's own children: the extra
+         container they used to sit in only repeated match_parent, so it laid out identically
+         while adding a measure/layout pass to every widget update. -->
+    <ImageView
+        android:id="@+id/widget_compact_album_art"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@mipmap/ic_launcher"
+        android:contentDescription="@string/album_art" />
+
+    <!-- Play Button Overlay - Bottom Center -->
+    <FrameLayout
+        android:id="@+id/widget_compact_play_container"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="8dp"
+        android:background="@drawable/widget_play_button_circular">
 
         <ImageView
-            android:id="@+id/widget_compact_album_art"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            android:src="@mipmap/ic_launcher"
-            android:contentDescription="@string/album_art" />
-
-        <!-- Play Button Overlay - Bottom Center -->
-        <FrameLayout
-            android:id="@+id/widget_compact_play_container"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:layout_gravity="bottom|center_horizontal"
-            android:layout_marginBottom="8dp"
-            android:background="@drawable/widget_play_button_circular">
-
-            <ImageView
-                android:id="@+id/widget_compact_play_pause"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:layout_gravity="center"
-                android:src="@drawable/ic_widget_play_low"
-                android:contentDescription="@string/play_pause" />
-        </FrameLayout>
-
+            android:id="@+id/widget_compact_play_pause"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_widget_play_low"
+            android:contentDescription="@string/play_pause" />
     </FrameLayout>
 
 </FrameLayout>
