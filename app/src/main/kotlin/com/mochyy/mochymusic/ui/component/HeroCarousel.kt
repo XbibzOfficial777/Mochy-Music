@@ -83,6 +83,7 @@ import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -119,6 +120,9 @@ import com.mochyy.mochymusic.ui.player.normalizeCanvasArtistName
 import com.mochyy.mochymusic.ui.player.normalizeCanvasSongTitle
 import com.mochyy.mochymusic.ui.utils.rememberWindowSize
 import com.mochyy.mochymusic.ui.utils.resize
+import com.mochyy.mochymusic.ui.utils.isLandscapeWindow
+import com.mochyy.mochymusic.ui.utils.isTvLayout
+import com.mochyy.mochymusic.ui.utils.isWideLayout
 import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.viewmodels.DailyDiscoverItem
 import com.music.innertube.models.AlbumItem
@@ -155,6 +159,46 @@ import kotlin.math.sin
 
 /** the hero takes this share of the screen height (527 of 874 in the Figma frame) */
 const val HeroHeightFraction = 0.6f
+
+// on its side the screen is short, so the hero takes a little more of it to keep room for the title and the pill
+private const val LandscapeHeroHeightFraction = 0.7f
+
+// in the wide layout each card takes this share of the hero's width, the next one peeking in after a gap
+private const val PeekPageShare = 0.8f
+
+// on a tv the hero is shorter, so the first row of music shows under it without scrolling
+private const val TvHeroHeightFraction = 0.56f
+
+// on a tv the cover sits square at the hero's right, this much of the hero's height, this far in from its edge
+private const val TvCoverFraction = 0.72f
+private val TvCoverEndInset = 56.dp
+private val TvCoverShape = RoundedCornerShape(18.dp)
+private val TvCoverShadow = androidx.compose.ui.graphics.shadow.Shadow(radius = 28.dp, color = Color.Black.copy(alpha = 0.55f), offset = androidx.compose.ui.unit.DpOffset(0.dp, 10.dp))
+private val PeekPageGap = 14.dp
+
+// the wide layout's cards sit side by side and slide; the phone's fill the hero and wipe
+internal val LocalHeroPeek = androidx.compose.runtime.staticCompositionLocalOf { false }
+
+// the hero's height for this window: Home's scroll-away and the bones use the same one
+@Composable
+fun heroHeight(): androidx.compose.ui.unit.Dp {
+    val fraction = when {
+        isTvLayout() -> TvHeroHeightFraction
+        isWideLayout() && isLandscapeWindow() -> LandscapeHeroHeightFraction
+        else -> HeroHeightFraction
+    }
+    // The window, not the display: in split screen, a foldable app pair or a freeform window the
+    // display is taller than the space Home is actually given, and the hero would push the rows
+    // below it out of view. rememberWindowSize() also recomposes on a resize instead of waiting
+    // for the activity to be recreated. It needs `remember`, so this cannot be @ReadOnlyComposable.
+    return rememberWindowSize().height * fraction
+}
+
+// a wide card: the hero's width less the gap, of which the card takes its share and the next card the rest
+private object PeekPageSize : androidx.compose.foundation.pager.PageSize {
+    override fun androidx.compose.ui.unit.Density.calculateMainAxisPageSize(availableSpace: Int, pageSpacing: Int): Int =
+        ((availableSpace - pageSpacing) * PeekPageShare).roundToInt()
+}
 
 // the first section starts inside the hero's faded-out bottom rather than under it, which puts
 // its title 61dp below the Play pill like the Figma (it was 68)
@@ -311,11 +355,55 @@ data class ListeningPickItem(val item: MediaMetadata, val reason: String) : Hero
     }
 }
 
+// the hero's cards in order, shared by the phone's carousel and the tv's home so both put forward the same picks
+internal fun heroCarouselItems(
+    lastPlayedSong: MediaMetadata?,
+    dailyDiscover: List<DailyDiscoverItem>?,
+    extras: List<HeroCarouselItem>,
+    playlistPicks: List<PlaylistPickItem>,
+    keepListening: List<com.mochyy.mochymusic.db.entities.LocalItem>?,
+    starterItems: List<HeroCarouselItem>,
+    showGacha: Boolean,
+): List<HeroCarouselItem> = buildList {
+    lastPlayedSong?.let { add(KeepListeningItem(it, isLastPlayed = true)) }
+
+    // the gacha comes straight after the first card, so the first auto-advance shows it;
+    // buried behind the recommendations, most people never got that far
+    if (showGacha) add(GachaItem)
+
+    val discover = dailyDiscover?.take(4).orEmpty()
+    val reasons = discoverReasons(discover)
+    val discoverCards = discover.mapIndexed { index, item -> DiscoverItem(item, reasons[index]) }
+    // a pick already on the hero (the song playing, a daily discover) isn't put forward twice
+    val shown = HashSet<String>()
+    lastPlayedSong?.id?.let(shown::add)
+    interleave(discoverCards, extras).forEach { card ->
+        val id = card.mediaId
+        if (id == null || shown.add(id)) add(card)
+    }
+
+    // the user's own playlists between the recommendations, a couple at a time
+    addAll(playlistPicks.take(2))
+
+    val regular = count { it !is GachaItem }
+    if (regular < 5) {
+        keepListening?.filterIsInstance<com.mochyy.mochymusic.db.entities.Song>()
+            ?.filter { song -> none { it.mediaId == song.id } }
+            ?.take(5 - regular)
+            ?.forEach { song ->
+                add(KeepListeningItem(song.toMediaMetadata(), isLastPlayed = false))
+            }
+    }
+
+    // nothing played yet: start from the imported playlists or the picked artists' songs
+    if (none { it !is GachaItem }) addAll(starterItems.take(5))
+}
+
 /**
  * the extra cards, one per related row (its first song, else its first anything) plus a song on
  * repeat and a forgotten favourite. a row about an artist leads, since that's the most personal
  */
-private fun extraHeroPicks(
+internal fun extraHeroPicks(
     similar: List<SimilarRecommendation>?,
     onRepeat: List<com.mochyy.mochymusic.db.entities.Song>?,
     forgotten: List<com.mochyy.mochymusic.db.entities.Song>?,
@@ -500,43 +588,10 @@ fun HeroCarousel(
         forgottenFavorites?.firstOrNull()?.id,
     ) { extraHeroPicks(similarRecommendations, onRepeat, forgottenFavorites) }
     val carouselItems = remember(keepListening, lastPlayedSong, dailyDiscover, showGacha, starterItems, playlistPicks, extras) {
-        buildList {
-            lastPlayedSong?.let { add(KeepListeningItem(it, isLastPlayed = true)) }
-
-            // the gacha comes straight after the first card, so the first auto-advance shows it;
-            // buried behind the recommendations, most people never got that far
-            if (showGacha) add(GachaItem)
-
-            val discover = dailyDiscover?.take(4).orEmpty()
-            val reasons = discoverReasons(discover)
-            val discoverCards = discover.mapIndexed { index, item -> DiscoverItem(item, reasons[index]) }
-            // a pick already on the hero (the song playing, a daily discover) isn't put forward twice
-            val shown = HashSet<String>()
-            lastPlayedSong?.id?.let(shown::add)
-            interleave(discoverCards, extras).forEach { card ->
-                val id = card.mediaId
-                if (id == null || shown.add(id)) add(card)
-            }
-
-            // the user's own playlists between the recommendations, a couple at a time
-            addAll(playlistPicks.take(2))
-
-            val regular = count { it !is GachaItem }
-            if (regular < 5) {
-                keepListening?.filterIsInstance<com.mochyy.mochymusic.db.entities.Song>()
-                    ?.filter { song -> none { it.mediaId == song.id } }
-                    ?.take(5 - regular)
-                    ?.forEach { song ->
-                        add(KeepListeningItem(song.toMediaMetadata(), isLastPlayed = false))
-                    }
-            }
-
-            // nothing played yet: start from the imported playlists or the picked artists' songs
-            if (none { it !is GachaItem }) addAll(starterItems.take(5))
-        }
+        heroCarouselItems(lastPlayedSong, dailyDiscover, extras, playlistPicks, keepListening, starterItems, showGacha)
     }
 
-    val heroHeight = rememberWindowSize().height * HeroHeightFraction
+    val heroHeight = heroHeight()
 
     // scrolling away it does exactly what a playlist cover does: rides up, zooms, goes soft, fades.
     // the list already carries it up, so it only adds a little on top
@@ -746,13 +801,19 @@ private fun HeroPager(
     }
     val wipeCurve by animateFloatAsState(if (userSwipe) 1f else 0f, tween(260), label = "heroWipeCurve")
 
+    // the wide layout: cards side by side, the next one peeking in on the right
+    val peek = isWideLayout()
+
     // the hero animates nearly all the time (video, gacha drift, the switch); bounded, that only
     // ever repaints the hero instead of the whole screen and every glass surface sampling it
     Box(modifier = Modifier.fillMaxSize().damageBoundary()) {
+        androidx.compose.runtime.CompositionLocalProvider(LocalHeroPeek provides peek) {
         HorizontalPager(
             state = pagerState,
             // no swiping off a reel that's still spinning
             userScrollEnabled = !isSingleItem && gacha.phase != GachaPhase.Rolling,
+            pageSize = if (peek) PeekPageSize else androidx.compose.foundation.pager.PageSize.Fill,
+            pageSpacing = if (peek) PeekPageGap else 0.dp,
             modifier = Modifier.fillMaxSize()
         ) { page ->
             val item = items[page.mod(items.size)]
@@ -775,7 +836,8 @@ private fun HeroPager(
                     wipeCurve = { wipeCurve },
                     isPagerMoving = { pagerState.isScrollInProgress },
                     canvasAttached = canvasAttached,
-                    canvasMayPlay = { navSettledState.value },
+                    // a peeking card holds its canvas still, so only the one in front decodes video
+                    canvasMayPlay = { navSettledState.value && (!peek || pagerState.settledPage == page) },
                     edgeBlur = edgeBlur,
                     heroScrollProgressProvider = heroScrollProgressProvider,
                     onPrimaryClick = {
@@ -787,6 +849,7 @@ private fun HeroPager(
                     },
                 )
             }
+        }
         }
     }
 }
@@ -808,10 +871,12 @@ private fun HeroPage(
     heroScrollProgressProvider: () -> Float,
     onPrimaryClick: () -> Unit,
 ) {
-    PageWipe(pageOffset = pageOffset, curve = wipeCurve, blur = edgeBlur) {
+    val peek = LocalHeroPeek.current
+    val tv = isTvLayout()
+    PageWipe(pageOffset = pageOffset, curve = wipeCurve, blur = edgeBlur, peek = peek) {
         HeroMedia(
             item = item,
-            modifier = Modifier.pageMediaDrift(pageOffset),
+            modifier = Modifier.pageMediaDrift(pageOffset, peek),
             edgeBlur = edgeBlur,
             isPagerMoving = isPagerMoving,
             canvasAttached = canvasAttached,
@@ -820,12 +885,12 @@ private fun HeroPage(
         )
 
         // per page and under the text: drawn once over the whole pager it would dim the titles too
-        HeroScrims()
+        if (tv) TvHeroScrims() else HeroScrims()
 
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .pageTextDrift(pageOffset)
+                .pageTextDrift(pageOffset, peek)
         ) {
             HeroText(
                 label = item.label(isThisPlaying),
@@ -836,7 +901,10 @@ private fun HeroPage(
                     else -> HeroPillKind.Play
                 },
                 onPillClick = onPrimaryClick,
-                modifier = Modifier.align(Alignment.BottomStart)
+                // on a tv the words stop short of the cover at the right
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .then(if (tv) Modifier.padding(end = heroHeight() * TvCoverFraction + TvCoverEndInset) else Modifier)
             )
         }
     }
@@ -863,6 +931,8 @@ private fun HeroMedia(
 
         val connectivityManager = context.getSystemService<android.net.ConnectivityManager>()
         if (canvasWifiOnly && connectivityManager?.isActiveNetworkMetered == true) return@LaunchedEffect
+        // data saver keeps the cover still, a canvas is a video loop
+        if (com.mochyy.mochymusic.utils.DataSaver.isActive(context)) return@LaunchedEffect
 
         CanvasArtworkPlaybackCache.get(id)?.let {
             canvasArtwork = it
@@ -913,30 +983,74 @@ private fun HeroMedia(
                     } else Modifier
                 )
         ) {
-            AsyncImage(
-                model = imageRequest,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+            val art: @Composable (Modifier) -> Unit = { artModifier ->
+                Box(artModifier) {
+                    AsyncImage(
+                        model = imageRequest,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
 
-            if (canvasAttached && canvasEnabled && canvasArtwork?.preferredAnimationUrl != null) {
-                CanvasArtworkPlayer(
-                    primaryUrl = canvasArtwork?.preferredAnimationUrl,
-                    fallbackUrl = null,
-                    // also held while the open player covers Home: it kept decoding and drawing
-                    // frames under it. It picks up where it was once Home shows again.
-                    isPlaying = canvasMayPlay() && heroAtRest && !isPagerMoving() &&
-                        !com.mochyy.mochymusic.LocalAppContentObscured.current.value,
-                    modifier = Modifier.fillMaxSize()
-                )
+                    if (canvasAttached && canvasEnabled && canvasArtwork?.preferredAnimationUrl != null) {
+                        CanvasArtworkPlayer(
+                            primaryUrl = canvasArtwork?.preferredAnimationUrl,
+                            fallbackUrl = null,
+                            // also held while the open player covers Home: it kept decoding and drawing
+                            // frames under it. It picks up where it was once Home shows again.
+                            isPlaying = canvasMayPlay() && heroAtRest && !isPagerMoving() &&
+                                !com.mochyy.mochymusic.LocalAppContentObscured.current.value,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
             }
+            if (isTvLayout()) TvHeroArt(item, art) else art(Modifier.fillMaxSize())
         }
 
-        if (edgeBlur) {
+        // on a tv the words sit on the wash beside the cover, and a band there would only blur the cover's lower half
+        if (edgeBlur && !isTvLayout()) {
             HeroBlurBand(mediaLayer, atTop = true, heightFraction = 0.46f, radius = 22f)
             HeroBlurBand(mediaLayer, atTop = false, heightFraction = 0.5f, radius = 30f)
         }
+    }
+}
+
+// a square cover on a tv: the cover itself at the hero's right, over a soft wash of its own colours, instead of one huge crop across the screen
+@Composable
+private fun TvHeroArt(item: HeroCarouselItem, art: @Composable (Modifier) -> Unit) {
+    val context = LocalContext.current
+    // a small copy is plenty for a wash, and soft on its own where there's no blur (android 11 and older)
+    val washRequest = remember(item.thumbnailUrl, context) {
+        ImageRequest.Builder(context)
+            .data(item.thumbnailUrl?.resize(96, 96))
+            .size(96)
+            .crossfade(300)
+            .build()
+    }
+    val coverSize = heroHeight() * TvCoverFraction
+    Box(Modifier.fillMaxSize()) {
+        AsyncImage(
+            model = washRequest,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    alpha = 0.6f
+                    // decal, so the wash fades out at its edges instead of smearing them into a glow
+                    renderEffect = androidx.compose.ui.graphics.BlurEffect(36.dp.toPx(), 36.dp.toPx(), androidx.compose.ui.graphics.TileMode.Decal)
+                    clip = true
+                },
+        )
+        art(
+            Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = TvCoverEndInset)
+                .size(coverSize)
+                .dropShadow(TvCoverShape, TvCoverShadow)
+                .clip(TvCoverShape)
+        )
     }
 }
 
@@ -1011,6 +1125,32 @@ private fun BoxScope.HeroScrims() {
 }
 
 private const val HeroDim = 0.36f
+
+// a tv's hero: dark behind the words at the left and into the rows below, the cover at the right left as bright as it is
+@Composable
+private fun BoxScope.TvHeroScrims() {
+    Box(
+        modifier = Modifier
+            .matchParentSize()
+            .drawWithCache {
+                val behindWords = Brush.horizontalGradient(
+                    0f to Color.Black.copy(alpha = 0.7f),
+                    0.3f to Color.Black.copy(alpha = 0.45f),
+                    0.58f to Color.Transparent,
+                    endX = size.width,
+                )
+                val intoRows = Brush.verticalGradient(
+                    0.8f to Color.Transparent,
+                    1f to Color.Black,
+                    endY = size.height,
+                )
+                onDrawBehind {
+                    drawRect(behindWords)
+                    drawRect(intoRows)
+                }
+            }
+    )
+}
 
 /** black at [gradient], over the 36% dim */
 private fun heroScrimBlack(gradient: Float): Color = Color.Black.copy(alpha = 1f - (1f - HeroDim) * (1f - gradient))
@@ -1103,7 +1243,7 @@ private fun HeroPill(
             .height(33.dp)
             .clip(RoundedCornerShape(50))
             .background(HeroPillFill)
-            .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = RemoteFocus, enabled = enabled, onClick = onClick)
     ) {
         AnimatedContent(
             targetState = kind,
@@ -1188,7 +1328,7 @@ private fun Modifier.heroTuck(): Modifier = layout { measurable, constraints ->
 /** the hero's loading look on its own, sized and placed exactly like [HeroCarousel] (Home's shell) */
 @Composable
 fun HeroCarouselBones(modifier: Modifier = Modifier) {
-    val heroHeight = rememberWindowSize().height * HeroHeightFraction
+    val heroHeight = heroHeight()
     Box(
         modifier = modifier
             .heroTuck()
@@ -1716,8 +1856,9 @@ private fun GachaPage(
         }
     }
 
-    PageWipe(pageOffset = pageOffset, curve = wipeCurve, blur = transitionBlur) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize().pageMediaDrift(pageOffset)) {
+    val peek = LocalHeroPeek.current
+    PageWipe(pageOffset = pageOffset, curve = wipeCurve, blur = transitionBlur, peek = peek) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize().pageMediaDrift(pageOffset, peek)) {
             val unit = maxHeight / GachaDesignHeight
             val focus = unit * GachaFocusSize
             val coverShape = RoundedCornerShape(unit * GachaCornerRadius)
@@ -1944,7 +2085,7 @@ private fun GachaPage(
                     .size(focus)
                     .clickable(
                         interactionSource = null,
-                        indication = null,
+                        indication = RemoteFocus,
                         enabled = !rolling,
                         onClick = onRoll,
                     )
@@ -1954,7 +2095,7 @@ private fun GachaPage(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .pageTextDrift(pageOffset)
+                .pageTextDrift(pageOffset, peek)
         ) {
             HeroText(
                 label = HeroLabel(

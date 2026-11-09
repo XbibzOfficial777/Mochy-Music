@@ -60,6 +60,7 @@ import kotlinx.coroutines.launch
 import java.text.Collator
 import java.time.LocalDateTime
 import java.util.Locale
+import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 /** How many playlists the "recents" section shows. */
 private const val RecentCount = 4
@@ -103,6 +104,7 @@ fun AddToPlaylistDialog(
     val database = LocalDatabase.current
     val menuState = LocalMenuState.current
     val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current.applicationContext
 
     // Read through these: the sheet is composed by the popup host from lambdas made when it opened.
     val currentOnGetSong by rememberUpdatedState(onGetSong)
@@ -131,12 +133,17 @@ fun AddToPlaylistDialog(
             } else {
                 sheet[0]?.dismiss()
                 currentOnDismiss()
-                database.addSongToPlaylist(playlist, ids)
+                val browseId = playlist.playlist.browseId
+                if (browseId != null) {
+                    // a playlist that mirrors youtube keeps what's added here through its syncs, on top
+                    com.mochyy.mochymusic.importer.PlaylistAddedHere.add(context, playlist.id, ids)
+                    database.addSongsToPlaylistTop(playlist, ids)
+                } else {
+                    database.addSongToPlaylist(playlist, ids)
+                }
                 announceAddedToPlaylist(database, playlist, ids)
 
-                playlist.playlist.browseId?.let { browseId ->
-                    ids.forEach { YouTube.addToPlaylist(browseId, it) }
-                }
+                browseId?.let { ids.forEach { id -> YouTube.addToPlaylist(it, id) } }
             }
         }
     }
@@ -323,7 +330,7 @@ private fun PlaylistPickRow(playlist: Playlist, onClick: () -> Unit) {
             .clip(RoundedCornerShape(14.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                indication = RemoteFocus,
                 onClick = onClick,
             )
             .padding(vertical = 6.dp),

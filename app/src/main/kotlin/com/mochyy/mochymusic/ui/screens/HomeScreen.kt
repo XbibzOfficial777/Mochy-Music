@@ -134,7 +134,6 @@ import com.mochyy.mochymusic.ui.component.ArtistListCard
 import com.mochyy.mochymusic.ui.component.BonesHost
 import com.mochyy.mochymusic.ui.component.coverTintBackground
 import com.mochyy.mochymusic.ui.component.HeroCarousel
-import com.mochyy.mochymusic.ui.component.HeroHeightFraction
 import com.mochyy.mochymusic.ui.component.HomeCardCornerRadius
 import com.mochyy.mochymusic.ui.component.HomeCardSpacing
 import com.mochyy.mochymusic.ui.component.HomeContentInset
@@ -758,7 +757,7 @@ fun HomeScreen(
 
     val lazylistState = rememberLazyListState()
 
-    val carouselHeightDp = rememberWindowSize().height * HeroHeightFraction
+    val carouselHeightDp = com.mochyy.mochymusic.ui.component.heroHeight()
     val collapseDistancePx = with(LocalDensity.current) {
         if (homeStyle == HomeStyle.MOCHYY) carouselHeightDp.toPx() else 140.dp.toPx()
     }

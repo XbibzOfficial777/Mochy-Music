@@ -104,6 +104,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import com.mochyy.mochymusic.ui.component.navigateToTab
+import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 private val SearchCategories = listOf(
     "All" to null,
@@ -186,7 +187,10 @@ fun OnlineSearchResult(
         }
     }
 
+    val recentContext = androidx.compose.ui.platform.LocalContext.current
     val onItemClick: (YTItem) -> Unit = { item ->
+        // kept for the search page's recent searches
+        RecentSearches.add(recentContext, item)
         when (item) {
             is SongItem -> {
                 if (item.id == mediaMetadata?.id) {
@@ -394,7 +398,7 @@ fun OnlineSearchResult(
                             .size(20.dp)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
+                                indication = RemoteFocus,
                             ) { navController.navigateUp() },
                     )
                 },

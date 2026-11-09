@@ -45,7 +45,8 @@ object AppModule {
     fun provideInternalDatabase(
         @ApplicationContext context: Context,
     ): InternalDatabase = Room
-        .databaseBuilder(context, InternalDatabase::class.java, InternalDatabase.DB_NAME)
+        // on a tv each profile has its own library; everywhere else this is the one database
+        .databaseBuilder(context, InternalDatabase::class.java, com.mochyy.mochymusic.link.tv.TvProfiles.databaseName(context))
         // The one list in MusicDatabase.kt. This copy used to be its own, stopped at 35 -> 36, and
         // every later version reached the phone as "no migration path" -> all tables dropped.
         .addMigrations(*com.mochyy.mochymusic.db.AllMigrations)
@@ -89,7 +90,7 @@ object AppModule {
     ): SimpleCache {
         val cacheSize = context.dataStore[MaxSongCacheSizeKey] ?: 1024
         return SimpleCache(
-            context.filesDir.resolve("exoplayer"),
+            com.mochyy.mochymusic.playback.StoragePlaces.dir(context, com.mochyy.mochymusic.playback.StoredKind.SongCache),
             when (cacheSize) {
                 -1 -> NoOpCacheEvictor()
                 else -> LeastRecentlyUsedCacheEvictor(cacheSize * 1024 * 1024L)
@@ -106,7 +107,7 @@ object AppModule {
         databaseProvider: DatabaseProvider,
     ): SimpleCache {
         return SimpleCache(
-            context.filesDir.resolve("download"),
+            com.mochyy.mochymusic.playback.StoragePlaces.dir(context, com.mochyy.mochymusic.playback.StoredKind.Downloads),
             NoOpCacheEvictor(),
             databaseProvider
         )

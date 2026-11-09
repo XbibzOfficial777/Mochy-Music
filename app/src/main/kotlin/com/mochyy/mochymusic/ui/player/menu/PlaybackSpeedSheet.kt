@@ -45,6 +45,7 @@ import com.mochyy.mochymusic.utils.UiNumberFormat
 import dagger.hilt.android.EntryPointAccessors
 import kotlin.math.abs
 import kotlin.math.log2
+import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 private val CardSurface = MenuRowSurface
 
@@ -110,7 +111,7 @@ fun PlaybackSpeedSheet(onDismiss: () -> Unit) {
                     .background(CardSurface)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
+                        indication = RemoteFocus,
                         onClick = {
                             speed.floatValue = 1f
                             pitch.floatValue = 1f

@@ -61,11 +61,8 @@ import com.mochyy.mochymusic.LocalArtworkColor
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.extensions.toggleRepeatMode
 import com.mochyy.mochymusic.R
-import com.mochyy.mochymusic.constants.PlayerStyle
-import com.mochyy.mochymusic.constants.playerStyleRotatedKey
 import com.mochyy.mochymusic.ui.component.LocalPlayerBottomSheetState
 import com.mochyy.mochymusic.ui.utils.rememberWindowSize
-import com.mochyy.mochymusic.utils.rememberPreference
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -279,6 +276,8 @@ fun StyleCircle(
     active: Boolean = false,
     // drawn in place of the icon, in the icon's colour: the transport's animated glyphs
     glyph: (@Composable (Color) -> Unit)? = null,
+    // a module's own picture in place of the icon, in its own colours
+    picture: Any? = null,
 ) {
     val press = remember { Animatable(1f) }
     val scope = rememberCoroutineScope()
@@ -323,6 +322,13 @@ fun StyleCircle(
         }
         if (glyph != null) {
             glyph(tint)
+        } else if (picture != null) {
+            coil3.compose.AsyncImage(
+                model = picture,
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                modifier = Modifier.size(if (pill) 20.dp else size * 0.5f),
+            )
         } else {
             Icon(
                 painter = painterResource(icon),
@@ -347,6 +353,19 @@ private class MenuItem(
     val label: String,
     @DrawableRes val icon: Int,
     val active: Boolean = false,
+    val picture: Any? = null,
+    val onClick: () -> Unit,
+)
+
+/** an item a style adds to its chevron menu (a look module's own), above other menu and edit player; [picture] wins over [icon] */
+@androidx.compose.runtime.Immutable
+class StyleMenuExtra(
+    val label: String,
+    @DrawableRes val icon: Int,
+    val picture: Any? = null,
+    val active: Boolean = false,
+    /** stays open after the tap, so a toggle's change shows */
+    val keepsOpen: Boolean = false,
     val onClick: () -> Unit,
 )
 
@@ -357,6 +376,8 @@ private const val CircleSkipWidth = 0.46f
 /** previous, play/pause and next as three [StyleCircle]s, laid out by the caller's [Row] or [Column] */
 @Composable
 fun TransportCircles(tones: StyleTones, size: Dp = 30.dp, vertical: Boolean = false, spacing: Dp = 8.dp) {
+    // a tv's remote plays and skips, buttons on the screen are only more things for focus to land on
+    if (com.mochyy.mochymusic.ui.utils.isTvLayout()) return
     val connection = LocalPlayerConnection.current ?: return
     val transport by connection.uiState.transportState.collectAsState()
     val scope = rememberCoroutineScope()
@@ -417,14 +438,11 @@ class StyleActions(
     // the song info sheet's artist and album rows: the page opens and the player closes on the way
     val onOpenArtist: (String) -> Unit = {},
     val onOpenAlbum: (String) -> Unit = {},
+    // a page of the app a module's button or chevron item opens (its own page, a search); the player closes on the way
+    val onOpenRoute: (String) -> Unit = {},
+    // folds the player down to the mini player, for a module's close button
+    val onClose: () -> Unit = {},
 )
-
-/** whether [style] is turned sideways, and the switch for it */
-@Composable
-fun rememberStyleRotation(style: PlayerStyle): Pair<Boolean, (Boolean) -> Unit> {
-    val (rotated, onRotated) = rememberPreference(playerStyleRotatedKey(style), defaultValue = style.startsSideways)
-    return rotated to onRotated
-}
 
 /**
  * Double tap plays or pauses; a sideways swipe slides the player's row of songs under the finger
@@ -499,21 +517,13 @@ fun Modifier.styleSongSwipe(
 /** A flick faster than this skips however short it was. */
 private val SwipeFling = 500.dp
 
-/**
- * The chevron and the little menu it opens: lyrics, shuffle and repeat, other menu, rotate and
- * edit player, rising out of the button the way the flagship's chevron menu does. The button sits
- * [edge] from the top (or the bottom, [atBottom]) and [end] from the right; the menu opens away
- * from that edge.
- * Call it last in the style's Box so the dimmed backdrop and the menu draw over the style.
- */
+// the chevron and its little menu (lyrics, shuffle, repeat, other menu, edit player), opening away from the edge it sits on; call it last so it draws over the style
 @Composable
 fun BoxScope.StyleMenu(
     open: Boolean,
     onOpenChange: (Boolean) -> Unit,
     tones: StyleTones,
     actions: StyleActions,
-    rotated: Boolean,
-    onRotate: (Boolean) -> Unit,
     atBottom: Boolean,
     end: Dp,
     edge: Dp,
@@ -521,6 +531,7 @@ fun BoxScope.StyleMenu(
     showButton: Boolean = true,
     /** the button and the menu's circles dressed as the Turntable's pills */
     pill: Boolean = false,
+    extras: List<StyleMenuExtra> = emptyList(),
 ) {
     val reveal = remember { Animatable(0f) }
     LaunchedEffect(open) {
@@ -548,9 +559,13 @@ fun BoxScope.StyleMenu(
         ) else emptyList()
         val rows = listOfNotNull(
             actions.onLyrics?.let { open -> MenuItem("Lyrics", R.drawable.lyrics) { onOpenChange(false); open() } },
-        ) + shuffleAndRepeat + listOf(
+        ) + shuffleAndRepeat + extras.map { extra ->
+            MenuItem(extra.label, extra.icon, extra.active, extra.picture) {
+                if (!extra.keepsOpen) onOpenChange(false)
+                extra.onClick()
+            }
+        } + listOf(
             MenuItem("Other menu", R.drawable.more_horiz) { onOpenChange(false); actions.onOtherMenu() },
-            MenuItem(if (rotated) "Turn upright" else "Rotate", R.drawable.screen_rotation) { onOpenChange(false); onRotate(!rotated) },
             MenuItem("Edit player", R.drawable.tune) { onOpenChange(false); actions.onEditPlayer() },
         )
         val itemGap = 10.dp
@@ -584,7 +599,7 @@ fun BoxScope.StyleMenu(
                     },
                 ) {
                     Text(text = item.label, style = com.mochyy.mochymusic.ui.player.chevronMenuLabelStyle(if (pill) Color.White else tones.ink, 13.sp))
-                    StyleCircle(icon = item.icon, tones = tones, size = buttonSize + 6.dp, onClick = item.onClick, pill = pill, active = item.active)
+                    StyleCircle(icon = item.icon, tones = tones, size = buttonSize + 6.dp, onClick = item.onClick, pill = pill, active = item.active, picture = item.picture)
                 }
             }
         }
@@ -619,12 +634,7 @@ private fun MenuChevron(open: Boolean, tones: StyleTones, size: Dp, pill: Boolea
     )
 }
 
-/**
- * Where each orientation of a style puts its playhead split, as a share of the screen from the top.
- * Upright the split runs down the screen; sideways it runs along the turned layout, which on the
- * phone is down the screen too - so one split, drawn by the frame outside the turn, serves both,
- * and the background never turns with the layout.
- */
+// where each orientation of a style puts its playhead split, as a share of the screen: down it upright, across it in landscape
 @Stable
 class StyleSplits {
     var upright by mutableStateOf<(() -> Float)?>(null)
@@ -701,100 +711,36 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSplit(
     }
 }
 
-/**
- * Lays [content] out sideways when [rotated]: measured with width and height swapped and turned a
- * quarter clockwise, so the style reads upright with the phone held on its side.
- *
- * Changing it is a real turn: the layout leaving and the layout arriving are both drawn, turning
- * together through the whole quarter as one piece, shrunk just enough at each angle to stay on the
- * screen, tipped back a little in depth and motion-blurred at the fastest part of the swing, the
- * one handing over to the other through it. [background] sits under the turn and holds still: the
- * style's own tone, or its playhead split, which the layouts report through [ReportSplit] and which
- * glides from where the old layout had it to where the new one does.
- */
+// the style's background (its own tone, or the playhead split its layout reports) under its layout; landscape is the window's own shape, the phone turns the app now
 @Composable
-fun RotatingFrame(
-    rotated: Boolean,
+fun StyleStage(
     tones: StyleTones,
     modifier: Modifier = Modifier,
     background: (@Composable BoxScope.() -> Unit)? = null,
     content: @Composable BoxScope.(landscape: Boolean) -> Unit,
 ) {
-    var shown by remember { mutableStateOf(rotated) }
-    // the orientation turning away, only while a turn plays
-    var leaving by remember { mutableStateOf<Boolean?>(null) }
-    val turn = remember { Animatable(1f) }
     val splits = remember { StyleSplits() }
-    // A new song's tones fade in rather than snap: the split is the whole background of these
-    // styles, and it used to change colour in one frame. Read only while drawing, so the fade
-    // repaints the background without recomposing the style.
+    // a new song's tones fade in rather than snap, read only while drawing so the fade repaints the background without recomposing the style
     val played = androidx.compose.animation.animateColorAsState(tones.played, tween(ToneFadeMs), label = "playedTone")
     val remaining = androidx.compose.animation.animateColorAsState(tones.remaining, tween(ToneFadeMs), label = "remainingTone")
-    LaunchedEffect(rotated) {
-        if (rotated == shown) return@LaunchedEffect
-        leaving = shown
-        shown = rotated
-        turn.snapTo(0f)
-        // a little weight at the end: it settles a hair past square and comes back
-        turn.animateTo(1f, spring(dampingRatio = 0.74f, stiffness = 150f))
-        leaving = null
-    }
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .then(
-                if (background != null) Modifier else Modifier.drawBehind {
-                    val now = splits[shown]
-                    if (now == null) {
-                        drawRect(played.value)
-                        return@drawBehind
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val landscape = maxWidth > maxHeight
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (background != null) Modifier else Modifier.drawBehind {
+                        val split = splits[landscape]
+                        if (split == null) drawRect(played.value)
+                        else drawSplit(played.value, remaining.value, vertical = !landscape, boundary = split())
                     }
-                    val from = leaving?.let { splits[it] }
-                    val t = turn.value.coerceIn(0f, 1f)
-                    val b = if (from != null) from() + (now() - from()) * t else now()
-                    drawSplit(played.value, remaining.value, vertical = true, boundary = b)
-                }
-            ),
-    ) {
-        if (background != null) {
-            Box(modifier = Modifier.fillMaxSize(), content = background)
-        }
-        androidx.compose.runtime.CompositionLocalProvider(LocalStyleSplits provides splits) {
-            val layers = listOfNotNull(leaving, shown)
-            layers.forEach { orientation ->
-                androidx.compose.runtime.key(orientation) {
-                    val arriving = orientation == shown
-                    Box(
-                        modifier = Modifier
-                            .quarterTurn(orientation)
-                            .graphicsLayer {
-                                if (leaving == null) return@graphicsLayer
-                                val t = turn.value
-                                // toward landscape the turn is clockwise, back upright counter-clockwise
-                                val direction = if (shown) 1f else -1f
-                                // this layer's angle away from where it rests
-                                val angle = if (arriving) -direction * 90f * (1f - t) else direction * 90f * t
-                                rotationZ = angle
-                                val fit = turnFit(size.width, size.height, if (orientation) 90f else 0f, angle)
-                                val s = fit * (1f - 0.04f * sin01(t))
-                                scaleX = s
-                                scaleY = s
-                                // tipped back a touch mid-swing, so it turns in space rather than on glass
-                                cameraDistance = 14f * density
-                                rotationX = 9f * sin01(t)
-                                // the hand-over: the old fades through the first half, the new through the second
-                                alpha = if (arriving) smooth((t - 0.3f) / 0.45f) else 1f - smooth((t - 0.1f) / 0.45f)
-                                if (android.os.Build.VERSION.SDK_INT >= 31) {
-                                    val blur = 14.dp.toPx() * sin01(t)
-                                    renderEffect = if (blur > 0.5f && com.mochyy.mochymusic.ui.utils.AppMotion.elementBlur) {
-                                        androidx.compose.ui.graphics.BlurEffect(blur, blur, androidx.compose.ui.graphics.TileMode.Clamp)
-                                    } else null
-                                }
-                            },
-                    ) {
-                        content(orientation)
-                    }
-                }
+                ),
+        ) {
+            if (background != null) {
+                Box(modifier = Modifier.fillMaxSize(), content = background)
+            }
+            androidx.compose.runtime.CompositionLocalProvider(LocalStyleSplits provides splits) {
+                Box(modifier = Modifier.fillMaxSize()) { content(landscape) }
             }
         }
     }
@@ -803,10 +749,7 @@ fun RotatingFrame(
 /** how long a style's background takes to fade to a new song's colours */
 private const val ToneFadeMs = 700
 
-/**
- * How far a layer [w] x [h] (as laid out, before its own [restAngle]) must shrink, turned a further
- * [angle] degrees, to stay inside the screen it fills at rest.
- */
+// how far a layer w by h (before its own rest angle) must shrink, turned a further angle, to stay inside the screen it fills at rest
 internal fun turnFit(w: Float, h: Float, restAngle: Float, angle: Float): Float {
     if (w <= 0f || h <= 0f) return 1f
     // the screen: the layer's own size, turned by its rest angle

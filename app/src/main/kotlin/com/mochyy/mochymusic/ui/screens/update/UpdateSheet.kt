@@ -91,6 +91,7 @@ import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
 import com.mochyy.mochymusic.ui.player.menu.MenuSurface
 import com.mochyy.mochymusic.ui.screens.donate.showSupportSheet
 import kotlinx.coroutines.launch
+import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 @Composable
 fun rememberUpdateState(): androidx.compose.runtime.State<UpdateState> {
@@ -143,7 +144,7 @@ internal fun SheetPrimaryButton(text: String, onClick: () -> Unit) {
             .height(50.dp)
             .clip(CircleShape)
             .background(Color.White.copy(alpha = 0.26f))
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+            .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Text(text = text, fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp)
@@ -155,6 +156,10 @@ private const val StableLabel = "STABLE"
 
 /** "8.1.0 build#1165" -> "8.1.0", "8.0.2 (1100)" -> "8.0.2" */
 internal fun shortVersion(version: String): String = version.substringBefore(' ').substringBefore("-xbibz.")
+
+/** "xbibz.9" out of "8.3.2-xbibz.9": the fork's own build tag, blank on a build that isn't the fork. */
+internal fun forkTag(version: String): String =
+    Regex("xbibz\\.\\d+", RegexOption.IGNORE_CASE).find(version)?.value?.lowercase().orEmpty()
 
 /** the app version sheet: the app, the version you're on and its channel, what's newer, and what you can do about it */
 @Composable
@@ -392,7 +397,7 @@ private fun StatusRow(
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.2f))
                     .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape)
-                    .clickable(interactionSource = interaction, indication = null, onClick = onAction)
+                    .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onAction)
                     .padding(horizontal = 16.dp, vertical = 7.dp),
             )
         }
@@ -431,7 +436,7 @@ private fun ActionRow(
             .height(56.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(MenuRowSurface.copy(alpha = if (enabled) 1f else 0.6f))
-            .clickable(enabled = enabled, interactionSource = interaction, indication = null, onClick = onClick)
+            .clickable(enabled = enabled, interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
             .padding(horizontal = 16.dp),
     ) {
         Box(
@@ -498,7 +503,7 @@ private fun ColumnScope.UpdateDetailContent(
             .clickable(
                 enabled = !downloading,
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                indication = RemoteFocus,
                 onClick = onBack,
             )
             .padding(vertical = 4.dp),
@@ -603,7 +608,7 @@ private fun ColumnScope.UpdateDetailContent(
             .clickable(
                 enabled = !downloading && release.apkUrl != null,
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                indication = RemoteFocus,
                 onClick = {
                     error = null
                     if (isDownloaded(context, release)) {
@@ -655,7 +660,7 @@ private fun ColumnScope.UpdateDetailContent(
             .clickable(
                 enabled = !downloading,
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                indication = RemoteFocus,
                 onClick = { context.openUrl(release.htmlUrl) },
             )
     ) {

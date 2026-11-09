@@ -55,6 +55,7 @@ import com.mochyy.mochymusic.BuildConfig
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.core.updater.GithubOwner
 import com.mochyy.mochymusic.core.updater.GithubRepo
+import com.mochyy.mochymusic.core.updater.ForkRepoUrl
 import com.mochyy.mochymusic.core.updater.GithubRepoUrl
 import com.mochyy.mochymusic.ui.component.PopupSheetState
 import com.mochyy.mochymusic.ui.component.pressBounce
@@ -65,6 +66,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
+import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 @Immutable
 private data class LeadDevEntry(
@@ -322,6 +324,9 @@ private fun ColumnScope.AboutSheetContent(
 ) {
     val context = LocalContext.current
     val installed = shortVersion(BuildConfig.VERSION_NAME)
+    // "xbibz.10" on the Xbibz APK, blank on a plain build: shown so the fork build is never a mystery
+    val fork = forkTag(BuildConfig.VERSION_NAME)
+    val upstream = BuildConfig.UPSTREAM_VERSION.ifBlank { installed }
     val scrollState = rememberScrollState()
     val ringScrollRangePx = with(LocalDensity.current) { 180.dp.toPx() }
     var contributors by remember { mutableStateOf(cachedContributors ?: FallbackContributors) }
@@ -392,6 +397,32 @@ private fun ColumnScope.AboutSheetContent(
                     letterSpacing = (-0.4).sp,
                     color = Color.White.copy(alpha = 0.9f),
                 )
+                if (fork.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    // a pill, so it reads as a channel next to the version rather than more version text
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .padding(horizontal = 11.dp, vertical = 5.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(5.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(Color(0xFF6FE3A8)),
+                        )
+                        Text(
+                            text = "Forked version \u00b7 $fork",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = (-0.2).sp,
+                            color = Color.White.copy(alpha = 0.85f),
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.height(18.dp))
@@ -421,6 +452,49 @@ private fun ColumnScope.AboutSheetContent(
                 )
                 AboutPillRow(
                     text = "Mochy Music github \u2192",
+                    onClick = { context.openUrl(GithubRepoUrl) },
+                )
+            }
+
+            if (fork.isNotEmpty()) {
+                Spacer(Modifier.height(18.dp))
+                SectionHeader("forked version")
+                Spacer(Modifier.height(8.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MenuRowSurface)
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                ) {
+                    Text(
+                        text = "Xbibz fork of Mochy Music $upstream",
+                        fontSize = 15.sp,
+                        lineHeight = 19.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.4).sp,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "Forked build $fork on top of realidkroo's Mochy Music " +
+                            "$upstream (app version $installed). Both the liquid glass look and every Mochy feature are " +
+                            "kept, and this build carries its own signing key and its own release " +
+                            "channel, so it updates from the fork and never from upstream.",
+                        fontSize = 13.sp,
+                        lineHeight = 17.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = (-0.2).sp,
+                        color = Color.White.copy(alpha = 0.62f),
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                AboutCardButton(
+                    text = "Forked by XbibzOfficial777 \u2192",
+                    onClick = { context.openUrl(ForkRepoUrl) },
+                )
+                Spacer(Modifier.height(8.dp))
+                AboutCardButton(
+                    text = "Upstream Mochy Music \u2192",
                     onClick = { context.openUrl(GithubRepoUrl) },
                 )
             }
@@ -596,7 +670,7 @@ private fun AboutPillRow(text: String, onClick: () -> Unit) {
             .height(44.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(MenuRowSurface)
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
             .padding(horizontal = 18.dp),
     ) {
         Text(
@@ -621,7 +695,7 @@ private fun AboutCardButton(text: String, onClick: () -> Unit) {
             .height(54.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(MenuRowSurface)
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
             .padding(horizontal = 18.dp),
     ) {
         Text(
@@ -650,7 +724,7 @@ private fun PersonRow(
         modifier = Modifier
             .pressBounce(interaction, pressedScale = 0.98f)
             .fillMaxWidth()
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         GithubAvatar(
@@ -704,7 +778,7 @@ private fun AndMoreRow(
             .height(54.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(MenuRowSurface)
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
             .padding(horizontal = 16.dp),
     ) {
         Box(
@@ -744,7 +818,7 @@ private fun LicenseCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
             .background(MenuRowSurface)
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 16.dp),
     ) {
         Column(modifier = Modifier.weight(1f)) {

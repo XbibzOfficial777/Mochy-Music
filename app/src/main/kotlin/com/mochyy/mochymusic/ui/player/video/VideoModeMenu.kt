@@ -63,6 +63,7 @@ import com.mochyy.mochymusic.ui.screens.settings.videoSizeName
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.ui.utils.resize
 import com.mochyy.mochymusic.utils.rememberEnumPreference
+import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 // the chevron's menu in the full video mode: a card floating over the video, and every sheet it opens floats the same way
 @Composable
@@ -333,7 +334,7 @@ private fun QualityRow(title: String, description: String?, selected: Boolean, o
             .background(MenuRowSurface)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                indication = RemoteFocus,
                 onClick = onClick,
             )
             .padding(horizontal = 14.dp, vertical = 13.dp),

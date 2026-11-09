@@ -65,6 +65,7 @@ import com.mochyy.mochymusic.ui.component.SheetIcon
 import com.mochyy.mochymusic.ui.component.CastDevicesSection
 import com.mochyy.mochymusic.utils.rememberPreference
 import kotlinx.coroutines.flow.MutableStateFlow
+import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 /** "change playback": both volumes, then every output; picking one moves the song there, cast receivers play it themselves */
 @Composable
@@ -338,7 +339,7 @@ private fun DeviceRow(
             .background(if (selected || playing) Color.White.copy(alpha = 0.10f) else MenuRowSurface)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                indication = RemoteFocus,
                 onClick = onClick,
             )
             .padding(horizontal = 14.dp, vertical = 12.dp)

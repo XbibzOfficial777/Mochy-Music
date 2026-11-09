@@ -28,6 +28,8 @@ const val DiscordUrl = "https://discord.gg/NTmqVphbRY"
 // The Xbibz APK has its own signing key. It must never offer an upstream APK as an update;
 // keep the upstream owner above for attribution, and use a separate fork release channel here.
 private const val ForkReleaseRepo = "XbibzOfficial777/Mochy-Music"
+// what the about sheet's "forked version" card opens
+const val ForkRepoUrl = "https://github.com/$ForkReleaseRepo"
 internal val isXbibzBuild: Boolean get() = isXbibzVersion(BuildConfig.VERSION_NAME)
 internal val isXbibzReleaseBuild: Boolean
     get() = isXbibzRelease(

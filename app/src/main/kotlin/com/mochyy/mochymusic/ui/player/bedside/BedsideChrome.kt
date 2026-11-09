@@ -11,6 +11,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerState
@@ -230,17 +234,24 @@ internal fun StyleActions.unlockedFirst(context: Context) = StyleActions(
     onExitVideoMode = onExitVideoMode,
     onOpenArtist = { id -> context.unlockThen { onOpenArtist(id) } },
     onOpenAlbum = { id -> context.unlockThen { onOpenAlbum(id) } },
+    onOpenRoute = { route -> context.unlockThen { onOpenRoute(route) } },
+    onClose = onClose,
 )
 
-// the system bars as they fall on the bedside: along the top and bottom upright, down the sides once it's turned
+// the system bars as they fall on the bedside; in landscape the status bar is hidden, so only the side bars and the cutout are left
 internal class BedsideInsets(val start: Dp, val top: Dp, val end: Dp, val bottom: Dp)
 
 @Composable
 internal fun bedsideInsets(landscape: Boolean): BedsideInsets {
-    val status = WindowInsets.stableStatusBars.asPaddingValues().calculateTopPadding()
-    val nav = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    return if (landscape) BedsideInsets(start = status, top = 0.dp, end = nav, bottom = 0.dp)
-    else BedsideInsets(start = 0.dp, top = status, end = 0.dp, bottom = nav)
+    val direction = androidx.compose.ui.platform.LocalLayoutDirection.current
+    val sides = WindowInsets.navigationBars.union(WindowInsets.displayCutout).asPaddingValues()
+    val status = if (landscape) 0.dp else WindowInsets.stableStatusBars.asPaddingValues().calculateTopPadding()
+    return BedsideInsets(
+        start = sides.calculateStartPadding(direction),
+        top = status,
+        end = sides.calculateEndPadding(direction),
+        bottom = sides.calculateBottomPadding(),
+    )
 }
 
 // a card in the style picker shows the bedside, it doesn't run it

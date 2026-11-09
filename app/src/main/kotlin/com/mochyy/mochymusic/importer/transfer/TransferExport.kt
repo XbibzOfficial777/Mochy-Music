@@ -14,6 +14,8 @@ import androidx.media3.database.DatabaseProvider
 import com.mochyy.mochymusic.BuildConfig
 import com.mochyy.mochymusic.db.MusicDatabase
 import com.mochyy.mochymusic.playback.DownloadUtil
+import com.mochyy.mochymusic.playback.StoragePlaces
+import com.mochyy.mochymusic.playback.StoredKind
 import com.mochyy.mochymusic.utils.dataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -59,12 +61,12 @@ class TransferExporter @Inject constructor(
         onProgress(0f)
         val library = File(work, "library.db")
         val live = database.openHelper.writableDatabase
-        snapshot(File(requireNotNull(live.path)), library, begin = live::beginTransaction, end = live::endTransaction)
+        snapshotDatabase(File(requireNotNull(live.path)), library, begin = live::beginTransaction, end = live::endTransaction)
 
         val media = File(work, "media.db")
         val liveMedia = databaseProvider.writableDatabase
         val hasMedia = runCatching {
-            snapshot(File(liveMedia.path), media, begin = liveMedia::beginTransaction, end = liveMedia::endTransaction)
+            snapshotDatabase(File(liveMedia.path), media, begin = liveMedia::beginTransaction, end = liveMedia::endTransaction)
             dropStreamingCacheIndex(media)
         }.isSuccess
 
@@ -117,30 +119,9 @@ class TransferExporter @Inject constructor(
         }
     }
 
-    // copies a live database while holding its write lock, so nothing lands halfway, then folds its wal into one plain file
-    private fun snapshot(source: File, target: File, begin: () -> Unit, end: () -> Unit) {
-        val targetWal = File(target.path + "-wal")
-        target.delete()
-        targetWal.delete()
-        begin()
-        try {
-            source.copyTo(target, overwrite = true)
-            File(source.path + "-wal").takeIf { it.exists() }?.copyTo(targetWal, overwrite = true)
-        } finally {
-            end()
-        }
-        SQLiteDatabase.openDatabase(target.path, null, SQLiteDatabase.OPEN_READWRITE).use { copy ->
-            foldIntoOneFile(copy)
-            copy.rawQuery("PRAGMA quick_check", null).use { cursor ->
-                check(cursor.moveToFirst() && cursor.getString(0).equals("ok", ignoreCase = true)) { "snapshot of ${source.name} failed its check" }
-            }
-        }
-        listOf("-wal", "-shm", "-journal").forEach { File(target.path + it).delete() }
-    }
-
     // the streaming cache stays behind, so its tables in media3's database go too
     private fun dropStreamingCacheIndex(media: File) {
-        val uids = File(context.filesDir, "exoplayer").listFiles { file -> file.name.endsWith(".uid") }
+        val uids = StoragePlaces.dir(context, StoredKind.SongCache).listFiles { file -> file.name.endsWith(".uid") }
             ?.map { it.name.removeSuffix(".uid") }.orEmpty()
         if (uids.isEmpty()) return
         SQLiteDatabase.openDatabase(media.path, null, SQLiteDatabase.OPEN_READWRITE).use { db ->
@@ -190,10 +171,16 @@ class TransferExporter @Inject constructor(
     // everything under the files folder that carries over, as zip-style relative paths
     private fun carriedFiles(): List<Pair<String, File>> {
         val root = context.filesDir
-        return root.listFiles().orEmpty()
+        val onPhone = root.listFiles().orEmpty()
             .filter { TransferArchive.carriesFile(it.name) }
             .flatMap { top -> top.walkTopDown().filter { it.isFile }.toList() }
             .map { it.relativeTo(root).invariantSeparatorsPath to it }
+        // downloads kept on a memory card go in under the same name, so the other phone finds them where it looks
+        val downloads = StoragePlaces.dir(context, StoredKind.Downloads)
+        if (downloads.parentFile == root) return onPhone
+        val onCard = downloads.walkTopDown().filter { it.isFile }
+            .map { "${StoredKind.Downloads.folder}/${it.relativeTo(downloads).invariantSeparatorsPath}" to it }
+        return onPhone + onCard
     }
 
     private fun readManifest(library: File, totalBytes: Long, localSongs: Int): TransferManifest =

@@ -13,6 +13,7 @@ import com.mochyy.mochymusic.module.StreamFormat
 import com.mochyy.mochymusic.module.TrackQuery
 import com.mochyy.mochymusic.module.applemusic.AppleMusicModule
 import com.mochyy.mochymusic.module.monochrome.MonochromeModule
+import com.mochyy.mochymusic.utils.DataSaver
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +26,7 @@ import timber.log.Timber
 
 @Singleton
 class SourceModules @Inject constructor(
-    @ApplicationContext context: Context,
+    @ApplicationContext private val context: Context,
     private val registry: ModuleRegistry,
 ) {
     private val prefs = context.getSharedPreferences("source_modules", Context.MODE_PRIVATE)
@@ -117,7 +118,7 @@ class SourceModules @Inject constructor(
         track: TrackQuery?,
         skip: Set<String>,
         onUndecodable: (id: String, stream: SourceStream) -> Unit = { _, _ -> },
-    ): Route = walk(_order.value, track, skip, ::isUsable) { id, stream ->
+    ): Route = walk(_order.value, track, skip, ::isUsable, ::playbackPicks) { id, stream ->
         // a stream this phone has no decoder for would play in silence: the next provider has it
         DeviceDecoders.canPlay(stream).also { playable ->
             if (!playable) {
@@ -129,7 +130,7 @@ class SourceModules @Inject constructor(
 
     /** the download order's walk: the first provider that gives one whole file this phone can play, else youtube */
     suspend fun downloadRoute(track: TrackQuery?, skip: Set<String>): Route =
-        walk(_downloadOrder.value, track, skip, ::isUsableForDownload) { id, stream ->
+        walk(_downloadOrder.value, track, skip, ::isUsableForDownload, { id, _ -> picks(id) }) { id, stream ->
             // a download is saved as one file, so a stream in pieces or one only a cdm can open can't be kept
             (stream.format == StreamFormat.Progressive && stream.drm == null && DeviceDecoders.canPlay(stream)).also { savable ->
                 if (!savable) Timber.tag(Tag).i("$id: ${track?.title}: can't download a ${stream.format} ${stream.codec} stream, passing over")
@@ -141,6 +142,7 @@ class SourceModules @Inject constructor(
         track: TrackQuery?,
         skip: Set<String>,
         usable: (String) -> Boolean,
+        picksFor: (id: String, module: SourceModule) -> Map<String, String>,
         accept: (id: String, stream: SourceStream) -> Boolean,
     ): Route = withContext(Dispatchers.IO) {
         for (id in order) {
@@ -148,7 +150,7 @@ class SourceModules @Inject constructor(
             if (id == YouTubeId) return@withContext Route.YouTube
             val module = module(id) ?: continue
             if (track == null) continue
-            val result = runCatching { module.resolve(track, picks(id)) }
+            val result = runCatching { module.resolve(track, picksFor(id, module)) }
                 .onFailure { Timber.tag(Tag).w(it, "$id failed for ${track.title}") }
                 .getOrNull()
             when (result) {
@@ -187,6 +189,20 @@ class SourceModules @Inject constructor(
 
     fun picks(id: String): Map<String, String> = registry.picks(id)
 
+    /**
+     * the picks a song plays with: with data saver on, a module's stream quality steps down to its
+     * "high" option (or one below its best when it has none), and a lighter pick stays as it is
+     */
+    fun playbackPicks(id: String, module: SourceModule): Map<String, String> {
+        val picks = picks(id)
+        if (!DataSaver.isActive(context)) return picks
+        val quality = module.choices.firstOrNull { it.id == QualityChoice }?.options ?: return picks
+        val cap = quality.indexOfFirst { it.id == SaverOption }.takeIf { it >= 0 } ?: 1
+        val picked = quality.indexOfFirst { it.id == picks[QualityChoice] }.takeIf { it >= 0 } ?: 0
+        if (picked >= cap || cap >= quality.size) return picks
+        return picks + (QualityChoice to quality[cap].id)
+    }
+
     fun setPick(id: String, choiceId: String, optionId: String) = registry.setPick(id, choiceId, optionId)
 
     fun refresh() {
@@ -206,6 +222,9 @@ class SourceModules @Inject constructor(
 
     companion object {
         private const val Tag = "SourceModules"
+        // the choice every module names its stream quality with, and the option data saver steps down to
+        const val QualityChoice = "quality"
+        private const val SaverOption = "high"
         /** youtube music in the provider order: not a module, and needs no account */
         const val YouTubeId = "youtube"
         // modules added later (jiosaavn, link modules) aren't listed: refresh slots them in just ahead of youtube, where they get asked

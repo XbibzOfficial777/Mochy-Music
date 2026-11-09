@@ -152,6 +152,7 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 import com.mochyy.mochymusic.ui.utils.stableStatusBars
 import com.mochyy.mochymusic.ui.utils.stableStatusBarsPadding
+import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 // geometry and type from the Figma playlist frames (16:1162 open, 16:1354 scrolled). internal so
 // the album, artist and generated pages line up on the same inset and type
@@ -1098,7 +1099,7 @@ internal fun PlaylistDescription(text: String, modifier: Modifier = Modifier) {
             .clickable(
                 enabled = overflows || expanded,
                 interactionSource = null,
-                indication = null,
+                indication = RemoteFocus,
             ) { expanded = !expanded },
     )
 }
@@ -1114,7 +1115,7 @@ internal fun PlayPill(isPlaying: Boolean, onClick: () -> Unit) {
             .height(33.dp)
             .clip(RoundedCornerShape(50))
             .background(PillFill)
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
             .animateContentSize(spring(dampingRatio = 0.7f, stiffness = 500f))
             .padding(start = 21.dp, end = 17.dp)
     ) {
@@ -1163,7 +1164,7 @@ internal fun CircleAction(
             .size(33.dp)
             .clip(CircleShape)
             .background(PillFill)
-            .clickable(interactionSource = interaction, indication = null) {
+            .clickable(interactionSource = interaction, indication = RemoteFocus) {
                 if (spinOnClick) {
                     scope.launch {
                         spin.snapTo(0f)

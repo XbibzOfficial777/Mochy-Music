@@ -47,6 +47,11 @@ implementation_plan.md
 transcript_*.txt
 docs/*
 !docs/ui-search-release-audit.md
+!docs/index.html
+!docs/.nojekyll
+!docs/assets/
+!docs/wiki/
+!docs/modules/
 
 # Logs, crash dumps & API response dumps
 *.log

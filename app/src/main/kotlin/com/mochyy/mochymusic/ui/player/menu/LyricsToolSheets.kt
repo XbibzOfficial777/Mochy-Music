@@ -73,6 +73,7 @@ import com.mochyy.mochymusic.viewmodels.LyricsMenuViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 // ---------------------------------------------------------------------------------------------
 // Editor
@@ -309,7 +310,7 @@ fun LyricsProviderSheet(onDismiss: () -> Unit) {
                         .clickable(
                             enabled = available != null && !isActive,
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
+                            indication = RemoteFocus,
                         ) {
                             val metadata = mediaMetadata
                             if (available != null && metadata != null) {
@@ -510,7 +511,7 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
                         // switched off instead of locking the button.
                         enabled = target.isNotBlank(),
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
+                        indication = RemoteFocus,
                     ) {
                         if (translationOn) {
                             LyricsTranslationHelper.triggerClearTranslations()
@@ -693,7 +694,7 @@ private fun LanguagePickerSheet(
                             )
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
+                                indication = RemoteFocus,
                             ) {
                                 onPick(code)
                                 closeSheet()
@@ -739,7 +740,7 @@ internal fun PillButton(
             .clickable(
                 enabled = enabled,
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                indication = RemoteFocus,
                 onClick = onClick,
             )
     ) {
