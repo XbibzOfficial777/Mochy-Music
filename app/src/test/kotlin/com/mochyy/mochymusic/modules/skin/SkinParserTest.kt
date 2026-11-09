@@ -171,8 +171,8 @@ class SkinParserTest {
         assertEquals(SkinBackground.Player(PlayerBackgroundStyle.SOLID), shader.fallback)
         val layer = player.layers.single()
         assertEquals(1f, layer.opacity)
-        // the value is already non-null here, so the parser's optional motion is read straight
-        assertEquals(MotionKind.Drift, layer.motion.kind)
+        // the assertion above proves the optional motion is there, so only the first read needs it
+        assertEquals(MotionKind.Drift, layer.motion!!.kind)
         assertEquals(4f, layer.motion.speed)
         assertEquals(listOf("glow", "layout"), player.customise!!.keys)
         assertEquals(2, player.menu.size)
