@@ -1,40 +1,46 @@
 {
-  "versionName": "8.3.2-xbibz.9",
-  "versionCode": 82,
-  "description": "Mochy Xbibz: lint bersih 0 peringatan, animasi baris lirik mengalir, dan rilis tiga APK (arm64-v8a, armeabi-v7a, universal).",
+  "versionName": "8.3.3-xbibz.10",
+  "versionCode": 83,
+  "description": "Mochy Xbibz 8.3.3-xbibz.10: seluruh pekerjaan Mochy Music resmi sampai 8.3.2 (TV dan remote, modul look, penyimpanan) ditarik masuk, liquid glass tetap utuh, dan About app sekarang menyebut versi fork-nya.",
   "changelog": [
     {
-      "title": "UI dan animasi",
+      "title": "Dari Mochy Music resmi",
       "items": [
-        "Pergantian baris lirik memakai spring, bukan tween durasi tetap: sorotan baris mengalir ke baris berikutnya walau lagu cepat, karena animasinya tidak dipotong dan dimulai ulang dari nol.",
-        "Baris yang baru aktif mendarat dengan sedikit overshoot, jadi perpindahannya terasa hidup tanpa teks bergoyang.",
-        "Tebal huruf tidak lagi berubah SemiBold ke Bold di tengah fade; perubahan itu mengukur ulang setiap huruf dengan lebar berbeda dan terlihat melompat.",
-        "Offset animasi memakai overload lambda sehingga animasi tidak lagi memicu recomposition tiap frame.",
-        "State angka primitif memakai mutableIntStateOf/mutableFloatStateOf (16 titik) sehingga tidak ada boxing tiap frame.",
-        "Ukuran sheet, cover, carousel, dan pratinjau share memakai ukuran jendela, bukan ukuran layar, jadi tetap benar di split screen, picture-in-picture, foldable, dan mode desktop.",
-        "Widget pemutar musik menghapus satu container yang hanya mengulang match_parent, sehingga satu pass measure/layout hilang tiap pembaruan widget."
+        "Layar besar: activity TV sendiri dengan launcher leanback, bar pemutar khusus TV, halaman TV yang bisa dibuka dari HP, remote dari HP untuk TV, proses pairing, dan pencerminan library antara HP dan TV.",
+        "Pemutaran: perpindahan antar lagu memakai crossfade yang mulus, skip di-blend, mode repeat one, pilihan versi studio untuk lagu, dan pencarian terakhir yang tersimpan.",
+        "Modul: modul look sekarang bisa membawa glass sendiri untuk bar bawah (shader AGSL, Android 13 ke atas), pemutar dan menu sendiri, font, halaman, serta metadata modul dan daftar rilis GitHub-nya.",
+        "Penyimpanan: lokasi penyimpanan aplikasi bisa dipindah, dan unduhan bisa diekspor menjadi berkas musik biasa di folder mochy-preserve supaya bisa dipakai aplikasi lain.",
+        "Dekoder cadangan FFmpeg untuk format audio yang tidak didukung dekoder bawaan HP.",
+        "Playlist yang dicerminkan dari YouTube Music mencatat lagu yang ditambahkan di Mochy, jadi sinkronisasi berikutnya tidak menghapusnya lagi.",
+        "Situs dokumentasi dan wiki masuk ke dalam repo."
+      ]
+    },
+    {
+      "title": "Yang tetap milik fork",
+      "items": [
+        "Liquid glass tetap utuh: tint 46 persen, rim 1,2 dp yang menyala dari kiri atas, dan pill tab berupa lensa kaca yang mengalir ke tab yang ditekan.",
+        "Mode pure black OLED tetap tanpa blur, tanpa tint, dan tanpa grain, jadi benar-benar hitam.",
+        "Glass dari modul look berjalan berdampingan dengan liquid glass: modul diperiksa lebih dulu, lalu pure black, lalu tint liquid atau frost biasa.",
+        "Indikator geser milik upstream tetap dipertahankan karena dipakai bar lebar (WideBar), berdampingan dengan indikator liquid fork di bar bawah.",
+        "Seluruh fitur fork sebelumnya tetap ada: migrasi preferensi Bibz, kanal rilis fork, urutan penyedia unduhan terpisah, dan pemilih tema aplikasi."
       ]
     },
     {
       "title": "Perbaikan",
       "items": [
-        "Format angka untuk pengguna memakai locale FORMAT secara eksplisit di 29 titik, termasuk bahasa Prancis, Portugis, dan Persia.",
-        "Resource dibaca lewat LocalResources (4 titik) agar perubahan bahasa di dalam aplikasi langsung ikut tergambar.",
-        "Timber mendapat ReleaseTree: pesan log build release tidak lagi hilang, dan 55 pemanggilan android.util.Log pindah ke Timber dengan tag serta prioritas yang sama.",
-        "Impor transfer menghitung ruang kosong dengan StorageManager.getAllocatableBytes pada Android 8+ dan jalurnya diturunkan dari dataDir, bukan dari path /data/data yang di-hardcode.",
-        "Kode perangkat audio yang tidak terjangkau dihapus dan penjagaan versi Android yang selalu benar dibersihkan, termasuk cabang Android 16 pada pembangun notifikasi.",
-        "Konstanta API yang di-inline (haptik, fokus audio, tipe perangkat USB, izin pemasangan paket) diberi penjagaan eksplisit.",
-        "Konten dekoratif pada widget pemutar ditandai untuk aksesibilitas, dan helper modifier lirik kini menjadi extension pada Modifier."
+        "Tinggi hero tidak lagi diukur dari ukuran layar. Fraksi tinggi milik upstream untuk TV dan lanskap tetap dipakai, tetapi pembaginya sekarang ukuran jendela, jadi di split screen, freeform, dan foldable hero tidak lagi mendorong baris di bawahnya keluar layar; nilainya juga ikut berubah saat jendela di-resize.",
+        "Pemeriksa tautan modul sekarang mengenali dua hasil baru dari upstream (rilis tidak punya modul, repo tidak punya rilis) dan tetap membaca teksnya dari LocalResources supaya pergantian bahasa in-app langsung ikut.",
+        "Resolusi modul memakai hook picksFor dari upstream, sementara logging tetap lewat Timber dengan tag yang sama seperti bagian lain aplikasi.",
+        "About app: badge Forked version dan bagian forked version baru, berisi versi upstream yang jadi dasar (dibaca dari build field UPSTREAM_VERSION), penjelasan kunci tanda tangan sendiri, dan tautan ke repo fork maupun repo asli.",
+        "Import mati di StyleKit yang ditinggalkan upstream dibuang supaya tidak menumpuk."
       ]
     },
     {
       "title": "Build dan validasi",
       "items": [
-        "Versi dinaikkan menjadi 8.3.2-xbibz.9 (kode 82).",
-        "Lint turun dari 1.581 peringatan menjadi 0; gerbang rilis gagal kalau ada warning baru, dan setiap pengecualian punya alasan tertulis di lint.xml.",
-        "Rilis kini menyediakan tiga APK: arm64-v8a, armeabi-v7a, dan universal.",
-        "Unit test lulus, emulator API 30 dan API 35 lulus, APK ditandatangani key Bibz dengan v2 dan v4 serta diverifikasi terhadap sertifikat repository.",
-        "Tidak ada pengukuran FPS di perangkat fisik: perbaikan animasi adalah pengurangan biaya render, bukan klaim peningkatan frame rate terukur."
+        "Versi dinaikkan menjadi 8.3.3-xbibz.10 (kode 83) dan tetap lebih tinggi dari rilis Bibz sebelumnya, jadi bisa dipasang menimpa tanpa uninstall.",
+        "Rilis tetap tiga APK: arm64-v8a, armeabi-v7a, dan universal, semuanya ditandatangani key Bibz yang sama.",
+        "Belum diklaim: bug dari issue tracker yang butuh perangkat fisik (misalnya gagal pasang di Android 11 dan lagu yang berhenti di loading) belum diperbaiki di rilis ini."
       ]
     }
   ]
