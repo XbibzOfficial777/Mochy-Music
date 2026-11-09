@@ -1,5 +1,6 @@
 package com.mochyy.mochymusic.ui.utils
 
+import android.annotation.SuppressLint
 import android.os.Build
 import android.view.View
 import android.view.ViewGroup
@@ -95,6 +96,8 @@ private class HighRateVoter(root: ViewGroup) {
     }
 }
 
-// the voter's pixel, holding its voter so the two live and go with their window
+// The voter's pixel, holding its voter so the two live and go with their window. It is only ever
+// constructed from code (added to an existing view), so it has no inflate constructor on purpose.
+@SuppressLint("ViewConstructor")
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 private class VoterPixel(context: android.content.Context, val voter: HighRateVoter) : View(context)

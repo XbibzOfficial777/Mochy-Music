@@ -29,6 +29,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
@@ -99,7 +100,9 @@ internal fun TvShell(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val scope = rememberCoroutineScope()
-    val activity = LocalContext.current as Activity
+    // a tv shell only ever runs inside TvActivity, so the window's activity is always there;
+    // LocalActivity says that without casting a context to an Activity
+    val activity = LocalActivity.current ?: return
 
     BoxWithConstraints(Modifier.fillMaxSize().background(TvColors.Ground)) {
         // the player is either all the way open or out of sight, a tv has no mini player at the bottom

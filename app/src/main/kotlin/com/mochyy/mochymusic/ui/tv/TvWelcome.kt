@@ -29,6 +29,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -82,7 +83,8 @@ internal fun TvWelcome(onNext: () -> Unit) {
     val focus = remember { FocusRequester() }
     val seen = remember { HashSet<Any>() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    BoxWithConstraints(
+    // the welcome places everything by alignment, so plain Box is enough
+    Box(
         Modifier
             .fillMaxSize()
             .background(Color.Black)
@@ -129,6 +131,7 @@ internal fun TvPairWelcome(pairing: TvPairing, onPaired: (TvProfile) -> Unit, on
         onDispose { pairing.close() }
     }
     LaunchedEffect(Unit) { pairing.paired.collect { onPaired(it) } }
+    val code by pairing.code.collectAsState()
     val skipFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { skipFocus.requestFocus() } }
     BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
@@ -138,7 +141,7 @@ internal fun TvPairWelcome(pairing: TvPairing, onPaired: (TvProfile) -> Unit, on
             modifier = Modifier.align(Alignment.TopCenter).padding(top = 64.dp),
         )
         TvPhoneMock(
-            tvName = pairing.code.value?.tvName.orEmpty(),
+            tvName = code?.tvName.orEmpty(),
             modifier = Modifier
                 .padding(start = 94.dp, top = 140.dp)
                 .width(maxWidth * 0.35f)

@@ -77,6 +77,8 @@ internal fun TvMenuRows(onDismiss: () -> Unit) {
     val shown by host.menuShown.collectAsState()
     val live by host.live.collectAsState()
     val player = LocalPlayerConnection.current ?: return
+    // read as state rather than .value: the rows follow the song instead of checking it once
+    val nowPlaying by player.mediaMetadata.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val tvs = remember(live) { host.liveTvs() }
@@ -94,15 +96,18 @@ internal fun TvMenuRows(onDismiss: () -> Unit) {
             },
         )
         Spacer(Modifier.height(8.dp))
+        // both outcomes are worded here, in composition, so the coroutine only has to pick one
+        val sentText = stringResource(R.string.tv_menu_next_sent, tv.name)
+        val unreachableText = stringResource(R.string.tv_menu_unreachable, tv.name)
         MenuRow(
             icon = R.drawable.playlist_play,
             title = stringResource(R.string.tv_menu_play_next_on, tv.name),
-            enabled = player.mediaMetadata.value != null,
+            enabled = nowPlaying != null,
             onClick = {
-                val song = player.mediaMetadata.value ?: return@MenuRow
+                val song = nowPlaying ?: return@MenuRow
                 scope.launch {
                     val sent = host.tellTv(tv, "/next", JSONObject().put("songs", LinkSongs.listToJson(listOf(song))))
-                    TopToaster.show(context.getString(if (sent != null) R.string.tv_menu_next_sent else R.string.tv_menu_unreachable, tv.name))
+                    TopToaster.show(if (sent != null) sentText else unreachableText)
                 }
                 onDismiss()
             },

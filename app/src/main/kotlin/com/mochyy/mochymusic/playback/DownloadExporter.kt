@@ -5,7 +5,6 @@ package com.mochyy.mochymusic.playback
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
-import android.util.Log
 import androidx.media3.datasource.cache.ContentMetadata
 import androidx.media3.exoplayer.offline.Download
 import coil3.imageLoader
@@ -19,6 +18,7 @@ import com.mochyy.mochymusic.db.entities.Song
 import com.mochyy.mochymusic.ui.utils.resize
 import com.mochyy.mochymusic.utils.DocumentTree
 import dagger.hilt.android.qualifiers.ApplicationContext
+import timber.log.Timber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -73,7 +73,7 @@ class DownloadExporter @Inject constructor(
             runCatching { export(tree, choice) }
                 .onSuccess { _step.value = it }
                 .onFailure {
-                    Log.e("DownloadExporter", "Export stopped", it)
+                    Timber.tag("DownloadExporter").e(it, "Export stopped")
                     _step.value = ExportStep.Failed(context.getString(R.string.storage_export_failed))
                 }
         }

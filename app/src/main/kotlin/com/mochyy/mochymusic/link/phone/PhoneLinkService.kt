@@ -7,6 +7,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationChannelCompat
@@ -67,8 +69,22 @@ class PhoneLinkService : Service() {
         watching = true
         scope.launch {
             kotlinx.coroutines.flow.combine(host.tvs, host.live, host.lastStream, ticks()) { _, _, _, _ -> notification() }
-                .collect { NotificationManagerCompat.from(this@PhoneLinkService).runCatching { notify(NotificationId, it) } }
+                .collect { post(it) }
         }
+    }
+
+    // Posting needs POST_NOTIFICATIONS on android 13 and the app's own switch below it. Both are
+    // checked right here before anything is posted; lint cannot follow the combined test through
+    // NotificationManagerCompat, so the check is spelled out and the warning is waived next to it.
+    @SuppressLint("MissingPermission")
+    private fun post(note: android.app.Notification) {
+        val manager = NotificationManagerCompat.from(this)
+        val allowed = manager.areNotificationsEnabled() &&
+            (
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                    checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                )
+        if (allowed) manager.runCatching { notify(NotificationId, note) }
     }
 
     // a tv that goes quiet drops back to "linked" without anything else changing, so the line is checked now and then

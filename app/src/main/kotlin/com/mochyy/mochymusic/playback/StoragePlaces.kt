@@ -2,12 +2,12 @@
 
 package com.mochyy.mochymusic.playback
 
+import timber.log.Timber
 import android.app.Application
 import android.content.Context
 import android.os.Environment
 import android.os.StatFs
 import android.os.storage.StorageManager
-import android.util.Log
 import androidx.core.content.getSystemService
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.SimpleCache
@@ -44,7 +44,7 @@ object StoragePlaces {
         val phone = File(context.filesDir, kind.folder)
         val root = chosenRoot(context, kind) ?: return phone
         if (Environment.getExternalStorageState(root) != Environment.MEDIA_MOUNTED) {
-            Log.w(Tag, "${kind.folder} lives on a drive that isn't there, using the phone for now")
+            Timber.tag(Tag).w("${kind.folder} lives on a drive that isn't there, using the phone for now")
             return phone
         }
         return File(root, kind.folder)
@@ -127,7 +127,7 @@ object StoragePlaces {
                     } else {
                         dir.deleteRecursively()
                     }
-                }.onFailure { Log.w(Tag, "Couldn't clear the old ${kind.folder} folder", it) }
+                }.onFailure { Timber.tag(Tag).w(it, "Couldn't clear the old ${kind.folder} folder") }
             }
         }.apply { name = "StorageLeftovers" }.start()
     }

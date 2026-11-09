@@ -24,6 +24,11 @@
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
 
+    <!-- The tv link's discovery asks for CHANGE_WIFI_MULTICAST_STATE, and android reads that as a
+         request for wi-fi hardware, which would hide the app from a tv wired over ethernet. The
+         permission is normal level and the app works without wi-fi, so the feature is optional. -->
+    <uses-feature android:name="android.hardware.wifi" android:required="false" />
+
     <!--    bluetooth connect-->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <!-- For Android 11 (API 30) and below -->
@@ -78,13 +83,6 @@
         <uses-library
             android:name="org.apache.http.legacy"
             android:required="false" />
-
-        <activity
-            android:name=".ui.screens.CrashActivity"
-            android:exported="false"
-            android:theme="@style/Theme.mochy"
-            android:excludeFromRecents="true"
-            android:process=":crash" />
 
         <!-- the big-screen app; the tv home screen only lists main + leanback launcher, so this is what a tv opens -->
         <activity

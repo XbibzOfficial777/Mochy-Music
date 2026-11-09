@@ -2,6 +2,7 @@
 
 package com.mochyy.mochymusic.link.tv
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -40,7 +41,10 @@ object TvControl {
     private val main = Handler(Looper.getMainLooper())
     private var appContext: Context? = null
 
-    // the open app's player, set while the tv activity is around
+    // The open app's player, set while the tv activity is around and cleared when it goes. It is a
+    // static handle by design (the http handler behind the tv's own listener needs it), and it never
+    // outlives the activity that sets it.
+    @SuppressLint("StaticFieldLeak")
     @Volatile var player: PlayerConnection? = null
 
     private val _allowed = MutableStateFlow(true)

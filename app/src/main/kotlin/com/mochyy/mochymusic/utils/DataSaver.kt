@@ -2,6 +2,7 @@
 
 package com.mochyy.mochymusic.utils
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.ConnectivityManager
 import androidx.compose.runtime.Composable
@@ -17,6 +18,9 @@ import com.mochyy.mochymusic.constants.DataSaverMobileOnlyKey
 
 object DataSaver {
 
+    // An application context, held for the life of the process on purpose: this is the hand-off
+    // point for code that has no context of its own, and it is never an activity.
+    @SuppressLint("StaticFieldLeak")
     @Volatile
     private var app: Context? = null
 

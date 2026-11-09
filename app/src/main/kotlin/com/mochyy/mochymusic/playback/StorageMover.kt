@@ -3,10 +3,10 @@
 package com.mochyy.mochymusic.playback
 
 import android.content.Context
-import android.util.Log
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.importer.transfer.TransferRestore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import timber.log.Timber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -56,7 +56,7 @@ class StorageMover @Inject constructor(
                 delay(600)
                 withContext(Dispatchers.Main) { TransferRestore.restartToFinish(context) }
             }.onFailure {
-                Log.e("StorageMover", "Couldn't move ${kind.folder}", it)
+                Timber.tag("StorageMover").e(it, "Couldn't move ${kind.folder}")
                 File(to.root, "${kind.folder}.moving").deleteRecursively()
                 _step.value = MoveStep.Failed(kind, context.getString(R.string.storage_move_failed))
             }

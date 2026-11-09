@@ -2,6 +2,7 @@
 
 package com.mochyy.mochymusic.link
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
@@ -88,9 +89,19 @@ object LinkIdentity {
 
     // the name set in the phone's own settings when there is one ("Kei's Pixel"), the model otherwise
     fun name(context: Context): String {
-        val named = runCatching { Settings.Global.getString(context.contentResolver, Settings.Global.DEVICE_NAME) }.getOrNull()
+        val named = deviceName(context)
         return named?.takeIf { it.isNotBlank() } ?: Build.MODEL.orEmpty().ifBlank { "Android" }
     }
+
+    // Settings.Global.DEVICE_NAME arrived in android 7.1, and the name is inlined at compile time, so
+    // the older phones get the model instead of a lookup that has nothing to find.
+    @SuppressLint("InlinedApi")
+    private fun deviceName(context: Context): String? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
+            runCatching { Settings.Global.getString(context.contentResolver, Settings.Global.DEVICE_NAME) }.getOrNull()
+        } else {
+            null
+        }
 }
 
 // a device found on the wi-fi, with where to reach it

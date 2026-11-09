@@ -166,6 +166,8 @@ private val Muted = Color.White.copy(alpha = 0.6f)
 fun TvLinkScreen(navController: NavController, viewModel: TvLinkViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val player = LocalPlayerConnection.current
+    // the "play on tv" row only lights up while a song is loaded, read as state, not as .value
+    val canPlayHere = player?.mediaMetadata?.collectAsState()?.value != null
     val scope = rememberCoroutineScope()
     val tvs by viewModel.tvs.collectAsState()
     val live by viewModel.live.collectAsState()
@@ -201,7 +203,7 @@ fun TvLinkScreen(navController: NavController, viewModel: TvLinkViewModel = hilt
                         tv = tv,
                         open = open,
                         now = now,
-                        canPlayHere = player?.mediaMetadata?.value != null,
+                        canPlayHere = canPlayHere,
                         onControl = { open?.let { controlling = it } },
                         onPlayHere = { open?.let { target -> player?.let { scope.launch { sendQueueToTv(context, viewModel.host, target, it) } } } },
                         onUnlink = { unlinking = tv },
