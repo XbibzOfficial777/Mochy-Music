@@ -184,6 +184,10 @@ fun WideBarTabs(
                     isSelected = screen.route == selectedTabRoute,
                     onItemClick = onItemClick,
                     onDoubleTap = onSearchDoubleTap.takeIf { screen == Screens.Search },
+                    // the wide bar has no glass drop travelling between tabs, so a tab is either
+                    // fully lit or not lit at all, and nothing zooms
+                    lit = { if (screen.route == selectedTabRoute) 1f else 0f },
+                    iconZoom = { 1f },
                 )
             }
         }

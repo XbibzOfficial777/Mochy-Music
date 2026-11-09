@@ -2,7 +2,14 @@
 
 package com.mochyy.mochymusic.ui.component
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -42,6 +49,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.size
 import com.mochyy.mochymusic.LocalGlassState
+import kotlinx.coroutines.launch
 
 @Immutable
 private data class NavItemState(
@@ -293,6 +301,13 @@ fun AppNavigationBar(
  * One highlight behind the lit tab that slides to the next one, instead of each tab fading its own
  * in and out. Only read while drawing, so the slide never recomposes the bar.
  */
+/**
+ * The highlight's front edge springs to the new tab faster than its back edge, so it stretches
+ * toward the tab and settles into it instead of sliding over as a rigid block.
+ */
+private val NavHighlightLead = spring<Float>(dampingRatio = 0.82f, stiffness = 700f)
+private val NavHighlightTrail = spring<Float>(dampingRatio = 0.82f, stiffness = 320f)
+
 @Composable
 internal fun Modifier.navHighlight(selectedIndex: Int, tabCount: Int): Modifier {
     val start = remember { Animatable(selectedIndex.coerceAtLeast(0).toFloat()) }
