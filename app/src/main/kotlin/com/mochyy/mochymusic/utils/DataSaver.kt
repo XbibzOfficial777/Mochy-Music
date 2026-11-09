@@ -16,6 +16,9 @@ import androidx.core.content.getSystemService
 import com.mochyy.mochymusic.constants.DataSaverKey
 import com.mochyy.mochymusic.constants.DataSaverMobileOnlyKey
 
+// The object itself is what lint points at: one of its fields holds an application context for the
+// life of the process, on purpose, so code without a context can still ask about data saver.
+@SuppressLint("StaticFieldLeak")
 object DataSaver {
 
     // An application context, held for the life of the process on purpose: this is the hand-off

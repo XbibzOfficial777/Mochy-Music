@@ -29,10 +29,16 @@
       "title": "Perbaikan",
       "items": [
         "Tinggi hero tidak lagi diukur dari ukuran layar. Fraksi tinggi milik upstream untuk TV dan lanskap tetap dipakai, tetapi pembaginya sekarang ukuran jendela, jadi di split screen, freeform, dan foldable hero tidak lagi mendorong baris di bawahnya keluar layar; nilainya juga ikut berubah saat jendela di-resize.",
-        "Pemeriksa tautan modul sekarang mengenali dua hasil baru dari upstream (rilis tidak punya modul, repo tidak punya rilis) dan tetap membaca teksnya dari LocalResources supaya pergantian bahasa in-app langsung ikut.",
-        "Resolusi modul memakai hook picksFor dari upstream, sementara logging tetap lewat Timber dengan tag yang sama seperti bagian lain aplikasi.",
-        "About app: badge Forked version dan bagian forked version baru, berisi versi upstream yang jadi dasar (dibaca dari build field UPSTREAM_VERSION), penjelasan kunci tanda tangan sendiri, dan tautan ke repo fork maupun repo asli.",
-        "Import mati di StyleKit yang ditinggalkan upstream dibuang supaya tidak menumpuk."
+        "AndroidManifest berhenti mendeklarasikan activity CrashActivity yang kelasnya tidak pernah ada di project ini. Komponen manifest tanpa kelas itu tidak bisa dijalankan siapa pun, dan sebagian pemasang aplikasi di HP OEM memang rewel soal komponen seperti itu.",
+        "Penemuan TV memakai izin multicast wi-fi, dan Android membacanya sebagai permintaan perangkat keras wi-fi. Sekarang android.hardware.wifi dideklarasikan opsional, jadi aplikasi tidak hilang di TV yang tersambung lewat kabel LAN.",
+        "Notifikasi status tautan TV hanya dikirim kalau pengguna mengizinkan notifikasi: POST_NOTIFICATIONS di Android 13 ke atas, dan saklar aplikasi di bawahnya. Kalau tidak diizinkan, tidak ada yang dikirim dan tidak ada yang gagal diam-diam.",
+        "Tiga layar TV berhenti membaca StateFlow.value saat komposisi (lagu yang sedang diputar, kode pairing, dan status lagu siap): nilainya dibaca sebagai state, jadi layarnya benar-benar mengikuti lagu, bukan membeku di nilai pertama.",
+        "TvShell tidak lagi men-cast context menjadi Activity; TvMenuRows menyiapkan teks hasil di komposisi, bukan meminta string lewat context di tengah komposisi; dan halaman welcome TV tidak lagi memakai BoxWithConstraints yang constraint-nya tidak dipakai.",
+        "Tiga berkas baru dari upstream (penyimpanan dan ekspor unduhan) menulis log lewat android.util.Log; sekarang lewat Timber dengan tag yang sama, seperti bagian lain aplikasi.",
+        "Nama perangkat untuk daftar TV dijaga: Settings.Global.DEVICE_NAME baru ada di Android 7.1, jadi di Android 7.0 yang dipakai adalah nama model.",
+        "Tujuh string modul yang sudah dipensiunkan upstream tapi masih tertinggal di empat terjemahan (Indonesia, Portugis Brasil, Mandarin Sederhana, Mandarin Tradisional) dibersihkan, jadi tidak ada lagi resource yang hanya punya terjemahan tanpa nilai default.",
+        "Pemeriksa tautan modul mengenali dua hasil baru dari upstream dan tetap membaca teksnya dari LocalResources, jadi pergantian bahasa di dalam aplikasi langsung ikut.",
+        "Perbaikan build dari penggabungan: import dan dua spring yang hilang pada navHighlight dikembalikan, bar lebar mengirim parameter lit/iconZoom milik NavTab fork, dan 9 berkas tv/modul pindah ke paket hiltViewModel yang baru supaya tidak ada warning deprecation."
       ]
     },
     {
