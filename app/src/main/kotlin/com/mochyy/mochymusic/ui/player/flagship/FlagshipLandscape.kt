@@ -178,16 +178,16 @@ internal fun FlagshipLandscape(
                 .drawWithContent {
                     drawContent()
                     val from = coverWidth.toPx() * (1f - fadeShare)
+                    // one ramp across the whole width that holds the shade past the cover; a second flat rect on top doubled it into a hard line
                     drawRect(
                         Brush.horizontalGradient(
                             0f to Color.Transparent,
+                            0.5f to PanelShade.copy(alpha = PanelShade.alpha * 0.4f),
                             1f to PanelShade,
                             startX = from,
                             endX = coverWidth.toPx(),
                         ),
-                        topLeft = androidx.compose.ui.geometry.Offset(from, 0f),
                     )
-                    drawRect(PanelShade, topLeft = androidx.compose.ui.geometry.Offset(coverWidth.toPx(), 0f))
                 },
         )
 
@@ -199,7 +199,24 @@ internal fun FlagshipLandscape(
             fadeShare = fadeShare,
             fadeDownFrom = if (onTv && !squareCover) TvCoverFadeDownFrom else null,
             square = onTv && squareCover,
+            band = !onTv,
         )
+        if (onTv) {
+            // a soft dark floor across the bottom, so the title always reads and the cover and lyrics sink into it
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .drawBehind {
+                        drawRect(
+                            Brush.verticalGradient(
+                                0.5f to Color.Transparent,
+                                0.75f to Color.Black.copy(alpha = 0.45f),
+                                1f to Color.Black.copy(alpha = 0.85f),
+                            ),
+                        )
+                    },
+            )
+        }
 
         // with the lyrics up: the title, the artist and the seek bar over the soft bottom of the cover
         if (lyricsMounted) {
@@ -329,6 +346,8 @@ private fun BoxScope.LandscapeCover(
     // where the cover starts fading towards its bottom, as a share of its height; null keeps the bottom whole
     fadeDownFrom: Float?,
     square: Boolean = false,
+    // the blurred copy of the cover's foot under the title; a tv lays a dark floor there instead, a bright cover turned it white
+    band: Boolean = true,
 ) {
     val connection = LocalPlayerConnection.current
     val carousel = LocalSongCarousel.current
@@ -347,18 +366,39 @@ private fun BoxScope.LandscapeCover(
             // its own layer, so the fade can cut the edge away without touching the backdrop behind
             .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
             .drawWithContent {
-                coverLayer.record { this@drawWithContent.drawContent() }
-                drawLayer(coverLayer)
+                if (band) {
+                    coverLayer.record { this@drawWithContent.drawContent() }
+                    drawLayer(coverLayer)
+                } else {
+                    drawContent()
+                }
                 val from = size.width * (1f - fadeShare)
+                // eased in and out, so the edge has no line where the fade starts or ends, straight onto the
+                // blurred backdrop behind it - a blurred band here only drew a second edge where its own blur
+                // met the backdrop's different one
                 drawRect(
-                    Brush.horizontalGradient(0f to Color.Transparent, 1f to Color.Black, startX = from, endX = size.width),
+                    Brush.horizontalGradient(
+                        0f to Color.Transparent,
+                        0.3f to Color.Black.copy(alpha = 0.1f),
+                        0.65f to Color.Black.copy(alpha = 0.55f),
+                        1f to Color.Black,
+                        startX = from,
+                        endX = size.width,
+                    ),
                     topLeft = androidx.compose.ui.geometry.Offset(from, 0f),
                     blendMode = BlendMode.DstOut,
                 )
                 if (fadeDownFrom != null) {
                     val top = size.height * fadeDownFrom
                     drawRect(
-                        Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black, startY = top, endY = size.height),
+                        Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            0.35f to Color.Black.copy(alpha = 0.15f),
+                            0.7f to Color.Black.copy(alpha = 0.6f),
+                            1f to Color.Black,
+                            startY = top,
+                            endY = size.height,
+                        ),
                         topLeft = androidx.compose.ui.geometry.Offset(0f, top),
                         blendMode = BlendMode.DstOut,
                     )
@@ -374,7 +414,7 @@ private fun BoxScope.LandscapeCover(
             )
         }
     }
-    if (bandShown) {
+    if (bandShown && band) {
         LyricsBand(coverWidth = coverWidth, coverLayer = coverLayer, lyricsProgress = lyricsProgress)
     }
 }

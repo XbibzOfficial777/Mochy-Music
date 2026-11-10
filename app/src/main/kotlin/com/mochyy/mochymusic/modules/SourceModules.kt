@@ -15,11 +15,16 @@ import com.mochyy.mochymusic.module.applemusic.AppleMusicModule
 import com.mochyy.mochymusic.module.monochrome.MonochromeModule
 import com.mochyy.mochymusic.utils.DataSaver
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 import timber.log.Timber
@@ -30,6 +35,9 @@ class SourceModules @Inject constructor(
     private val registry: ModuleRegistry,
 ) {
     private val prefs = context.getSharedPreferences("source_modules", Context.MODE_PRIVATE)
+
+    // where modules look songs up, apart from whoever asked, so a call that won't stop never keeps a song waiting
+    private val resolveScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // ---- provider order -----------------------------------------------------------------------
     //
@@ -145,26 +153,48 @@ class SourceModules @Inject constructor(
         picksFor: (id: String, module: SourceModule) -> Map<String, String>,
         accept: (id: String, stream: SourceStream) -> Boolean,
     ): Route = withContext(Dispatchers.IO) {
+        // the providers worth asking, in order, up to youtube, which needs no asking
+        val asked = mutableListOf<String>()
         for (id in order) {
             if (id in skip || !usable(id)) continue
-            if (id == YouTubeId) return@withContext Route.YouTube
-            val module = module(id) ?: continue
-            if (track == null) continue
-            val result = runCatching { module.resolve(track, picksFor(id, module)) }
-                .onFailure { Timber.tag(Tag).w(it, "$id failed for ${track.title}") }
-                .getOrNull()
-            when (result) {
-                is ResolveResult.Found -> {
-                    if (!accept(id, result.stream)) continue
-                    Timber.tag(Tag).i("$id: ${track.title} -> ${result.stream.matched.title} (${result.stream.qualityLabel})")
-                    return@withContext Route.Module(module, result.stream)
-                }
-                is ResolveResult.NotFound -> Timber.tag(Tag).i("$id: ${track.title}: ${result.reason}")
-                is ResolveResult.Unavailable -> Timber.tag(Tag).i("$id unavailable for ${track.title}: ${result.reason}")
-                null -> Unit
-            }
+            asked += id
+            if (id == YouTubeId) break
         }
-        Route.Exhausted
+        // every module ahead of youtube is asked at once, so a slow one up front no longer holds up the rest; answers are still taken in order
+        val startedAt = System.currentTimeMillis()
+        val answers = if (track == null) emptyMap() else asked.mapNotNull { id ->
+            val module = module(id) ?: return@mapNotNull null
+            id to resolveScope.async {
+                runCatching { module.resolve(track, picksFor(id, module)) }
+                    .onFailure { if (it !is CancellationException) Timber.tag(Tag).w("$id failed for ${track.title}", it) }
+                    .getOrNull()
+            }
+        }.toMap()
+        try {
+            for (id in asked) {
+                if (id == YouTubeId) return@withContext Route.YouTube
+                val module = module(id) ?: continue
+                val answer = answers[id] ?: continue
+                // timed on the waiting side, so a module stuck in a call that ignores cancelling can't hold the song either
+                val left = ModuleTimeoutMs - (System.currentTimeMillis() - startedAt)
+                val result = withTimeoutOrNull(left.coerceAtLeast(1L)) { answer.await() }
+                if (result == null && answer.isActive) Timber.tag(Tag).i("$id took longer than ${ModuleTimeoutMs / 1000} s for ${track?.title}, moving on")
+                when (result) {
+                    is ResolveResult.Found -> {
+                        if (!accept(id, result.stream)) continue
+                        Timber.tag(Tag).i("$id: ${track?.title} -> ${result.stream.matched.title} (${result.stream.qualityLabel})")
+                        return@withContext Route.Module(module, result.stream)
+                    }
+                    is ResolveResult.NotFound -> Timber.tag(Tag).i("$id: ${track?.title}: ${result.reason}")
+                    is ResolveResult.Unavailable -> Timber.tag(Tag).i("$id unavailable for ${track?.title}: ${result.reason}")
+                    null -> Unit
+                }
+            }
+            Route.Exhausted
+        } finally {
+            // the ones further down the order aren't needed once one has the song
+            answers.values.forEach { it.cancel() }
+        }
     }
 
     /** every module, whatever it adds; playback only looks at the ones that add audio */
@@ -222,6 +252,8 @@ class SourceModules @Inject constructor(
 
     companion object {
         private const val Tag = "SourceModules"
+        // how long a module may take to find a song before the next provider in the order plays it
+        private const val ModuleTimeoutMs = 12_000L
         // the choice every module names its stream quality with, and the option data saver steps down to
         const val QualityChoice = "quality"
         private const val SaverOption = "high"

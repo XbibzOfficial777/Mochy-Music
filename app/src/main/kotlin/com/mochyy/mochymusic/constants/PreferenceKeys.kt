@@ -241,6 +241,9 @@ val AboutSongSourceKey = stringPreferencesKey("aboutSongSource")
 
 val PersistentQueueKey = booleanPreferencesKey("persistentQueue")
 val PersistentShuffleAcrossQueuesKey = booleanPreferencesKey("persistentShuffleAcrossQueues")
+
+// playlists whose new songs download by themselves, as json: each id with where it started counting (see AutoDownloads)
+val AutoDownloadPlaylistsKey = stringPreferencesKey("autoDownloadPlaylists")
 val RememberShuffleAndRepeatKey = booleanPreferencesKey("rememberShuffleAndRepeat")
 val ShuffleModeKey = booleanPreferencesKey("shuffleMode")
 val SkipSilenceKey = booleanPreferencesKey("skipSilence")
@@ -290,6 +293,10 @@ val TransportEffectKey = stringPreferencesKey("transportEffect")
 // skips and backs cross over on two players, the songs either side fetched ahead so they start at once
 val SkipBlendKey = booleanPreferencesKey("skipBlend")
 
+// how many songs coming up get their start fetched for blend skips, 1 to 4; data saver keeps it at 1
+val SkipBlendAheadKey = intPreferencesKey("skipBlendAhead")
+const val SkipBlendAheadMax = 4
+
 // a music video plays its song's studio upload when there is one, without the video's skits and sound effects
 val StudioForVideosKey = booleanPreferencesKey("studioForVideos")
 
@@ -336,6 +343,9 @@ val DiscordLargeTextKey = stringPreferencesKey("discordPresenceLargeText")
 val DiscordSmallTextKey = stringPreferencesKey("discordPresenceSmallText")
 val DiscordLargeImageKey = stringPreferencesKey("discordPresenceLargeImage")
 val DiscordSmallImageKey = stringPreferencesKey("discordPresenceSmallImage")
+// the pictures picked for "your own picture", kept as files in mochy's own folder
+val DiscordLargeCustomImageKey = stringPreferencesKey("discordPresenceLargeCustomImage")
+val DiscordSmallCustomImageKey = stringPreferencesKey("discordPresenceSmallCustomImage")
 val DiscordSpinSecondsKey = intPreferencesKey("discordPresenceSpinSeconds")
 val DiscordSpinFpsKey = intPreferencesKey("discordPresenceSpinFps")
 val DiscordButton1TextKey = stringPreferencesKey("discordPresenceButton1Text")

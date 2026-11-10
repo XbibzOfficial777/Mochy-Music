@@ -135,13 +135,13 @@ import com.mochyy.mochymusic.ui.utils.stableStatusBars
  * so the same 64dp lift dragged the title, timestamps and seek bar back up onto the cover - the
  * overlap that showed up once SQUARED became the default on devices without blur.
  */
-private val ControlsDrawShift = 64.dp
+internal val ControlsDrawShift = 64.dp
 
 /** Small upward nudge for the seek bar and its timestamps, so they sit off the controls below. */
-private val SeekBarLift = 6.dp
+internal val SeekBarLift = 6.dp
 
 /** the Turntable's controls stand this far above the card, as in its frame */
-private val TurntableControlsLift = 44.dp
+internal val TurntableControlsLift = 44.dp
 
 /** The queue page's third button (autoplay) and the gap above it, on top of the lyrics pair. */
 private val QueueButtonExtraHeight = 41.dp
@@ -186,7 +186,7 @@ private val PlayerCloseStrip = 64.dp
 private const val StyleHiddenBelow = 0.25f
 
 /** The old gap from the seek bar down to the buttons (24dp plus the bar's lift). */
-private val TransportGapAboveRow = 24.dp + SeekBarLift
+internal val TransportGapAboveRow = 24.dp + SeekBarLift
 
 /** From the top of the page column's chevron to the top of the button under it (34dp + a 7dp gap). */
 private val PageButtonStep = 41.dp
@@ -467,9 +467,12 @@ private fun PlayerSheet(
     }
     // the song's whole lyrics, opened over an alternate style from its ••• menu
     var styleLyricsOpen by remember { mutableStateOf(false) }
-    // that page fully up: the style under it stops drawing, and its clocks stop with it
+    // the queue, opened over the poster from its chevron menu
+    var styleQueueOpen by remember { mutableStateOf(false) }
+    // either page fully up: the style under it stops drawing, and its clocks stop with it
     var styleCovered by remember { mutableStateOf(false) }
-    val styleCoveredNow = remember { { styleCovered } }
+    var styleQueueCovered by remember { mutableStateOf(false) }
+    val styleCoveredNow = remember { { styleCovered || styleQueueCovered } }
     val styleActions = remember(openStudio) {
         com.mochyy.mochymusic.ui.player.styles.StyleActions(
             onOtherMenu = {
@@ -494,6 +497,7 @@ private fun PlayerSheet(
                 state.collapseSoft()
             },
             onClose = { state.collapseSoft() },
+            onQueue = { styleQueueOpen = true },
         )
     }
 
@@ -1038,18 +1042,28 @@ private fun PlayerSheet(
                             // under a lyrics page that fills the screen it needn't be drawn
                             modifier = Modifier
                                 .fillMaxSize()
-                                .graphicsLayer { alpha = if (styleCovered) 0f else 1f },
+                                .graphicsLayer { alpha = if (styleCovered || styleQueueCovered) 0f else 1f },
                         )
                     }
                 }
                 // closed with the player, so it isn't still up the next time it opens
-                LaunchedEffect(styleOpen) { if (!styleOpen) styleLyricsOpen = false }
+                LaunchedEffect(styleOpen) {
+                    if (!styleOpen) {
+                        styleLyricsOpen = false
+                        styleQueueOpen = false
+                    }
+                }
                 com.mochyy.mochymusic.ui.player.styles.StyleLyricsPage(
                     open = styleLyricsOpen && styleOpen,
                     onClose = { styleLyricsOpen = false },
                     screenHeight = screenHeight,
                     onCoveredChange = { styleCovered = it },
                     onSwitchSource = { showLyricsSource = true },
+                )
+                com.mochyy.mochymusic.ui.player.styles.StyleQueuePage(
+                    open = styleQueueOpen && styleOpen,
+                    onClose = { styleQueueOpen = false },
+                    onCoveredChange = { styleQueueCovered = it },
                 )
                 // the ipod, the full video mode and the bedside each have their own close, a bar over them would just be in the way
                 if (!onTv && playerStyle != PlayerStyle.IPOD && playerStyle != PlayerStyle.VIDEO && !playerStyle.isBedside) PlayerHandle(

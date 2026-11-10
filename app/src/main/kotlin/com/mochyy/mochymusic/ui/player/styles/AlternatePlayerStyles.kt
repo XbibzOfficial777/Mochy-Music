@@ -273,6 +273,8 @@ private fun PosterPlayerStyle(actions: StyleActions, modifier: Modifier, preview
             backgroundStyle == com.mochyy.mochymusic.constants.PlayerBackgroundStyle.COVER_GRADIENT,
     )
     val (visualizer) = com.mochyy.mochymusic.utils.rememberPreference(com.mochyy.mochymusic.constants.PosterVisualizerKey, defaultValue = false)
+    // a tv has no finger to tap them with; the remote's own control strip plays, skips and likes instead
+    val onTv = com.mochyy.mochymusic.ui.utils.isTvLayout()
     val ring = rememberCoverRingState()
     // The live player, not a selector card, whether open or not. Tied to the player being open, the
     // ring jumped to a fixed spot and lost its bars the moment a close began.
@@ -362,7 +364,7 @@ private fun PosterPlayerStyle(actions: StyleActions, modifier: Modifier, preview
                     position = position,
                     modifier = Modifier.fillMaxSize(),
                 )
-                Box(
+                if (!onTv) Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(end = 22.dp, bottom = bottom),
@@ -373,7 +375,7 @@ private fun PosterPlayerStyle(actions: StyleActions, modifier: Modifier, preview
                 StyleMenu(
                     open = menuOpen, onOpenChange = setMenuOpen, tones = tones, actions = actions,
                     atBottom = false, end = 22.dp, edge = insets.top + 16.dp,
-                    buttonSize = PosterChevron, pill = true,
+                    buttonSize = PosterChevron, pill = true, queue = true,
                 )
             } else {
                 // circle from the left edge, the words to its right
@@ -415,7 +417,7 @@ private fun PosterPlayerStyle(actions: StyleActions, modifier: Modifier, preview
                     side = RingSide.Right,
                     modifier = Modifier.fillMaxSize(),
                 )
-                Box(
+                if (!onTv) Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(top = 18.dp, end = 20.dp + insets.end + PosterChevron + 8.dp),
@@ -425,7 +427,7 @@ private fun PosterPlayerStyle(actions: StyleActions, modifier: Modifier, preview
                 StyleMenu(
                     open = menuOpen, onOpenChange = setMenuOpen, tones = tones, actions = actions,
                     atBottom = false, end = 20.dp + insets.end, edge = 18.dp,
-                    buttonSize = PosterChevron, pill = true,
+                    buttonSize = PosterChevron, pill = true, queue = true,
                 )
             }
         }

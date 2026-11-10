@@ -104,6 +104,8 @@ import com.mochyy.mochymusic.constants.TransportFadeMinSeconds
 import com.mochyy.mochymusic.constants.TransportFadeSecondsKey
 import com.mochyy.mochymusic.constants.CrossfadeGaplessKey
 import com.mochyy.mochymusic.constants.SkipBlendKey
+import com.mochyy.mochymusic.constants.SkipBlendAheadKey
+import com.mochyy.mochymusic.constants.SkipBlendAheadMax
 import com.mochyy.mochymusic.constants.StudioForVideosKey
 import com.mochyy.mochymusic.constants.CrossmixMode
 import com.mochyy.mochymusic.constants.CrossmixModeKey
@@ -309,6 +311,10 @@ class MusicService :
 
     @Inject
     lateinit var audioFx: AudioFxService
+
+    // speed and pitch kept for single songs, over audio lab's for everything else
+    @Inject
+    lateinit var songTuning: SongTuning
 
     @Inject
     lateinit var scrobbler: Scrobbler
@@ -543,6 +549,8 @@ class MusicService :
 
     // "blend skips": skips and backs cross over on two players, the neighbours' first seconds fetched ahead
     @Volatile private var skipBlend = false
+    // how many songs coming up get their start fetched, so a few skips in a row still blend
+    @Volatile private var blendAhead = 1
     private var prefetchJob: Job? = null
 
     // "studio version for music videos": a music video plays its song's studio upload when there is one
@@ -860,10 +868,13 @@ class MusicService :
         // Audio FX's speed and pitch, on whichever player is playing. The equalizer and effects need
         // nothing here: the store hands them to the processors live, with no seek or reload.
         scope.launch {
-            // a dragged slider sends dozens of steps a second; the player takes the latest one at most every SpeedApplyGapMs
-            audioLab.playback
-                .map { settings -> PlaybackParameters(settings.speed, settings.pitch) }
+            // a song with its own speed and pitch plays at those, every other song at audio lab's
+            combine(audioLab.playback, songTuning.all, currentMediaMetadata) { settings, tunings, metadata ->
+                tunings[metadata?.id]?.let { PlaybackParameters(it.speed, it.pitch) }
+                    ?: PlaybackParameters(settings.speed, settings.pitch)
+            }
                 .distinctUntilChanged()
+                // a dragged slider sends dozens of steps a second; the player takes the latest one at most every SpeedApplyGapMs
                 .conflate()
                 .collect { params ->
                     if (player.playbackParameters != params) player.playbackParameters = params
@@ -1148,11 +1159,12 @@ class MusicService :
             }
 
         dataStore.data
-            .map { (it[SkipBlendKey] ?: false) to (it[StudioForVideosKey] ?: false) }
+            .map { Triple(it[SkipBlendKey] ?: false, it[StudioForVideosKey] ?: false, it[SkipBlendAheadKey] ?: 1) }
             .distinctUntilChanged()
-            .collect(scope) { (blend, studio) ->
+            .collect(scope) { (blend, studio, ahead) ->
                 skipBlend = blend
                 studioForVideos = studio
+                blendAhead = ahead.coerceIn(1, SkipBlendAheadMax)
                 if (blend) prefetchNeighbours() else prefetchJob?.cancel()
             }
 
@@ -1908,8 +1920,8 @@ class MusicService :
         resetQueueRunway()
         val generation = queueGeneration
         initialQueueLoading = true
-        val persistShuffleAcrossQueues = dataStore.get(PersistentShuffleAcrossQueuesKey, false)
-        val previousShuffleEnabled = player.shuffleModeEnabled
+        // on by default, like spotify: a new playlist keeps shuffling until shuffle is turned off
+        val persistShuffleAcrossQueues = dataStore.get(PersistentShuffleAcrossQueuesKey, true)
         if (!persistShuffleAcrossQueues) {
             player.shuffleModeEnabled = false
         }
@@ -2270,6 +2282,7 @@ class MusicService :
         }
     }
 
+    // "start radio", like spotify's song radio or apple music's station: the song keeps playing where it is, and everything after it becomes an endless run of songs like it
     fun startRadioSeamlessly() {
 
         if (!playerInitialized.value) {
@@ -2278,8 +2291,6 @@ class MusicService :
         }
 
         val currentMediaMetadata = player.currentMetadata ?: return
-
-        val currentIndex = player.currentMediaItemIndex
         val currentMediaId = currentMediaMetadata.id
 
         resetQueueRunway()
@@ -2288,7 +2299,7 @@ class MusicService :
 
         scope.launch(SilentHandler) {
             try {
-                loadSeamlessRadio(currentIndex, currentMediaId, generation)
+                loadSeamlessRadio(currentMediaId, currentMediaMetadata.title, generation)
             } finally {
                 if (generation == queueGeneration) {
                     initialQueueLoading = false
@@ -2299,85 +2310,62 @@ class MusicService :
     }
 
     private suspend fun loadSeamlessRadio(
-        currentIndex: Int,
         currentMediaId: String,
+        title: String,
         generation: Int,
     ) {
-        val radioQueue = YouTubeQueue(
-            endpoint = WatchEndpoint(
-                videoId = currentMediaId
-            )
-        )
-
-        try {
-            val initialStatus = withContext(Dispatchers.IO) {
+        // the song's own station, the same one youtube music's "start radio" plays, not whatever "up next" happened to be
+        val radioQueue = YouTubeQueue(WatchEndpoint(videoId = currentMediaId, playlistId = "RDAMVM$currentMediaId"))
+        val hideExplicit = dataStore.get(HideExplicitKey, false)
+        val hideVideoSongs = dataStore.get(HideVideoSongsKey, false)
+        var moreFrom: Queue = radioQueue
+        val loaded = try {
+            withContext(Dispatchers.IO) {
                 radioQueue.getInitialStatus()
-                    .filterExplicit(dataStore.get(HideExplicitKey, false))
-                    .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
+                    .filterExplicit(hideExplicit)
+                    .filterVideoSongs(hideVideoSongs)
+                    .items
             }
-            if (generation != queueGeneration) return
-
-            if (initialStatus.title != null) {
-                queueTitle = initialStatus.title
-            }
-
-            val radioItems = initialStatus.items.filter { item ->
-                item.mediaId != currentMediaId && item.mediaId !in NotRecommended
-            }
-
-            if (radioItems.isNotEmpty()) {
-                val itemCount = player.mediaItemCount
-
-                if (itemCount > currentIndex + 1) {
-                    player.removeMediaItems(currentIndex + 1, itemCount)
-                }
-
-                player.addMediaItems(currentIndex + 1, radioItems)
-                if (player.shuffleModeEnabled) {
-                    val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
-                    applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
-                }
-            }
-
-            currentQueue = radioQueue
         } catch (e: Exception) {
-
-            try {
-                val nextResult = withContext(Dispatchers.IO) {
-                    YouTube.next(WatchEndpoint(videoId = currentMediaId)).getOrNull()
-                }
-                nextResult?.relatedEndpoint?.let { relatedEndpoint ->
-                    val relatedPage = withContext(Dispatchers.IO) {
-                        YouTube.related(relatedEndpoint).getOrNull()
-                    }
-                    if (generation != queueGeneration) return
-                    relatedPage?.songs?.let { songs ->
-                        val radioItems = songs
-                            .filter { it.id != currentMediaId && it.id !in NotRecommended }
-                            .map { it.toMediaItem() }
-                            .filterExplicit(dataStore.get(HideExplicitKey, false))
-                            .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
-
-                        if (radioItems.isNotEmpty()) {
-                            val itemCount = player.mediaItemCount
-                            if (itemCount > currentIndex + 1) {
-                                player.removeMediaItems(currentIndex + 1, itemCount)
-                            }
-                            player.addMediaItems(currentIndex + 1, radioItems)
-                            if (player.shuffleModeEnabled) {
-                                val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
-                                applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
-                            }
-                            // The old queue's pages no longer follow these songs; let infinite queue extend them.
-                            currentQueue = EmptyQueue
-                        }
-                    }
-                }
-            } catch (_: Exception) {
-
-            }
+            Timber.tag(TAG).w(e, "The radio for $currentMediaId didn't load, trying its related songs")
+            // the station's pages don't follow related songs, so infinite queue carries these on instead
+            moreFrom = EmptyQueue
+            relatedSongs(currentMediaId, hideExplicit, hideVideoSongs)
         }
+        val radioItems = loaded.filter { it.mediaId != currentMediaId && it.mediaId !in NotRecommended }
+        if (generation != queueGeneration) return
+        // the song moved on while the station loaded, so this isn't its radio any more
+        if (player.currentMediaItem?.mediaId != currentMediaId) return
+        if (radioItems.isEmpty()) {
+            showBanner(getString(R.string.radio_failed))
+            return
+        }
+
+        // what was queued after the song makes way for the station; what already played stays as history
+        val index = player.currentMediaItemIndex
+        val itemCount = player.mediaItemCount
+        if (itemCount > index + 1) player.removeMediaItems(index + 1, itemCount)
+        player.addMediaItems(index + 1, radioItems)
+        if (player.shuffleModeEnabled) {
+            val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
+            applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
+        }
+        currentQueue = moreFrom
+        queueTitle = getString(R.string.radio_queue_title, title)
+        showBanner(getString(R.string.radio_started, title))
+        if (dataStore.get(PersistentQueueKey, true)) saveQueueToDisk()
     }
+
+    // the songs youtube lists as related to [songId], for when its station won't load
+    private suspend fun relatedSongs(songId: String, hideExplicit: Boolean, hideVideoSongs: Boolean): List<MediaItem> =
+        withContext(Dispatchers.IO) {
+            val related = YouTube.next(WatchEndpoint(videoId = songId)).getOrNull()?.relatedEndpoint
+                ?: return@withContext emptyList()
+            YouTube.related(related).getOrNull()?.songs.orEmpty()
+                .map { it.toMediaItem() }
+                .filterExplicit(hideExplicit)
+                .filterVideoSongs(hideVideoSongs)
+        }
 
     fun getAutomixAlbum(albumId: String) {
         scope.launch(SilentHandler) {
@@ -3005,6 +2993,8 @@ class MusicService :
 
     override fun onRepeatModeChanged(repeatMode: Int) {
         updateNotification()
+        // a crossfade or mix planned before repeat one went on would still swap players at the end, and the song came round silent
+        scheduleCrossfade()
         scope.launch {
             dataStore.edit { settings ->
                 settings[RepeatModeKey] = repeatMode
@@ -4448,7 +4438,11 @@ class MusicService :
         // only songs youtube plays: a source module's stream is found and cached its own way
         val youTubeFirst = sourceModules.order.value.firstOrNull { sourceModules.isUsable(it) } == com.mochyy.mochymusic.modules.SourceModules.YouTubeId
         if (!youTubeFirst) return
-        val ids = listOf(player.nextMediaItemIndex, player.previousMediaItemIndex)
+        // data saver keeps it to the next one, the extra songs are only worth it on a connection that doesn't count
+        val ahead = if (com.mochyy.mochymusic.utils.DataSaver.isActive(this)) 1 else blendAhead
+        val upcoming = upcomingIndices(ahead)
+        // the next one first, then back, then the rest coming up
+        val ids = (upcoming.take(1) + player.previousMediaItemIndex + upcoming.drop(1))
             .filter { it != C.INDEX_UNSET && it < player.mediaItemCount }
             .map { player.getMediaItemAt(it).mediaId }
             .distinct()
@@ -4462,6 +4456,22 @@ class MusicService :
                 runCatching { warmStart(id) }.onFailure { Timber.tag(TAG).d(it, "Couldn't fetch the start of $id ahead") }
             }
         }
+    }
+
+    // the next [count] songs in play order, shuffle included; repeat one counts as off here, the way the skip buttons see it
+    private fun upcomingIndices(count: Int): List<Int> {
+        val timeline = player.currentTimeline
+        if (timeline.isEmpty) return emptyList()
+        val navigationRepeat = if (player.repeatMode == REPEAT_MODE_ONE) REPEAT_MODE_OFF else player.repeatMode
+        val current = player.currentMediaItemIndex
+        val found = ArrayList<Int>(count)
+        var index = current
+        while (found.size < count) {
+            index = timeline.getNextWindowIndex(index, navigationRepeat, player.shuffleModeEnabled)
+            if (index == C.INDEX_UNSET || index == current) break
+            found += index
+        }
+        return found
     }
 
     // reads a song's first bytes through the player's own data source, which keeps them in the player's cache
