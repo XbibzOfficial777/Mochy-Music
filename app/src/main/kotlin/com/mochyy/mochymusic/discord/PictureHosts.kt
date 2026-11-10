@@ -72,7 +72,7 @@ internal object PictureHosts {
         }.build()
         val request = Request.Builder().url(url).post(body).build()
         return DiscordHttp.client.newCall(request).execute().use { response ->
-            val text = response.body?.string().orEmpty().trim()
+            val text = response.body.string().trim()
             check(response.isSuccessful) { "HTTP ${response.code}" }
             text
         }
