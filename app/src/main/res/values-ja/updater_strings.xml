@@ -47,7 +47,6 @@
     <string name="app_update_uptodate">最新の</string>
     <string name="auto_update_check">自動アップデートチェック</string>
     <string name="auto_update_check_subtitle">更新画面を開いたときにアップデートを自動で確認</string>
-    <string name="update_notifications">通知更新</string>
     <string name="update_notifications_subtitle">新しいアップデートがあるときに通知</string>
     <string name="settings_check_updates_title">アップデートを確認</string>
     <string name="later">Later</string>
