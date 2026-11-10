@@ -166,7 +166,7 @@ class SourceModules @Inject constructor(
             val module = module(id) ?: return@mapNotNull null
             id to resolveScope.async {
                 runCatching { module.resolve(track, picksFor(id, module)) }
-                    .onFailure { if (it !is CancellationException) Timber.tag(Tag).w("$id failed for ${track.title}", it) }
+                    .onFailure { if (it !is CancellationException) Timber.tag(Tag).w(it, "$id failed for ${track.title}") }
                     .getOrNull()
             }
         }.toMap()

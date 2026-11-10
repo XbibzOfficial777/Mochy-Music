@@ -145,13 +145,16 @@ fun DiscordScreen(
                 onLogin = ::openLogin,
                 onLogOut = viewModel::logOut,
             )
+            // resolved here, at composition level: reading a resource inside the click lambda is a
+            // LocalContextGetResourceValueCall error, and the lambda can fire long after this frame
+            val customPictureFailed = stringResource(R.string.discord_custom_failed)
             CustomizeSection(
                 settings = settings,
                 edit = viewModel::edit,
                 onPickCustom = { large, picked ->
                     scope.launch {
                         if (!viewModel.pickCustomPicture(large, picked)) {
-                            Toast.makeText(context, context.getString(R.string.discord_custom_failed), Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, customPictureFailed, Toast.LENGTH_LONG).show()
                         }
                     }
                 },
