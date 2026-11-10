@@ -220,6 +220,7 @@ private fun VideoModeScreen(actions: StyleActions, modifier: Modifier) {
                         onClose = { sheet?.collapseSoft() },
                         onRotate = if (windowUpright) { { onStandUpright(!standUpright) } } else null,
                         onExitFullScreen = actions.onExitVideoMode,
+                        onMusic = actions.onExitVideoMode,
                     )
                     if (state.menuOpen) {
                         VideoModeMenu(
@@ -272,6 +273,7 @@ private fun VideoModeLayout(
     onClose: () -> Unit,
     onRotate: (() -> Unit)?,
     onExitFullScreen: () -> Unit,
+    onMusic: () -> Unit,
 ) {
     val sheet = LocalPlayerBottomSheetState.current
     val connection = LocalPlayerConnection.current
@@ -424,6 +426,7 @@ private fun VideoModeLayout(
                 onSongInfo = { state.songInfoOpen = true },
                 onRotate = onRotate,
                 onExitFullScreen = onExitFullScreen,
+                onMusic = onMusic,
             )
             VideoTransport(state = state, controls = controls, isPlaying = isPlaying)
             VideoVolumeBar(state = state, controls = controls)

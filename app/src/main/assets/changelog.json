@@ -1,11 +1,14 @@
 {
   "versionName": "8.3.3-xbibz.10",
   "versionCode": 83,
-  "description": "Mochy Xbibz 8.3.3-xbibz.10: seluruh pekerjaan Mochy Music resmi sampai 8.3.2 (TV dan remote, modul look, penyimpanan) ditarik masuk, liquid glass tetap utuh, dan About app sekarang menyebut versi fork-nya.",
+  "description": "Mochy Xbibz 8.3.3-xbibz.10: seluruh pekerjaan Mochy Music resmi sampai 8.3.2 ditarik masuk dalam dua tarikan (termasuk 24 commit terbaru), liquid glass dan fitur fork tetap utuh, pemutar sekarang punya saklar Music/Video sekali ketuk, dan About app menyebut versi fork-nya.",
   "changelog": [
     {
       "title": "Dari Mochy Music resmi",
       "items": [
+        "Tarikan kedua ke Mochy Music resmi (24 commit): saklar untuk menjeda riwayat pencarian dan melanjutkan pemutaran saat Bluetooth tersambung, terjemahan Jepang untuk notifikasi pembaruan (PR #237), dan batch dari PR #207: kecepatan serta pitch per lagu, unduhan dan cache bisa disimpan di folder mana saja, cover playlist yang tidak lagi hilang, kartu player sheet dalam bentuk grid, dan penyesuaian player TV.",
+        "Modul sumber sekarang ditanya bersamaan dengan batas tunggu 12 detik, jadi satu modul yang lambat tidak lagi menahan lagu; jawabannya tetap diambil sesuai urutan modul.",
+        "Hasil pencarian teratas memilih lagu yang benar-benar cocok dengan kata yang diketik, bukan lagu pertama yang kebetulan muncul.",
         "Layar besar: activity TV sendiri dengan launcher leanback, bar pemutar khusus TV, halaman TV yang bisa dibuka dari HP, remote dari HP untuk TV, proses pairing, dan pencerminan library antara HP dan TV.",
         "Pemutaran: perpindahan antar lagu memakai crossfade yang mulus, skip di-blend, mode repeat one, pilihan versi studio untuk lagu, dan pencarian terakhir yang tersimpan.",
         "Modul: modul look sekarang bisa membawa glass sendiri untuk bar bawah (shader AGSL, Android 13 ke atas), pemutar dan menu sendiri, font, halaman, serta metadata modul dan daftar rilis GitHub-nya.",
@@ -18,6 +21,7 @@
     {
       "title": "Yang tetap milik fork",
       "items": [
+        "Saklar Music / Video di pemutar: satu ketukan masuk ke mode video penuh, satu ketukan kembali ke gaya pemutar yang tadi dipakai. Saklar yang sama ada di bar atas mode video, dan pilihannya diingat. Saklar hanya muncul untuk lagu yang memang punya video.",
         "Liquid glass tetap utuh: tint 46 persen, rim 1,2 dp yang menyala dari kiri atas, dan pill tab berupa lensa kaca yang mengalir ke tab yang ditekan.",
         "Mode pure black OLED tetap tanpa blur, tanpa tint, dan tanpa grain, jadi benar-benar hitam.",
         "Glass dari modul look berjalan berdampingan dengan liquid glass: modul diperiksa lebih dulu, lalu pure black, lalu tint liquid atau frost biasa.",
@@ -28,6 +32,8 @@
     {
       "title": "Perbaikan",
       "items": [
+        "\"See video\" tidak lagi diam ketika autoplay video dimatikan (perbaikan dari upstream).",
+        "Repeat one menghitung ulang akhir lagu, tombol selesai pada pemilih statistik bisa dijangkau, dan cover playlist berhenti hilang setelah dipakai (perbaikan dari upstream).",
         "Tinggi hero tidak lagi diukur dari ukuran layar. Fraksi tinggi milik upstream untuk TV dan lanskap tetap dipakai, tetapi pembaginya sekarang ukuran jendela, jadi di split screen, freeform, dan foldable hero tidak lagi mendorong baris di bawahnya keluar layar; nilainya juga ikut berubah saat jendela di-resize.",
         "AndroidManifest berhenti mendeklarasikan activity CrashActivity yang kelasnya tidak pernah ada di project ini. Komponen manifest tanpa kelas itu tidak bisa dijalankan siapa pun, dan sebagian pemasang aplikasi di HP OEM memang rewel soal komponen seperti itu.",
         "Penemuan TV memakai izin multicast wi-fi, dan Android membacanya sebagai permintaan perangkat keras wi-fi. Sekarang android.hardware.wifi dideklarasikan opsional, jadi aplikasi tidak hilang di TV yang tersambung lewat kabel LAN.",

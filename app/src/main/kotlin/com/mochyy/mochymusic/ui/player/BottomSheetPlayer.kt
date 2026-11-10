@@ -308,6 +308,9 @@ private fun PlayerSheet(
 
     var showExpandMenu by remember { mutableStateOf(false) }
     var seeVideo by remember { mutableStateOf(false) }
+    // whether the song playing has a video behind it, which is what the Music / Video switch offers
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val songHasVideo = mediaMetadata?.isVideoSong == true
     // a youtube video is playing on the cover, so the chevron offers the full video mode
     var videoShowing by remember { mutableStateOf(false) }
     var showSleepTimer by remember { mutableStateOf(false) }
@@ -1730,6 +1733,27 @@ private fun PlayerSheet(
         // first, then collapses the player. Not while collapsed: the page is remembered then,
         // and back belongs to the app.
         PageBackHandler(state, pageOpen = showQueue || showLyrics) { transition.close() }
+
+        // The player's Music / Video switch. One tap into the full video mode, one tap back out
+        // (the video top bar carries the same switch). Over the artwork at the top centre, under
+        // the handle, and only while the player is actually open on a song that has a video.
+        if (!onTv) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                MediaModeToggle(
+                    videoSelected = currentPlayerStyle == PlayerStyle.VIDEO,
+                    onMusic = { exitVideoMode.value() },
+                    onVideo = enterVideoMode,
+                    visible = state.isExpanded &&
+                        !studioEngaged &&
+                        transition.page == PlayerPage.NONE &&
+                        currentPlayerStyle != PlayerStyle.VIDEO &&
+                        songHasVideo,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = statusBarTopInset + 34.dp),
+                )
+            }
+        }
 
         if (showSleepTimer) {
             com.mochyy.mochymusic.ui.player.menu.SleepTimerSheet(
