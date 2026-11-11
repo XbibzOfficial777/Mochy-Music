@@ -1172,4 +1172,18 @@
     <string name="recent_search_playlist">Playlist · %1$s</string>
     <string name="recent_search_artist">Artist</string>
     <string name="recent_search_remove">Remove from recent searches</string>
+    <string name="eq_tab_graph">Graph</string>
+    <string name="eq_tab_bands">Bands</string>
+    <string name="eq_tab_autoeq">AutoEQ</string>
+    <string name="audio_lab_title">Audio Lab</string>
+    <string name="eq_status_off">Off</string>
+    <string name="eq_status_on">On · %1$s</string>
+    <string name="eq_presets_section">Presets</string>
+    <string name="eq_output_section">Output</string>
+    <string name="eq_preamp">Preamp</string>
+    <string name="eq_auto_preamp">Auto preamp</string>
+    <string name="eq_auto_preamp_lowering">Lowering by %1$s dB, the limiter catches the rest</string>
+    <string name="eq_auto_preamp_ok">Nothing to lower, the limiter catches any peaks</string>
+    <string name="eq_auto_preamp_off">Off: louder, but big boosts get squashed on loud songs</string>
+    <string name="eq_delete_preset_title">Delete “%1$s”?</string>
 </resources>

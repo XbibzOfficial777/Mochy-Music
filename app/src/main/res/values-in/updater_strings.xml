@@ -78,4 +78,10 @@
     <string name="release_date_v">Dirilis pada: %1$s</string>
     <string name="update_size_v">Ukuran: %1$s MB</string>
     <string name="update_notifications">Notifikasi pembaruan</string>
+    <string name="update_available_named">Pembaruan tersedia, %1$s!</string>
+    <string name="what_changed_on">Yang berubah di %1$s</string>
+    <string name="to_be_installed">Akan dipasang</string>
+    <string name="install_here">Pasang di sini</string>
+    <string name="no_apk_in_release">Tidak ada APK di rilis ini</string>
+    <string name="allow_unknown_apps">Izinkan “Pasang aplikasi tidak dikenal” untuk Mochy, lalu ketuk Pasang di sini lagi.</string>
 </resources>

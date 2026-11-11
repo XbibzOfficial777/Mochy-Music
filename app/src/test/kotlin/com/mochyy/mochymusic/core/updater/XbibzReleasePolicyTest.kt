@@ -44,6 +44,27 @@ class XbibzReleasePolicyTest {
     }
 
     @Test
+    fun deviceAbisPickTheMatchingSplitNotTheInstalledFlavor() {
+        assertEquals("arm64", preferredXbibzArchitecture(arrayOf("arm64-v8a", "armeabi-v7a"), "universal"))
+        assertEquals("armeabi", preferredXbibzArchitecture(arrayOf("armeabi-v7a"), "universal"))
+        assertEquals("universal", preferredXbibzArchitecture(arrayOf("x86_64", "x86"), "universal"))
+        assertEquals("arm64", preferredXbibzArchitecture(arrayOf("arm64-v8a"), "armeabi"))
+    }
+
+    @Test
+    fun offeredAssetsAllowUniversalFallbackNeverTheOtherArm() {
+        val arm64 = "Mochy-Music-v8.3.3-xbibz.13-arm64-v8a-gms.apk"
+        val arm32 = "Mochy-Music-v8.3.3-xbibz.13-armeabi-v7a-gms.apk"
+        val universal = "Mochy-Music-v8.3.3-xbibz.13-universal-gms.apk"
+        assertTrue(isOfferedXbibzAsset("arm64", arm64))
+        assertTrue(isOfferedXbibzAsset("arm64", universal))
+        assertFalse(isOfferedXbibzAsset("arm64", arm32))
+        assertTrue(isOfferedXbibzAsset("armeabi", arm32))
+        assertTrue(isOfferedXbibzAsset("armeabi", universal))
+        assertFalse(isOfferedXbibzAsset("armeabi", arm64))
+    }
+
+    @Test
     fun missingAbiDoesNotFallBackToAnIncompatibleApk() {
         assertFalse(isCompatibleXbibzAsset("armeabi", "Mochy-Music-v8.2.3-xbibz.4-arm64-gms.apk"))
         assertFalse(isCompatibleXbibzAsset("arm64", "Mochy-Music-v8.2.3-xbibz.5-armeabi-v7a-gms.apk"))

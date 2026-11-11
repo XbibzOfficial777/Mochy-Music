@@ -13,6 +13,30 @@ internal fun isXbibzRelease(
     architecture in setOf("arm64", "armeabi", "universal") && castAvailable &&
     isXbibzVersion(version)
 
+/**
+ * ABI of the phone, not of the APK currently installed. A 64-bit phone that happened to
+ * install the universal build should still be offered the arm64 APK next time.
+ */
+internal fun preferredXbibzArchitecture(
+    supportedAbis: Array<out String>,
+    buildArchitecture: String,
+): String {
+    val abis = supportedAbis.map { it.lowercase() }
+    when {
+        abis.any { it == "arm64-v8a" } -> return "arm64"
+        abis.any { it == "armeabi-v7a" || it == "armeabi" } -> return "armeabi"
+    }
+    return when (buildArchitecture.lowercase()) {
+        "arm64", "armeabi", "universal" -> buildArchitecture.lowercase()
+        else -> "universal"
+    }
+}
+
+/** Exact ABI match, plus universal as a last-resort file that every device can install. */
+internal fun isOfferedXbibzAsset(deviceArchitecture: String, fileName: String): Boolean =
+    isCompatibleXbibzAsset(deviceArchitecture, fileName) ||
+        isCompatibleXbibzAsset("universal", fileName)
+
 /** Match the known fork GMS asset naming convention without cross-ABI fallbacks. */
 internal fun isCompatibleXbibzAsset(architecture: String, fileName: String): Boolean {
     val pattern = when (architecture) {

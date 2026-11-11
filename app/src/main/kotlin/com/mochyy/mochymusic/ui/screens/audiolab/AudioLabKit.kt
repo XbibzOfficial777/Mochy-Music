@@ -23,12 +23,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -50,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
@@ -68,14 +67,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
@@ -97,6 +91,9 @@ import com.mochyy.mochymusic.ui.component.DefaultPlayerSeekBarSlider
 import com.mochyy.mochymusic.ui.component.LocalNavAnimatedContentScope
 import com.mochyy.mochymusic.ui.component.damageBoundary
 import com.mochyy.mochymusic.ui.component.drawChromeOutline
+import com.mochyy.mochymusic.ui.component.liquidTabIndicator
+import com.mochyy.mochymusic.ui.component.liquidTabSlide
+import com.mochyy.mochymusic.ui.component.rememberLiquidTabState
 import com.mochyy.mochymusic.ui.utils.AppMotion
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import kotlinx.coroutines.flow.first
@@ -395,6 +392,7 @@ class LabSlide internal constructor(
     private val onSelect: () -> (Int) -> Unit,
 ) {
     val mix: Float get() = mixState.floatValue
+    val dragging: Boolean get() = draggingState.value
     var widthPx: Int
         get() = widthState.intValue
         set(value) { widthState.intValue = value.coerceAtLeast(1) }
@@ -434,20 +432,24 @@ fun rememberLabSlide(
         if (draggingState.value) return@LaunchedEffect
         val dest = selectedIndex.toFloat()
         if (abs(mixState.floatValue - dest) < 0.001f) return@LaunchedEffect
-        animate(initialValue = mixState.floatValue, targetValue = dest, animationSpec = AppMotion.Slide) { v, _ ->
-            mixState.floatValue = v
+        if (!AppMotion.enabled) {
+            mixState.floatValue = dest
+            return@LaunchedEffect
         }
+        // Same droplet spring as the dashboard / Music-Video pill, so a tap is not a stiff slide.
+        animate(
+            initialValue = mixState.floatValue,
+            targetValue = dest,
+            animationSpec = spring(dampingRatio = 0.7f, stiffness = 340f),
+        ) { v, _ -> mixState.floatValue = v }
     }
     return slide
 }
 
-/** same drop as the dashboard tab pill: fill + sheen + rim, never a nested glass capture */
-private val LabDropFill = Color.White.copy(alpha = 0.10f)
-private val LabDropSheen = Color.White.copy(alpha = 0.10f)
-private val LabDropRimLight = Color.White.copy(alpha = 0.42f)
-private val LabDropRimShade = Color.White.copy(alpha = 0.16f)
-
-/** a liquid-glass track whose drop slides — drag it or tap a label. No backdrop blur: this sits inside glassRoot. */
+/**
+ * Same liquid drop as Music/Video and the dashboard tabs (stretch, lift, spring).
+ * Solid track only — never nest frost under glassRoot (that force-closed Equalizer on .12).
+ */
 @Composable
 fun LabSegmented(
     options: List<String>,
@@ -460,19 +462,27 @@ fun LabSegmented(
     onDragEnd: (() -> Unit)? = null,
 ) {
     val shape = RoundedCornerShape(height / 2)
-    val rest by animateFloatAsState(
-        targetValue = selectedIndex.toFloat(),
-        animationSpec = AppMotion.Slide,
-        label = "labSegment",
-    )
-    var drag by remember { mutableFloatStateOf(0f) }
-    var dragging by remember { mutableStateOf(false) }
-    val density = LocalDensity.current
+    val liquid = rememberLiquidTabState(selectedIndex)
+    val last = options.lastIndex.coerceAtLeast(0)
+    val tabCount = options.size.coerceAtLeast(1)
 
-    BoxWithConstraints(
+    SideEffect { liquid.sliding = position != null }
+    LaunchedEffect(position, last) {
+        val mix = position
+        if (mix != null) {
+            liquid.position.snapTo(mix.coerceIn(0f, last.toFloat()))
+        }
+    }
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
+            .graphicsLayer {
+                val scale = liquid.barScale
+                scaleX = scale
+                scaleY = scale
+            }
             .clip(shape)
             .background(LabColors.Card)
             .drawWithContent {
@@ -480,103 +490,53 @@ fun LabSegmented(
                 drawChromeOutline(Offset.Zero, size, size.height / 2f, 1f)
             },
     ) {
-        val last = options.lastIndex.coerceAtLeast(0)
-        val travelPx = with(density) { (maxWidth / options.size.coerceAtLeast(1)).toPx() }.coerceAtLeast(1f)
-        val mix = when {
-            position != null -> position.coerceIn(0f, last.toFloat())
-            dragging -> (rest + drag / travelPx).coerceIn(0f, last.toFloat())
-            else -> rest
+        val dragModifier = if (onDragPages != null) {
+            Modifier.pointerInput(tabCount) {
+                val travelPx = (size.width / tabCount).coerceAtLeast(1f)
+                detectHorizontalDragGestures(
+                    onDragStart = { },
+                    onHorizontalDrag = { _, amount -> onDragPages(amount / travelPx) },
+                    onDragCancel = { onDragEnd?.invoke() },
+                    onDragEnd = { onDragEnd?.invoke() },
+                )
+            }
+        } else {
+            Modifier.liquidTabSlide(
+                state = liquid,
+                tabCount = tabCount,
+                selectedIndex = selectedIndex,
+                onSlideTo = onSelect,
+            )
         }
-
-        Box(
-            Modifier
+        Row(
+            modifier = Modifier
                 .fillMaxSize()
-                .drawBehind {
-                    val n = options.size.coerceAtLeast(1)
-                    val slot = size.width / n
-                    val inset = 5.dp.toPx()
-                    val gap = 4.dp.toPx()
-                    val drop = Size((slot - gap).coerceAtLeast(0f), (size.height - inset * 2).coerceAtLeast(0f))
-                    if (drop.width <= 0f || drop.height <= 0f) return@drawBehind
-                    val topLeft = Offset(mix * slot + gap / 2f, inset)
-                    val corner = CornerRadius(drop.height / 2f)
-                    drawRoundRect(color = LabDropFill, topLeft = topLeft, size = drop, cornerRadius = corner)
-                    drawRoundRect(
-                        brush = Brush.verticalGradient(
-                            0f to LabDropSheen,
-                            0.55f to Color.Transparent,
-                            startY = topLeft.y,
-                            endY = topLeft.y + drop.height,
-                        ),
-                        topLeft = topLeft,
-                        size = drop,
-                        cornerRadius = corner,
-                    )
-                    val rim = 1.dp.toPx()
-                    val half = rim / 2f
-                    drawRoundRect(
-                        brush = Brush.linearGradient(
-                            0f to LabDropRimLight,
-                            0.4f to Color.Transparent,
-                            0.65f to Color.Transparent,
-                            1f to LabDropRimShade,
-                            start = topLeft,
-                            end = Offset(topLeft.x + drop.width, topLeft.y + drop.height),
-                        ),
-                        topLeft = Offset(topLeft.x + half, topLeft.y + half),
-                        size = Size(drop.width - rim, drop.height - rim),
-                        cornerRadius = CornerRadius((corner.x - half).coerceAtLeast(0f)),
-                        style = Stroke(rim),
-                    )
-                }
-                .pointerInput(selectedIndex, options.size, travelPx, onDragPages != null) {
-                    detectHorizontalDragGestures(
-                        onDragStart = { dragging = true },
-                        onHorizontalDrag = { _, amount ->
-                            if (onDragPages != null) onDragPages(amount / travelPx) else drag += amount
-                        },
-                        onDragCancel = {
-                            dragging = false
-                            drag = 0f
-                            onDragEnd?.invoke()
-                        },
-                        onDragEnd = {
-                            if (onDragPages != null) {
-                                dragging = false
-                                onDragEnd?.invoke()
-                            } else {
-                                val end = (rest + drag / travelPx).coerceIn(0f, last.toFloat())
-                                dragging = false
-                                drag = 0f
-                                onSelect(end.roundToInt())
-                            }
-                        },
-                    )
-                }
-                .pointerInput(options.size) {
-                    detectTapGestures { offset ->
-                        val i = (offset.x / size.width * options.size).toInt().coerceIn(0, last)
-                        onSelect(i)
-                    }
-                },
+                .liquidTabIndicator(liquid, tabCount)
+                .then(dragModifier),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(Modifier.fillMaxSize()) {
-                options.forEachIndexed { index, label ->
-                    val fill = (1f - abs(mix - index)).coerceIn(0f, 1f)
-                    Box(
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            label,
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp,
-                            color = lerp(Color.White.copy(alpha = 0.55f), Color.White, fill),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+            options.forEachIndexed { index, label ->
+                val fill = liquid.litOf(index)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable(
+                            interactionSource = remember(index) { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { onSelect(index) },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        label,
+                        fontFamily = InterFontFamily,
+                        fontWeight = if (fill > 0.5f) FontWeight.SemiBold else FontWeight.Medium,
+                        fontSize = 15.sp,
+                        color = lerp(Color.White.copy(alpha = 0.55f), Color.White, fill),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }

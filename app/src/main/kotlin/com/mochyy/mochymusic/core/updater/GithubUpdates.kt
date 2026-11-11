@@ -2,6 +2,7 @@ package com.mochyy.mochymusic.core.updater
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import com.mochyy.mochymusic.BuildConfig
@@ -165,6 +166,7 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
         val json = connection.inputStream.bufferedReader().use { it.readText() }
         val releases = JSONArray(json)
         val appArch = runCatching { BuildConfig.ARCHITECTURE }.getOrDefault("universal")
+        val deviceArch = preferredXbibzArchitecture(Build.SUPPORTED_ABIS, appArch)
 
         buildList {
             for (i in 0 until releases.length()) {
@@ -208,16 +210,16 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                         // Never offer a different ABI or the official channel to a fork build.
                         // In particular, 32-bit-only devices cannot install an arm64 APK and
                         // some 64-bit-only devices cannot install an ARMv7 APK.
-                        if (isXbibzBuild && (!isXbibzReleaseBuild || !isCompatibleXbibzAsset(appArch, name))) continue
+                        if (isXbibzBuild && (!isXbibzReleaseBuild || !isOfferedXbibzAsset(deviceArch, name))) continue
                         val url = asset.optString("browser_download_url").orEmpty()
                         if (url.isBlank()) continue
                         val size = asset.optLong("size", 0L)
 
-                        if (appArch.isNotBlank() && appArch != "universal" && name.contains(appArch, ignoreCase = true)) {
+                        if (deviceArch != "universal" && isCompatibleXbibzAsset(deviceArch, name)) {
                             selectedUrl = url
                             selectedName = name
                             selectedSize = size
-                        } else if (name.contains("universal", ignoreCase = true)) {
+                        } else if (isCompatibleXbibzAsset("universal", name) || name.contains("universal", ignoreCase = true)) {
                             universalUrl = url
                             universalName = name
                             universalSize = size
@@ -229,12 +231,12 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                     }
                 }
 
-                val apkUrl = selectedUrl ?: universalUrl ?: fallbackUrl
-                val apkName = selectedName ?: universalName ?: fallbackName
+                val apkUrl = selectedUrl ?: universalUrl ?: if (isXbibzBuild) null else fallbackUrl
+                val apkName = selectedName ?: universalName ?: if (isXbibzBuild) null else fallbackName
                 val apkSize = when {
                     selectedUrl != null -> selectedSize
                     universalUrl != null -> universalSize
-                    else -> fallbackSize
+                    else -> if (isXbibzBuild) 0L else fallbackSize
                 }
                 if (isXbibzBuild && apkUrl == null) continue
 

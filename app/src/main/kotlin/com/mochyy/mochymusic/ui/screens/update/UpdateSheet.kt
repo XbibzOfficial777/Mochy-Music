@@ -63,6 +63,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -490,7 +491,7 @@ private fun ColumnScope.UpdateDetailContent(
 
     val startInstall: (java.io.File) -> Unit = { file ->
         if (!installApk(context, file)) {
-            error = "Allow \"Install unknown apps\" for mochy, then tap Install here again."
+            error = context.getString(R.string.allow_unknown_apps)
         }
     }
 
@@ -539,10 +540,10 @@ private fun ColumnScope.UpdateDetailContent(
             .padding(16.dp)
             .animateContentSize()
     ) {
-        Text(text = "Changelog", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(text = stringResource(R.string.changelog), fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(4.dp))
-        ChangelogMarkdown(
-            markdown = release.body,
+        ReleaseNotesMarkdown(
+            body = release.body,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             strongColor = MaterialTheme.colorScheme.onSurface,
         )
@@ -551,7 +552,7 @@ private fun ColumnScope.UpdateDetailContent(
     Spacer(modifier = Modifier.height(18.dp))
 
     Text(
-        text = "To Be Installed -",
+        text = stringResource(R.string.to_be_installed),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         fontSize = 11.sp,
         fontWeight = FontWeight.SemiBold,
@@ -623,7 +624,7 @@ private fun ColumnScope.UpdateDetailContent(
                             onLocked(false)
                             result.fold(
                                 onSuccess = { startInstall(it) },
-                                onFailure = { error = it.message ?: "Download failed" },
+                                onFailure = { error = it.message ?: context.getString(R.string.download_failed) },
                             )
                         }
                     }
@@ -639,9 +640,9 @@ private fun ColumnScope.UpdateDetailContent(
         )
         Text(
             text = when {
-                downloading -> "Downloading… ${(animatedProgress * 100).toInt()}%"
-                release.apkUrl == null -> "No APK in this release"
-                else -> "Install here"
+                downloading -> stringResource(R.string.downloading_percent, (animatedProgress * 100).toInt())
+                release.apkUrl == null -> stringResource(R.string.no_apk_in_release)
+                else -> stringResource(R.string.install_here)
             },
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,

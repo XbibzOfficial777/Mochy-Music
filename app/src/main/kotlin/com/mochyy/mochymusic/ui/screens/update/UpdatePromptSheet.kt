@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -83,7 +84,7 @@ fun UpdatePromptSheet(
         } else {
             needsPermission = true
             readyToInstall = true
-            error = "Allow \"Install unknown apps\" for mochy, then tap Install here again."
+            error = context.getString(R.string.allow_unknown_apps)
         }
     }
 
@@ -123,7 +124,8 @@ fun UpdatePromptSheet(
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = if (userName.isBlank()) "Update available!" else "Update available, $userName!",
+                text = if (userName.isBlank()) stringResource(R.string.update_available_title)
+                else stringResource(R.string.update_available_named, userName),
                 color = Color.White,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
@@ -141,19 +143,19 @@ fun UpdatePromptSheet(
                     .padding(16.dp)
             ) {
                 Text(
-                    text = "What changed on ${release.version}",
+                    text = stringResource(R.string.what_changed_on, release.version),
                     color = Color.White,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                ChangelogMarkdown(markdown = release.body)
+                ReleaseNotesMarkdown(body = release.body)
             }
 
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "To Be Installed -",
+                text = stringResource(R.string.to_be_installed),
                 color = Color(0xFF8A8A8A),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -210,11 +212,9 @@ fun UpdatePromptSheet(
                 enabled = !downloading && release.apkUrl != null,
                 progress = animatedProgress,
                 label = when {
-                    downloading -> "Downloading… ${(animatedProgress * 100).toInt()}%"
-                    release.apkUrl == null -> "No APK in this release"
-                    needsPermission -> "Install here"
-                    readyToInstall -> "Install here"
-                    else -> "Install here"
+                    downloading -> stringResource(R.string.downloading_percent, (animatedProgress * 100).toInt())
+                    release.apkUrl == null -> stringResource(R.string.no_apk_in_release)
+                    else -> stringResource(R.string.install_here)
                 },
                 dimmed = release.apkUrl == null,
                 onClick = {

@@ -1002,4 +1002,18 @@
     <string name="not_recommended_menu">Jangan rekomendasikan lagi</string>
     <string name="not_recommended_done">Kami tidak akan merekomendasikan lagu ini lagi</string>
     <string name="atmos_streaming_note">Apple hanya mengodekan Atmos untuk FairPlay dan Monochrome mengalirkan FLAC stereo, jadi Atmos datang dari modul yang ditambahkan lewat tautan: setel pilihan Dolby Atmos-nya ke Atmos. File surround milikmu juga dirender.</string>
+    <string name="eq_tab_graph">Grafik</string>
+    <string name="eq_tab_bands">Pita</string>
+    <string name="eq_tab_autoeq">EQ otomatis</string>
+    <string name="audio_lab_title">Lab Audio</string>
+    <string name="eq_status_off">Mati</string>
+    <string name="eq_status_on">Nyala · %1$s</string>
+    <string name="eq_presets_section">Preset</string>
+    <string name="eq_output_section">Keluaran</string>
+    <string name="eq_preamp">Penguat awal</string>
+    <string name="eq_auto_preamp">Penguat awal otomatis</string>
+    <string name="eq_auto_preamp_lowering">Diturunkan %1$s dB, pembatas menangani sisanya</string>
+    <string name="eq_auto_preamp_ok">Tidak ada yang diturunkan, pembatas menangani puncak</string>
+    <string name="eq_auto_preamp_off">Mati: lebih keras, tetapi dorongan besar terpotong di lagu keras</string>
+    <string name="eq_delete_preset_title">Hapus “%1$s”?</string>
 </resources>
