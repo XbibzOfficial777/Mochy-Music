@@ -60,6 +60,9 @@ import com.mochyy.mochymusic.core.updater.GithubRepoUrl
 import com.mochyy.mochymusic.ui.component.PopupSheetState
 import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
+import com.mochyy.mochymusic.ui.screens.donate.ForkDeveloperName
+import com.mochyy.mochymusic.ui.screens.donate.TelegramUrl
+import com.mochyy.mochymusic.ui.screens.donate.YoutubeUrl
 import com.mochyy.mochymusic.ui.screens.donate.showSupportSheet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -101,16 +104,10 @@ private data class ContributorEntry(
 
 private val LeadDevs = listOf(
     LeadDevEntry(
-        name = "Roo",
-        githubUser = "realidkroo",
+        name = ForkDeveloperName,
+        githubUser = "XbibzOfficial777",
         devSpaceIndex = 0,
-        fallbackAvatar = R.drawable.frame_51_3,
-    ),
-    LeadDevEntry(
-        name = "key",
-        githubUser = "realkeichi",
-        devSpaceIndex = 1,
-        fallbackAvatar = R.drawable.dev_keycii,
+        fallbackAvatar = R.drawable.dev_xbibz,
     ),
 )
 
@@ -489,12 +486,22 @@ private fun ColumnScope.AboutSheetContent(
                 }
                 Spacer(Modifier.height(8.dp))
                 AboutCardButton(
-                    text = "Forked by XbibzOfficial777 \u2192",
+                    text = "Forked by $ForkDeveloperName →",
                     onClick = { context.openUrl(ForkRepoUrl) },
                 )
                 Spacer(Modifier.height(8.dp))
                 AboutCardButton(
-                    text = "Upstream Mochy Music \u2192",
+                    text = "Telegram →",
+                    onClick = { context.openUrl(TelegramUrl) },
+                )
+                Spacer(Modifier.height(8.dp))
+                AboutCardButton(
+                    text = "YouTube →",
+                    onClick = { context.openUrl(YoutubeUrl) },
+                )
+                Spacer(Modifier.height(8.dp))
+                AboutCardButton(
+                    text = "Upstream Mochy Music →",
                     onClick = { context.openUrl(GithubRepoUrl) },
                 )
             }

@@ -1016,4 +1016,19 @@
     <string name="eq_auto_preamp_ok">Tidak ada yang diturunkan, pembatas menangani puncak</string>
     <string name="eq_auto_preamp_off">Mati: lebih keras, tetapi dorongan besar terpotong di lagu keras</string>
     <string name="eq_delete_preset_title">Hapus “%1$s”?</string>
+    <string name="donate_title">Terima kasih</string>
+    <string name="donate_subtitle">Dukung %1$s</string>
+    <string name="donate_kofi">Ko-fi · xbibzofficial</string>
+    <string name="donate_saweria">Saweria · xbibzofficial</string>
+    <string name="donate_qris">QRIS</string>
+    <string name="donate_qris_hint">Ketuk untuk menampilkan poster pembayaran</string>
+    <string name="donate_qris_close">Ketuk untuk menyembunyikan</string>
+    <string name="donate_thanks">Berapa pun jumlahnya membantu fork ini tetap hidup.</string>
+    <string name="donate_dismiss">Tutup</string>
+    <string name="support_enjoying">Suka Mochy Music?</string>
+    <string name="support_title">Dukung fork ini</string>
+    <string name="support_body">Mochy Music tetap gratis. Jika ingin membantu %1$s, donasi kecil atau bintang di repositori sudah lebih dari cukup.</string>
+    <string name="support_donate">Donasi</string>
+    <string name="support_star">Bintangi repositori</string>
+    <string name="support_dismiss">Nanti saja</string>
 </resources>

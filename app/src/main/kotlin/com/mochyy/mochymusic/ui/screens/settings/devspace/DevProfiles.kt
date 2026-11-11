@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -48,11 +49,12 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.transformations
 import com.mochyy.mochymusic.R
-import com.mochyy.mochymusic.core.updater.DiscordUrl
-import com.mochyy.mochymusic.core.updater.InstagramUrl
-import com.mochyy.mochymusic.core.updater.ThreadsUrl
 import com.mochyy.mochymusic.ui.component.LocalZoomOutOverlayState
 import com.mochyy.mochymusic.ui.component.pressBounce
+import com.mochyy.mochymusic.ui.screens.donate.ForkDeveloperName
+import com.mochyy.mochymusic.ui.screens.donate.ForkGithubUrl
+import com.mochyy.mochymusic.ui.screens.donate.TelegramUrl
+import com.mochyy.mochymusic.ui.screens.donate.YoutubeUrl
 import com.mochyy.mochymusic.ui.screens.donate.showDonateSheet
 import com.mochyy.mochymusic.ui.utils.SoftBlurTransformation
 import com.mochyy.mochymusic.ui.component.RemoteFocus
@@ -70,20 +72,15 @@ internal data class DevPerson(
 
 internal val DevPeople = listOf(
     DevPerson(
-        name = "idkroo",
-        bio = "ui ux guy here uhh idk what to write here, pls star the repo",
-        avatar = R.drawable.frame_51_3,
+        name = ForkDeveloperName,
+        bio = "Xbibz Official Technology ID",
+        avatar = R.drawable.dev_xbibz,
         takesDonations = true,
         socials = listOf(
-            DevSocial("Instagram", InstagramUrl),
-            DevSocial("Discord", DiscordUrl),
-            DevSocial("Threads", ThreadsUrl),
-        ).filter { it.url.isNotBlank() },
-    ),
-    DevPerson(
-        name = "Keycii",
-        bio = "Hi hello hi",
-        avatar = R.drawable.dev_keycii,
+            DevSocial("Telegram", TelegramUrl),
+            DevSocial("YouTube", YoutubeUrl),
+            DevSocial("GitHub", ForkGithubUrl),
+        ),
     ),
 )
 
@@ -144,8 +141,8 @@ internal fun DevProfilePage(
                 Column(Modifier.rise(2).padding(top = 22.dp)) {
                     if (person.takesDonations) {
                         val popup = LocalZoomOutOverlayState.current
-                        SectionTitle("Donate")
-                        DevLinkRow("Donate me!") { popup.showDonateSheet() }
+                        SectionTitle(stringResource(R.string.donate))
+                        DevLinkRow(stringResource(R.string.support_donate)) { popup.showDonateSheet() }
                         Spacer(Modifier.height(14.dp))
                     }
                     if (person.socials.isNotEmpty()) {

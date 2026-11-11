@@ -1186,4 +1186,19 @@
     <string name="eq_auto_preamp_ok">Nothing to lower, the limiter catches any peaks</string>
     <string name="eq_auto_preamp_off">Off: louder, but big boosts get squashed on loud songs</string>
     <string name="eq_delete_preset_title">Delete “%1$s”?</string>
+    <string name="donate_title">Thank you</string>
+    <string name="donate_subtitle">Support %1$s</string>
+    <string name="donate_kofi">Ko-fi · xbibzofficial</string>
+    <string name="donate_saweria">Saweria · xbibzofficial</string>
+    <string name="donate_qris">QRIS</string>
+    <string name="donate_qris_hint">Tap to show the payment poster</string>
+    <string name="donate_qris_close">Tap to hide</string>
+    <string name="donate_thanks">Any amount helps keep this fork alive.</string>
+    <string name="donate_dismiss">Close</string>
+    <string name="support_enjoying">Enjoying Mochy Music?</string>
+    <string name="support_title">Support this fork</string>
+    <string name="support_body">Mochy Music stays free. If you want to help %1$s, a small donation or a star on the repository is more than enough.</string>
+    <string name="support_donate">Donate</string>
+    <string name="support_star">Star the repo</string>
+    <string name="support_dismiss">Not now</string>
 </resources>
