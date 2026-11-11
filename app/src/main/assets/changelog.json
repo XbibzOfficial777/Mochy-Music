@@ -1,7 +1,7 @@
 {
-  "versionName": "8.3.3-xbibz.11",
-  "versionCode": 84,
-  "description": "Mochy Xbibz **8.3.3-xbibz.11**: saklar **Music / Video** di pemutar sekarang berupa *slider liquid glass* — chip-nya bergeser, perpindahan mode tidak lagi kaku, dan catatan rilis di aplikasi merender Markdown.",
+  "versionName": "8.3.3-xbibz.12",
+  "versionCode": 85,
+  "description": "Mochy Xbibz **8.3.3-xbibz.12**: ganti lagu saat sedang diputar tidak lagi putus. Lagu lama *samar menghilang*, baru lagu yang dipilih masuk.",
   "changelog": [
     {
       "title": "Dari Mochy Music resmi",
@@ -33,6 +33,7 @@
     {
       "title": "Perbaikan",
       "items": [
+        "Ganti lagu (ketuk lagu lain di beranda, pencarian, playlist, atau antrian) saat lagu sedang diputar: lagu lama *fade* menghilang, baru lagu baru *swell* masuk — memakai pegas transport yang sama dengan jeda/skip, bukan potongan kaku.",
         "Catatan rilis di aplikasi (About, updater, dan layar changelog) merender **Markdown**: `**tebal**`, `*miring*`, `` kode ``, `~~coret~~`, dan tautan `[teks](url)` — tanpa warna mencolok.",
         "\"See video\" tidak lagi diam ketika autoplay video dimatikan (perbaikan dari upstream).",
         "Repeat one menghitung ulang akhir lagu, tombol selesai pada pemilih statistik bisa dijangkau, dan cover playlist berhenti hilang setelah dipakai (perbaikan dari upstream).",
@@ -52,7 +53,7 @@
     {
       "title": "Build dan validasi",
       "items": [
-        "Versi dinaikkan menjadi **8.3.3-xbibz.11** (kode 84) dan tetap lebih tinggi dari rilis Bibz sebelumnya, jadi bisa dipasang menimpa tanpa uninstall.",
+        "Versi dinaikkan menjadi **8.3.3-xbibz.12** (kode 85) dan tetap lebih tinggi dari rilis Bibz sebelumnya, jadi bisa dipasang menimpa tanpa uninstall.",
         "Rilis tetap tiga APK: arm64-v8a, armeabi-v7a, dan universal, semuanya ditandatangani key Bibz yang sama.",
         "Belum diklaim: bug dari issue tracker yang butuh perangkat fisik (misalnya gagal pasang di Android 11 dan lagu yang berhenti di loading) belum diperbaiki di rilis ini."
       ]

@@ -443,11 +443,21 @@ class PlayerConnection(
         val index = mediaIndexOf(uid)
         if (index == C.INDEX_UNSET) return
         try {
-            player.seekToDefaultPosition(index)
-            if (player.playbackState == Player.STATE_IDLE || player.playbackState == STATE_ENDED) {
-                player.prepare()
+            val jump = {
+                player.seekToDefaultPosition(index)
+                if (player.playbackState == Player.STATE_IDLE || player.playbackState == STATE_ENDED) {
+                    player.prepare()
+                }
+                player.playWhenReady = true
             }
-            player.playWhenReady = true
+            if (index != player.currentMediaItemIndex &&
+                player.playWhenReady &&
+                player.playbackState != STATE_ENDED
+            ) {
+                service.transport.fadeThen { jump() }
+            } else {
+                jump()
+            }
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error in playQueueItem")
         }

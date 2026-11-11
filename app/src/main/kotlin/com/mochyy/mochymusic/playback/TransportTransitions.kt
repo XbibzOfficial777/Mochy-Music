@@ -20,6 +20,8 @@ import kotlin.math.min
 
 // a skip shouldn't keep you waiting on the old song, so its fade out is short whatever the length is set to
 private const val SkipOutMaxMs = 1_500f
+// picking another song can take the whole fade: the old one should dissolve, not get cut
+private const val ChangeOutMaxMs = 2_400f
 // the effects' last repeats are faded by volume over the end of a pause, so nothing rings into the stop
 private const val TailFadeFrom = 0.8f
 // a song restarts instead of going back once it's this far in, like the previous button always did
@@ -161,6 +163,19 @@ class TransportTransitions(
 
     fun skipPrevious() = skip(previous = true)
 
+    /**
+     * The current song dissolves, then [replace] runs (a new queue, a seek to another item),
+     * then the new song swells in. Used when the user picks a different song while one is playing:
+     * [skip] is only next/previous, and used to cut on playQueue.
+     */
+    fun fadeThen(replace: suspend () -> Unit) {
+        fadeThen(
+            outMs = min(lengthMs, ChangeOutMaxMs),
+            inMs = max(lengthMs * 0.55f, 450f),
+            replace = replace,
+        )
+    }
+
     // a seek, a stop or a new queue: drop any fade and put the volume back
     fun cancel() {
         if (phase == Phase.Idle && armed == null) return
@@ -179,10 +194,22 @@ class TransportTransitions(
             doSkip(player, previous)
             return
         }
+        fadeThen(
+            outMs = min(lengthMs / 2f, SkipOutMaxMs),
+            inMs = max(lengthMs / 2f, 300f),
+            replace = { doSkip(player, previous) },
+        )
+    }
+
+    private fun fadeThen(outMs: Float, inMs: Float, replace: suspend () -> Unit) {
+        val player = host.player
+        if (!player.playWhenReady || !shouldFade(player) || !scope.isActive) {
+            stopFade()
+            scope.launch { replace() }
+            return
+        }
         val from = currentLevel()
         stopFade(keepVolume = true)
-        val outMs = min(lengthMs / 2f, SkipOutMaxMs)
-        val inMs = max(lengthMs / 2f, 300f)
         val songId = player.currentMediaItem?.mediaId
         val index = player.currentMediaItemIndex
         val processor = armOut(player, outMs)
@@ -196,6 +223,7 @@ class TransportTransitions(
             }
             if (!done) {
                 stopFade()
+                replace()
                 return@launch
             }
             settleTails(processor)
@@ -203,10 +231,15 @@ class TransportTransitions(
             heard = 0f
             applyLevel(player)
             disarm()
-            doSkip(player, previous)
+            replace()
             // the swell waits until the next song is really heard: timed from the press, a slow start came in at full volume with no fade at all
             var waited = 0L
-            while (waited < StartWaitMs && !(player.isPlaying && (player.currentMediaItemIndex != index || player.currentPosition < 1_000L))) {
+            while (waited < StartWaitMs && !(player.isPlaying && (
+                    player.currentMediaItem?.mediaId != songId ||
+                        player.currentMediaItemIndex != index ||
+                        player.currentPosition < 1_000L
+                    ))
+            ) {
                 delay(FrameMs)
                 waited += FrameMs
             }

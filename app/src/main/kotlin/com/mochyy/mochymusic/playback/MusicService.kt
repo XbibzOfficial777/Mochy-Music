@@ -1927,12 +1927,14 @@ class MusicService :
         }
 
         originalQueueSize = 0
-        if (queue.preloadItem != null) {
-            player.setMediaItem(queue.preloadItem!!.toMediaItem())
-            player.prepare()
-            player.playWhenReady = playWhenReady
-        }
-        scope.launch(SilentHandler) {
+
+        val apply = suspend {
+            if (generation != queueGeneration) return@suspend
+            if (queue.preloadItem != null) {
+                player.setMediaItem(queue.preloadItem!!.toMediaItem())
+                player.prepare()
+                player.playWhenReady = playWhenReady
+            }
             try {
                 loadInitialQueue(queue, generation, playWhenReady)
             } finally {
@@ -1942,6 +1944,21 @@ class MusicService :
                     ensureQueueRunway()
                 }
             }
+        }
+        val playing = player.playWhenReady &&
+            player.playbackState != Player.STATE_ENDED &&
+            player.mediaItemCount > 0
+        if (playing && playWhenReady) {
+            // the song that's on dissolves, then this queue starts, then the new song swells in
+            transport.fadeThen {
+                try {
+                    apply()
+                } catch (t: Throwable) {
+                    Timber.tag(TAG).e(t, "playQueue after fade")
+                }
+            }
+        } else {
+            scope.launch(SilentHandler) { apply() }
         }
     }
 
