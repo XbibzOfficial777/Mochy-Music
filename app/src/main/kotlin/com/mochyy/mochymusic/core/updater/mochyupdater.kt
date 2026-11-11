@@ -460,24 +460,8 @@ fun UpdateScreen(navController: NavHostController) {
                                         Spacer(modifier = Modifier.height(24.dp))
                                     }
                                     if (!currentStatus.description.isNullOrBlank()) {
-                                        val urls = currentStatus.description.trim().extractUrls()
-                                        val annotatedText = buildAnnotatedString {
-                                            append(currentStatus.description.trim())
-                                            urls.forEach { (range, url) ->
-                                                addLink(androidx.compose.ui.text.LinkAnnotation.Url(url), range.first, range.last + 1)
-                                                addStyle(
-                                                    SpanStyle(
-                                                        color = MaterialTheme.colorScheme.primary,
-                                                        textDecoration = TextDecoration.Underline
-                                                    ),
-                                                    range.first,
-                                                    range.last + 1
-                                                )
-                                            }
-                                        }
-
-                                        Text(
-                                            text = annotatedText,
+                                        com.mochyy.mochymusic.ui.component.MarkdownText(
+                                            currentStatus.description.trim(),
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 lineHeight = 20.sp

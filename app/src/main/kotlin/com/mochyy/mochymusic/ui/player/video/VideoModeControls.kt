@@ -88,8 +88,6 @@ private val TopRow = 32.dp
 
 // the round buttons at the top right: rotate, leave full screen, close
 private val TopButtonSize = 30.dp
-// the Music / Video pill in the video top bar is about this wide, title column included
-private val MusicPillRoom = 96.dp
 private val TopButtonGap = 10.dp
 
 // the artwork: the song's cover beside its name with the controls up, a small faint watermark in the corner without them
@@ -128,13 +126,10 @@ internal fun BoxScope.VideoTopBar(
     // null where the phone itself turns the mode, a window already on its side
     onRotate: (() -> Unit)?,
     onExitFullScreen: () -> Unit,
-    // the other half of the player's Music / Video switch: back to the style that was on before
-    onMusic: () -> Unit,
 ) {
     val visible by rememberControlsVisible(controls)
     val buttonCount = if (onRotate != null) 3 else 2
-    // the music pill sits in the same row, so the title column has to give it room too
-    val buttonsWidth = TopButtonSize * buttonCount + TopButtonGap * (buttonCount - 1) + MusicPillRoom
+    val buttonsWidth = TopButtonSize * buttonCount + TopButtonGap * (buttonCount - 1)
     AsyncImage(
         model = track.thumbnailUrl?.resize(240, 240),
         contentDescription = null,
@@ -209,13 +204,6 @@ internal fun BoxScope.VideoTopBar(
                 .padding(end = frame.edgeEnd, top = TopRow + 9.dp)
                 .graphicsLayer { alpha = controls() },
         ) {
-            com.mochyy.mochymusic.ui.player.MediaModeToggle(
-                videoSelected = true,
-                onMusic = { if (state.controlsShown) onMusic() else state.toggleControls() },
-                onVideo = {},
-                visible = true,
-                modifier = Modifier.align(Alignment.CenterVertically),
-            )
             if (onRotate != null) {
                 TopButton(R.drawable.screen_rotation, stringResource(R.string.video_mode_rotate), guarded(onRotate))
             }

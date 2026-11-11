@@ -64,10 +64,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -79,7 +76,6 @@ import coil3.compose.AsyncImage
 import com.mochyy.mochymusic.BuildConfig
 import com.mochyy.mochymusic.LocalPlayerAwareWindowInsets
 import com.mochyy.mochymusic.R
-import com.mochyy.mochymusic.core.updater.extractUrls
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -402,7 +398,11 @@ fun ChangelogScreen(
 
                                 updateDescription?.let { desc ->
                                     Spacer(Modifier.height(16.dp))
-                                    Text(desc, style = MaterialTheme.typography.bodyLarge)
+                                    com.mochyy.mochymusic.ui.component.MarkdownText(
+                                        desc,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
                                 }
 
                                 if (changelogSections.isNotEmpty()) {
@@ -421,19 +421,13 @@ fun ChangelogScreen(
                                         }
 
                                         section.items.forEach { item ->
-                                            val urls = item.trim().extractUrls()
-                                            val annotatedText = buildAnnotatedString {
-                                                append(item.trim())
-                                                urls.forEach { (range, url) ->
-                                                    addLink(androidx.compose.ui.text.LinkAnnotation.Url(url), range.first, range.last + 1)
-                                                    addStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline), range.first, range.last + 1)
-                                                }
-                                            }
-                                            Row(modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                                Box(modifier = Modifier.padding(top = 8.dp).size(6.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
-                                                Text(
-                                                    text = annotatedText,
-                                                    style = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface)
+                                            Row(modifier = Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                                Box(modifier = Modifier.padding(top = 8.dp).size(5.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.85f), CircleShape))
+                                                com.mochyy.mochymusic.ui.component.MarkdownText(
+                                                    item,
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.weight(1f, fill = false),
                                                 )
                                             }
                                         }

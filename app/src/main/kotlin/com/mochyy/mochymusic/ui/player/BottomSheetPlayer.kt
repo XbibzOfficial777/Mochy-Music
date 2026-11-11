@@ -102,6 +102,7 @@ import com.mochyy.mochymusic.ui.component.BottomSheet
 import com.mochyy.mochymusic.ui.component.BottomSheetState
 import com.mochyy.mochymusic.ui.component.ExpandedSwipe
 import com.mochyy.mochymusic.ui.component.GlassState
+import com.mochyy.mochymusic.ui.utils.AppMotion
 import com.mochyy.mochymusic.ui.player.studio.EditTiles
 import com.mochyy.mochymusic.ui.player.studio.PlayerSelectorOverlay
 import com.mochyy.mochymusic.ui.player.studio.StudioEditOverlay
@@ -363,6 +364,12 @@ private fun PlayerSheet(
         if (savedPlayerStyle == pickedPlayerStyle) pickedPlayerStyle = null
     }
     val (videoModeReturn, saveVideoModeReturn) = rememberPreference(com.mochyy.mochymusic.constants.VideoModeReturnStyleKey, "")
+    val wantVideo = playerStyle == PlayerStyle.VIDEO
+    val videoMix by animateFloatAsState(
+        targetValue = if (wantVideo) 1f else 0f,
+        animationSpec = AppMotion.Scene,
+        label = "mediaModeScene",
+    )
     val onPlayerStyleChange: (PlayerStyle) -> Unit = { style ->
         // the style the full video mode goes back to when it's left
         if (style == PlayerStyle.VIDEO && playerStyle != PlayerStyle.VIDEO) saveVideoModeReturn(playerStyle.name)
@@ -948,8 +955,11 @@ private fun PlayerSheet(
                     // the editor's top bar frosts what's under it, so the glass keeps capturing there
                     glassActiveInEdit = { studio.stage >= StudioStage.EDIT && studio.selector.value < 0.01f },
                     // another style draws the open player itself: none of the flagship runs behind it
-                    alternateStyle = !playerStyle.flagshipFamily || landscapeFlagship,
-                    miniVideo = playerStyle == PlayerStyle.VIDEO,
+                    // hold the flagship cover through most of the Music → Video fade so the
+                    // artwork doesn't snap away on the first frame
+                    alternateStyle = (!playerStyle.flagshipFamily && playerStyle != PlayerStyle.VIDEO) ||
+                        landscapeFlagship || videoMix > 0.72f,
+                    miniVideo = videoMix > 0.72f,
                     coverOffsetProvider = layoutTweaks::controlsOffset,
                     onLongPressCover = holdToStudio,
                     studioArtModifier = if (playerStyle.flagshipFamily) {
@@ -979,7 +989,7 @@ private fun PlayerSheet(
             // Alternate styles replace the player outright rather than drawing over it, so none
             // of the default composition - blur, morphing cover, controls - runs while one is
             // active.
-            if (!playerStyle.flagshipFamily) {
+            if (!playerStyle.flagshipFamily && playerStyle != PlayerStyle.VIDEO) {
                 // The alternate styles draw their own full screen, which meant they also swallowed
                 // the player's own gestures - there was no way to close them or reach the editor.
                 // Both live here so every style gets them for free.
@@ -1679,8 +1689,44 @@ private fun PlayerSheet(
             // the editor's tiles: inside the sheet, so they shrink and grow with it
             EditTiles(studioParts)
 
+            if (videoMix > 0.01f) {
+                val videoOpen by remember(state) {
+                    derivedStateOf { state.isExpanded || (state.isExpandedOrExpanding && state.progress > 0.9f) }
+                }
+                val videoInteractive = remember(state) { { videoOpen } }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .layout { measurable, constraints ->
+                            val placeable = measurable.measure(constraints)
+                            layout(placeable.width, placeable.height) {
+                                if (state.progress > StyleHiddenBelow) placeable.place(0, 0)
+                            }
+                        }
+                        .graphicsLayer {
+                            alpha = videoMix
+                            val s = 0.982f + 0.018f * videoMix
+                            scaleX = s
+                            scaleY = s
+                            letTouchesThroughWhenHidden()
+                        },
+                ) {
+                    androidx.compose.runtime.CompositionLocalProvider(
+                        com.mochyy.mochymusic.ui.player.styles.LocalStyleInteractive provides videoInteractive,
+                        com.mochyy.mochymusic.ui.player.styles.LocalStyleCovered provides styleCoveredNow,
+                    ) {
+                        com.mochyy.mochymusic.ui.player.styles.AlternatePlayerStyle(
+                            style = PlayerStyle.VIDEO,
+                            actions = styleActions,
+                            visible = !styleCovered,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+            }
+
             // over everything on the player, pages included; a tv closes it with the back button instead
-            if (!onTv) PlayerHandle(
+            if (!onTv && videoMix < 0.55f) PlayerHandle(
                 state = handleState,
                 sheet = state,
                 statusBarTop = statusBarTopInset,
@@ -1734,19 +1780,18 @@ private fun PlayerSheet(
         // and back belongs to the app.
         PageBackHandler(state, pageOpen = showQueue || showLyrics) { transition.close() }
 
-        // The player's Music / Video switch. One tap into the full video mode, one tap back out
-        // (the video top bar carries the same switch). Over the artwork at the top centre, under
-        // the handle, and only while the player is actually open on a song that has a video.
+        // The player's Music / Video slider. Stays up in both modes so the chip can travel,
+        // over the artwork at the top centre, under the handle.
         if (!onTv) {
             Box(modifier = Modifier.fillMaxSize()) {
                 MediaModeToggle(
-                    videoSelected = currentPlayerStyle == PlayerStyle.VIDEO,
-                    onMusic = { exitVideoMode.value() },
-                    onVideo = enterVideoMode,
+                    videoSelected = wantVideo,
+                    onMusic = { if (wantVideo) exitVideoMode.value() },
+                    onVideo = { if (!wantVideo) enterVideoMode() },
+                    glassState = morphingGlassState,
                     visible = state.isExpanded &&
                         !studioEngaged &&
                         transition.page == PlayerPage.NONE &&
-                        currentPlayerStyle != PlayerStyle.VIDEO &&
                         songHasVideo,
                     modifier = Modifier
                         .align(Alignment.TopCenter)

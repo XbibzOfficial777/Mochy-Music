@@ -1,7 +1,7 @@
 {
-  "versionName": "8.3.3-xbibz.10",
-  "versionCode": 83,
-  "description": "Mochy Xbibz 8.3.3-xbibz.10: seluruh pekerjaan Mochy Music resmi sampai 8.3.2 ditarik masuk dalam dua tarikan (termasuk 24 commit terbaru), liquid glass dan fitur fork tetap utuh, pemutar sekarang punya saklar Music/Video sekali ketuk, dan About app menyebut versi fork-nya.",
+  "versionName": "8.3.3-xbibz.11",
+  "versionCode": 84,
+  "description": "Mochy Xbibz **8.3.3-xbibz.11**: saklar **Music / Video** di pemutar sekarang berupa *slider liquid glass* — chip-nya bergeser, perpindahan mode tidak lagi kaku, dan catatan rilis di aplikasi merender Markdown.",
   "changelog": [
     {
       "title": "Dari Mochy Music resmi",
@@ -21,7 +21,8 @@
     {
       "title": "Yang tetap milik fork",
       "items": [
-        "Saklar Music / Video di pemutar: satu ketukan masuk ke mode video penuh, satu ketukan kembali ke gaya pemutar yang tadi dipakai. Saklar yang sama ada di bar atas mode video, dan pilihannya diingat. Saklar hanya muncul untuk lagu yang memang punya video.",
+        "Saklar **Music / Video** di pemutar: satu *slider* kaca (bukan dua tombol terpisah). Geser atau ketuk, chip-nya berjalan ke sisi yang dipilih. Hanya muncul untuk lagu yang punya video, dan pilihannya diingat — kembali dari Video ke gaya pemutar sebelumnya, bukan ke bawaan.",
+        "Perpindahan **Music ↔ Video** memakai pegas yang sama dengan sisa pemutar (`AppMotion.Scene`): video muncul dengan *fade* dan *scale* sangat kecil, cover flagship bertahan sampai pertengahan transisi, jadi tidak ada lompatan kaku.",
         "Liquid glass tetap utuh: tint 46 persen, rim 1,2 dp yang menyala dari kiri atas, dan pill tab berupa lensa kaca yang mengalir ke tab yang ditekan.",
         "Mode pure black OLED tetap tanpa blur, tanpa tint, dan tanpa grain, jadi benar-benar hitam.",
         "Glass dari modul look berjalan berdampingan dengan liquid glass: modul diperiksa lebih dulu, lalu pure black, lalu tint liquid atau frost biasa.",
@@ -32,6 +33,7 @@
     {
       "title": "Perbaikan",
       "items": [
+        "Catatan rilis di aplikasi (About, updater, dan layar changelog) merender **Markdown**: `**tebal**`, `*miring*`, `` kode ``, `~~coret~~`, dan tautan `[teks](url)` — tanpa warna mencolok.",
         "\"See video\" tidak lagi diam ketika autoplay video dimatikan (perbaikan dari upstream).",
         "Repeat one menghitung ulang akhir lagu, tombol selesai pada pemilih statistik bisa dijangkau, dan cover playlist berhenti hilang setelah dipakai (perbaikan dari upstream).",
         "Tinggi hero tidak lagi diukur dari ukuran layar. Fraksi tinggi milik upstream untuk TV dan lanskap tetap dipakai, tetapi pembaginya sekarang ukuran jendela, jadi di split screen, freeform, dan foldable hero tidak lagi mendorong baris di bawahnya keluar layar; nilainya juga ikut berubah saat jendela di-resize.",
@@ -50,7 +52,7 @@
     {
       "title": "Build dan validasi",
       "items": [
-        "Versi dinaikkan menjadi 8.3.3-xbibz.10 (kode 83) dan tetap lebih tinggi dari rilis Bibz sebelumnya, jadi bisa dipasang menimpa tanpa uninstall.",
+        "Versi dinaikkan menjadi **8.3.3-xbibz.11** (kode 84) dan tetap lebih tinggi dari rilis Bibz sebelumnya, jadi bisa dipasang menimpa tanpa uninstall.",
         "Rilis tetap tiga APK: arm64-v8a, armeabi-v7a, dan universal, semuanya ditandatangani key Bibz yang sama.",
         "Belum diklaim: bug dari issue tracker yang butuh perangkat fisik (misalnya gagal pasang di Android 11 dan lagu yang berhenti di loading) belum diperbaiki di rilis ini."
       ]

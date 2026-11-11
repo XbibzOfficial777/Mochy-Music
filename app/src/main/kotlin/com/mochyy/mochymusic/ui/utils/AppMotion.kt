@@ -10,7 +10,9 @@ import android.provider.Settings
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.Dp
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableFloatStateOf
@@ -42,6 +44,22 @@ object AppMotion {
         override val scaleFactor: Float
             get() = if (!enabled) 0f else systemScale / speed.coerceAtLeast(0.1f)
     }
+
+    /*
+     * Named springs the UI is allowed to use. A one-off spring in a composable is how a motion
+     * "wasn't defined": it can't be tuned from here and it won't follow the same feel as the rest
+     * of the player. Damping around 0.85 (almost no bounce) and a moderate stiffness: alive, not
+     * snappy, not floaty.
+     */
+    /** a thumb or a highlight sliding across a control */
+    val Slide = spring<Float>(dampingRatio = 0.86f, stiffness = 380f)
+    val SlideDp = spring<Dp>(dampingRatio = 0.86f, stiffness = 380f)
+    /** two full-screen looks swapping (Music ↔ Video) */
+    val Scene = spring<Float>(dampingRatio = 0.9f, stiffness = 240f)
+    /** a control appearing or settling */
+    val Appear = spring<Float>(dampingRatio = 0.9f, stiffness = 520f)
+    /** press scale, slightly snappier so the finger feels it */
+    val Press = spring<Float>(dampingRatio = 0.72f, stiffness = 900f)
 
     // keeps android's animator duration scale in step, the way compose's own scale did before we replaced it
     fun followSystemScale(context: Context): ContentObserver {
