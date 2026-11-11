@@ -10,7 +10,6 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -239,11 +238,8 @@ private fun QrisPayCard(
         }
         AnimatedVisibility(
             visible = expanded,
-            enter = fadeIn(AppMotion.Appear) + expandVertically(
-                spring(dampingRatio = 0.86f, stiffness = 380f),
-                expandFrom = Alignment.Top,
-            ),
-            exit = fadeOut(tween(160)) + shrinkVertically(tween(200), shrinkTowards = Alignment.Top),
+            enter = fadeIn(AppMotion.Appear) + expandVertically(expandFrom = Alignment.Top),
+            exit = fadeOut(tween(180)) + shrinkVertically(shrinkTowards = Alignment.Top),
         ) {
             Box(
                 modifier = Modifier

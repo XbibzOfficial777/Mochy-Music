@@ -487,7 +487,8 @@ fun LabSegmented(
             .background(LabColors.Card)
             .drawWithContent {
                 drawContent()
-                drawChromeOutline(Offset.Zero, size, size.height / 2f, 1f)
+                val box = this.size
+                drawChromeOutline(Offset.Zero, box, box.height / 2f)
             },
     ) {
         val dragModifier = if (onDragPages != null) {
