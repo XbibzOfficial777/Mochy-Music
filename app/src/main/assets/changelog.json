@@ -1,7 +1,7 @@
 {
-  "versionName": "8.3.3-xbibz.12",
-  "versionCode": 85,
-  "description": "Mochy Xbibz **8.3.3-xbibz.12**: ganti lagu saat sedang diputar tidak lagi putus, dan Graph / Bands / AutoEQ di equalizer bisa *digeser* dengan chip kaca yang ikut jalan.",
+  "versionName": "8.3.3-xbibz.13",
+  "versionCode": 86,
+  "description": "Mochy Xbibz **8.3.3-xbibz.13**: Equalizer tidak lagi force-close, dan saklar Music / Video memakai drop kaca yang sama dengan bar dashboard.",
   "changelog": [
     {
       "title": "Dari Mochy Music resmi",
@@ -21,7 +21,8 @@
     {
       "title": "Yang tetap milik fork",
       "items": [
-        "Equalizer **Graph / Bands / AutoEQ**: geser halaman atau chip-nya — keduanya satu pegas (`AppMotion.Slide`). Track-nya liquid glass (frost halaman + rim), chip putih yang berjalan, bukan ganti tab kaku.",
+        "Saklar **Music / Video** di pemutar memakai kontrol yang sama dengan bar dashboard: track frost chrome + *drop* kaca yang mengalir (bukan chip putih kaku).",
+        "Equalizer **Graph / Bands / AutoEQ**: geser halaman atau drop-nya. Drop-nya digambar seperti pill tab dashboard (isi + sheen + rim), tanpa mengambil glass halaman — itu yang bikin force-close.",
         "Saklar **Music / Video** di pemutar: satu *slider* kaca (bukan dua tombol terpisah). Geser atau ketuk, chip-nya berjalan ke sisi yang dipilih. Hanya muncul untuk lagu yang punya video, dan pilihannya diingat — kembali dari Video ke gaya pemutar sebelumnya, bukan ke bawaan.",
         "Perpindahan **Music ↔ Video** memakai pegas yang sama dengan sisa pemutar (`AppMotion.Scene`): video muncul dengan *fade* dan *scale* sangat kecil, cover flagship bertahan sampai pertengahan transisi, jadi tidak ada lompatan kaku.",
         "Liquid glass tetap utuh: tint 46 persen, rim 1,2 dp yang menyala dari kiri atas, dan pill tab berupa lensa kaca yang mengalir ke tab yang ditekan.",
@@ -34,6 +35,7 @@
     {
       "title": "Perbaikan",
       "items": [
+        "Equalizer force-close saat dibuka: kartu dan tab mengambil RenderNode `glassRoot` halaman settings *sementara node itu sedang direkam*. Frost di dalam glassRoot dihapus; drop tab digambar seperti bar dashboard.",
         "Ganti lagu (ketuk lagu lain di beranda, pencarian, playlist, atau antrian) saat lagu sedang diputar: lagu lama *fade* menghilang, baru lagu baru *swell* masuk — memakai pegas transport yang sama dengan jeda/skip, bukan potongan kaku.",
         "Catatan rilis di aplikasi (About, updater, dan layar changelog) merender **Markdown**: `**tebal**`, `*miring*`, `` kode ``, `~~coret~~`, dan tautan `[teks](url)` — tanpa warna mencolok.",
         "\"See video\" tidak lagi diam ketika autoplay video dimatikan (perbaikan dari upstream).",
@@ -54,7 +56,7 @@
     {
       "title": "Build dan validasi",
       "items": [
-        "Versi dinaikkan menjadi **8.3.3-xbibz.12** (kode 85) dan tetap lebih tinggi dari rilis Bibz sebelumnya, jadi bisa dipasang menimpa tanpa uninstall.",
+        "Versi dinaikkan menjadi **8.3.3-xbibz.13** (kode 86) dan tetap lebih tinggi dari rilis Bibz sebelumnya, jadi bisa dipasang menimpa tanpa uninstall.",
         "Rilis tetap tiga APK: arm64-v8a, armeabi-v7a, dan universal, semuanya ditandatangani key Bibz yang sama.",
         "Belum diklaim: bug dari issue tracker yang butuh perangkat fisik (misalnya gagal pasang di Android 11 dan lagu yang berhenti di loading) belum diperbaiki di rilis ini."
       ]

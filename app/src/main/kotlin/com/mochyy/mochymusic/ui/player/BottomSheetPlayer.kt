@@ -1789,6 +1789,7 @@ private fun PlayerSheet(
                     onMusic = { if (wantVideo) exitVideoMode.value() },
                     onVideo = { if (!wantVideo) enterVideoMode() },
                     glassState = morphingGlassState,
+                    pureBlack = pureBlack,
                     visible = state.isExpanded &&
                         !studioEngaged &&
                         transition.page == PlayerPage.NONE &&
