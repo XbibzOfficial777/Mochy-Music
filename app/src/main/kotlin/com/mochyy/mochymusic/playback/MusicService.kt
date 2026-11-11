@@ -1928,8 +1928,8 @@ class MusicService :
 
         originalQueueSize = 0
 
-        val apply = suspend {
-            if (generation != queueGeneration) return@suspend
+        suspend fun applyQueue() {
+            if (generation != queueGeneration) return
             if (queue.preloadItem != null) {
                 player.setMediaItem(queue.preloadItem!!.toMediaItem())
                 player.prepare()
@@ -1952,13 +1952,13 @@ class MusicService :
             // the song that's on dissolves, then this queue starts, then the new song swells in
             transport.fadeThen {
                 try {
-                    apply()
+                    applyQueue()
                 } catch (t: Throwable) {
                     Timber.tag(TAG).e(t, "playQueue after fade")
                 }
             }
         } else {
-            scope.launch(SilentHandler) { apply() }
+            scope.launch(SilentHandler) { applyQueue() }
         }
     }
 
