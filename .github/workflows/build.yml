@@ -128,20 +128,7 @@ jobs:
           ram-size: 4096
           disk-size: 6144
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -no-metrics
-          script: |
-            set -euo pipefail
-            smoke() {
-              bash .github/scripts/smoke-launch.sh
-              bash .github/scripts/smoke-fixtures.sh
-              bash .github/scripts/smoke-latest.sh
-            }
-            if ! smoke; then
-              echo 'Smoke failed; waiting for the emulator and running the same tests once more.'
-              # shellcheck source=../scripts/smoke-device.sh
-              source .github/scripts/smoke-device.sh
-              wait_for_emulator 45 || true
-              smoke
-            fi
+          script: bash .github/scripts/smoke-all.sh
       - name: Save smoke-test evidence
         if: always()
         uses: actions/upload-artifact@v6
