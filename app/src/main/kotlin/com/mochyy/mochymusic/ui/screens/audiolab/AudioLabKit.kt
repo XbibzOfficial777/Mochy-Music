@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -21,6 +22,8 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -32,6 +35,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -47,22 +51,33 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableFloatState
+import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -76,11 +91,19 @@ import com.mochyy.mochymusic.LocalAppContentObscured
 import com.mochyy.mochymusic.eq.audio.AudioTap
 import com.mochyy.mochymusic.ui.component.AppSwitch
 import com.mochyy.mochymusic.ui.component.DefaultPlayerSeekBarSlider
+import com.mochyy.mochymusic.ui.component.GlassPillBackground
 import com.mochyy.mochymusic.ui.component.LocalNavAnimatedContentScope
+import com.mochyy.mochymusic.ui.component.LocalSettingsGlass
 import com.mochyy.mochymusic.ui.component.damageBoundary
+import com.mochyy.mochymusic.ui.component.drawChromeOutline
+import com.mochyy.mochymusic.ui.utils.AppMotion
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import kotlinx.coroutines.flow.first
 import com.mochyy.mochymusic.ui.component.RemoteFocus
+import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.roundToInt
 
 object LabColors {
     val Card = Color(0xFF1C1C1E)
@@ -110,14 +133,36 @@ fun LabCard(
     padding: Dp = 14.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(
+    val glass = LocalSettingsGlass.current
+    val shape = RoundedCornerShape(26.dp)
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(26.dp))
-            .background(LabColors.Card)
-            .padding(padding),
-        content = content,
-    )
+            .clip(shape),
+    ) {
+        if (glass != null) {
+            GlassPillBackground(
+                state = glass,
+                blurRadius = { 22f },
+                tint = Color.White.copy(alpha = 0.08f),
+                foundationColor = Color.Black.copy(alpha = 0.34f),
+                shape = shape,
+                bleed = true,
+                modifier = Modifier.matchParentSize(),
+            )
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .drawWithContent {
+                        drawContent()
+                        drawChromeOutline(Offset.Zero, size, 26.dp.toPx(), 1f)
+                    },
+            )
+        } else {
+            Box(Modifier.matchParentSize().background(LabColors.Card))
+        }
+        Column(Modifier.fillMaxWidth().padding(padding), content = content)
+    }
 }
 
 /** outlined dark box for a live picture, bounded so its animation repaints only itself and not the page and glass over it */
@@ -357,7 +402,65 @@ private fun Modifier.combinedClickableCompat(
     Modifier.combinedClickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick, onLongClick = onLongClick)
 )
 
-/** a track with a white pill that slides to the picked option */
+/**
+ * Finger-follow for a row of pages (Graph / Bands / AutoEQ). Mix is continuous so the glass
+ * chip and the pages stay on the same spring ([AppMotion.Slide]).
+ */
+class LabSlide internal constructor(
+    private val mixState: MutableFloatState,
+    private val widthState: MutableIntState,
+    private val draggingState: MutableState<Boolean>,
+    private val lastIndex: () -> Int,
+    private val onSelect: () -> (Int) -> Unit,
+) {
+    val mix: Float get() = mixState.floatValue
+    var widthPx: Int
+        get() = widthState.intValue
+        set(value) { widthState.intValue = value.coerceAtLeast(1) }
+
+    fun dragPages(delta: Float) {
+        draggingState.value = true
+        mixState.floatValue = (mixState.floatValue + delta).coerceIn(0f, lastIndex().toFloat())
+    }
+
+    fun dragPx(delta: Float) {
+        draggingState.value = true
+        mixState.floatValue = (mixState.floatValue - delta / widthPx).coerceIn(0f, lastIndex().toFloat())
+    }
+
+    fun end() {
+        val to = mixState.floatValue.roundToInt().coerceIn(0, lastIndex())
+        draggingState.value = false
+        onSelect()(to)
+    }
+}
+
+@Composable
+fun rememberLabSlide(
+    selectedIndex: Int,
+    lastIndex: Int,
+    onSelect: (Int) -> Unit,
+): LabSlide {
+    val mixState = remember { mutableFloatStateOf(selectedIndex.toFloat()) }
+    val widthState = remember { mutableIntStateOf(1) }
+    val draggingState = remember { mutableStateOf(false) }
+    val lastIndexState = rememberUpdatedState(lastIndex)
+    val onSelectState = rememberUpdatedState(onSelect)
+    val slide = remember {
+        LabSlide(mixState, widthState, draggingState, { lastIndexState.value }, { onSelectState.value })
+    }
+    LaunchedEffect(selectedIndex, draggingState.value) {
+        if (draggingState.value) return@LaunchedEffect
+        val dest = selectedIndex.toFloat()
+        if (abs(mixState.floatValue - dest) < 0.001f) return@LaunchedEffect
+        animate(initialValue = mixState.floatValue, targetValue = dest, animationSpec = AppMotion.Slide) { v, _ ->
+            mixState.floatValue = v
+        }
+    }
+    return slide
+}
+
+/** a liquid-glass track whose chip slides — drag it or tap a label */
 @Composable
 fun LabSegmented(
     options: List<String>,
@@ -365,41 +468,173 @@ fun LabSegmented(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     height: Dp = 48.dp,
+    position: Float? = null,
+    onDragPages: ((Float) -> Unit)? = null,
+    onDragEnd: (() -> Unit)? = null,
 ) {
+    val glass = LocalSettingsGlass.current
+    val shape = RoundedCornerShape(height / 2)
+    val rest by animateFloatAsState(
+        targetValue = selectedIndex.toFloat(),
+        animationSpec = AppMotion.Slide,
+        label = "labSegment",
+    )
+    var drag by remember { mutableFloatStateOf(0f) }
+    var dragging by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
-            .clip(RoundedCornerShape(height / 2))
-            .background(LabColors.Card)
-            .border(1.dp, LabColors.StageLine, RoundedCornerShape(height / 2))
-            .padding(4.dp),
+            .clip(shape)
+            .drawWithContent {
+                drawContent()
+                drawChromeOutline(Offset.Zero, size, size.height / 2f, 1f)
+            },
     ) {
-        val segment = maxWidth / options.size
-        val offset by animateDpAsState(segment * selectedIndex, spring(dampingRatio = 0.82f, stiffness = 520f), label = "segment")
+        if (glass != null) {
+            GlassPillBackground(
+                state = glass,
+                blurRadius = { 22f },
+                tint = Color.White.copy(alpha = 0.10f),
+                foundationColor = Color.Black.copy(alpha = 0.30f),
+                shape = shape,
+                bleed = true,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Box(Modifier.fillMaxSize().background(LabColors.Card))
+        }
+
+        val inset = 4.dp
+        val innerWidth = maxWidth - inset * 2
+        val segment = innerWidth / options.size.coerceAtLeast(1)
+        val travelPx = with(density) { segment.toPx() }.coerceAtLeast(1f)
+        val mix = when {
+            position != null -> position.coerceIn(0f, options.lastIndex.toFloat().coerceAtLeast(0f))
+            dragging -> (rest + drag / travelPx).coerceIn(0f, options.lastIndex.toFloat().coerceAtLeast(0f))
+            else -> rest
+        }
+        val chipShape = RoundedCornerShape((height - inset * 2) / 2)
+
         Box(
             Modifier
-                .offset { IntOffset(offset.roundToPx(), 0) }
+                .padding(inset)
+                .offset { IntOffset((mix * travelPx).roundToInt(), 0) }
                 .width(segment)
                 .fillMaxHeight()
-                .clip(RoundedCornerShape(height / 2))
-                .background(Color.White)
+                .clip(chipShape)
+                .then(
+                    if (glass != null) {
+                        Modifier.drawWithContent {
+                            drawRect(Color.White.copy(alpha = 0.92f))
+                            drawChromeOutline(Offset.Zero, size, size.height / 2f, 0.7f)
+                        }
+                    } else {
+                        Modifier.background(Color.White)
+                    },
+                ),
         )
-        Row(Modifier.fillMaxWidth().fillMaxHeight()) {
+
+        Row(
+            Modifier
+                .fillMaxSize()
+                .pointerInput(selectedIndex, options.size, travelPx, onDragPages != null) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { dragging = true },
+                        onHorizontalDrag = { _, amount ->
+                            if (onDragPages != null) {
+                                onDragPages(amount / travelPx)
+                            } else {
+                                drag += amount
+                            }
+                        },
+                        onDragCancel = {
+                            dragging = false
+                            drag = 0f
+                            onDragEnd?.invoke()
+                        },
+                        onDragEnd = {
+                            if (onDragPages != null) {
+                                dragging = false
+                                onDragEnd?.invoke()
+                            } else {
+                                val end = (rest + drag / travelPx).coerceIn(0f, options.lastIndex.toFloat())
+                                dragging = false
+                                drag = 0f
+                                onSelect(end.roundToInt())
+                            }
+                        },
+                    )
+                }
+                .pointerInput(options.size) {
+                    detectTapGestures { offset ->
+                        val i = (offset.x / size.width * options.size).toInt().coerceIn(0, options.lastIndex)
+                        onSelect(i)
+                    }
+                },
+        ) {
             options.forEachIndexed { index, label ->
-                val color by animateColorAsState(if (index == selectedIndex) Color.Black else Color.White, tween(160), label = "segText")
+                val fill = (1f - abs(mix - index)).coerceIn(0f, 1f)
                 Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(height / 2))
-                        .clickable(remember { MutableInteractionSource() }, null) { onSelect(index) },
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(label, fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = color,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        label,
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                        color = lerp(Color.White.copy(alpha = 0.72f), Color(0xFF111114), fill),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
+        }
+    }
+}
+
+/** pages that travel with [slide] — wrap-content so they can sit in a scrolling column */
+@Composable
+fun LabPager(
+    pageCount: Int,
+    slide: LabSlide,
+    modifier: Modifier = Modifier,
+    content: @Composable (Int) -> Unit,
+) {
+    val last = (pageCount - 1).coerceAtLeast(0)
+    val mix = slide.mix
+    val from = floor(mix).toInt().coerceIn(0, last)
+    val to = ceil(mix).toInt().coerceIn(0, last)
+    Box(
+        modifier
+            .fillMaxWidth()
+            .clipToBounds()
+            .onSizeChanged { slide.widthPx = it.width }
+            .pointerInput(last) {
+                detectHorizontalDragGestures(
+                    onDragStart = { },
+                    onHorizontalDrag = { change, amount ->
+                        change.consume()
+                        slide.dragPx(amount)
+                    },
+                    onDragCancel = { slide.end() },
+                    onDragEnd = { slide.end() },
+                )
+            },
+    ) {
+        for (page in from..to) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        translationX = (page - mix) * slide.widthPx
+                        val dist = abs(page - mix).coerceIn(0f, 1f)
+                        alpha = 1f - 0.08f * dist
+                    },
+            ) { content(page) }
         }
     }
 }

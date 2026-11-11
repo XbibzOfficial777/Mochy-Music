@@ -2,13 +2,6 @@
 
 package com.mochyy.mochymusic.ui.screens.equalizer
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,6 +30,7 @@ import com.mochyy.mochymusic.ui.component.TextFieldDialog
 import com.mochyy.mochymusic.ui.screens.audiolab.LabCard
 import com.mochyy.mochymusic.ui.screens.audiolab.LabChip
 import com.mochyy.mochymusic.ui.screens.audiolab.LabChips
+import com.mochyy.mochymusic.ui.screens.audiolab.LabPager
 import com.mochyy.mochymusic.ui.screens.audiolab.LabSectionLabel
 import com.mochyy.mochymusic.ui.screens.audiolab.LabSegmented
 import com.mochyy.mochymusic.ui.screens.audiolab.LabSlider
@@ -44,6 +38,7 @@ import com.mochyy.mochymusic.ui.screens.audiolab.LabTextAction
 import com.mochyy.mochymusic.ui.screens.audiolab.LabToggleRow
 import com.mochyy.mochymusic.ui.screens.audiolab.ListenToAudio
 import com.mochyy.mochymusic.ui.screens.audiolab.animatedDim
+import com.mochyy.mochymusic.ui.screens.audiolab.rememberLabSlide
 import com.mochyy.mochymusic.utils.UiNumberFormat
 import com.mochyy.mochymusic.viewmodels.AudioLabViewModel
 import com.mochyy.mochymusic.viewmodels.isFlat
@@ -59,6 +54,7 @@ fun EqualizerScreen(
     val eq by viewModel.eq.collectAsState()
     val presets by viewModel.presets.collectAsState()
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    val slide = rememberLabSlide(selectedIndex = tab, lastIndex = Tabs.lastIndex, onSelect = { tab = it })
     var selectedNode by rememberSaveable { mutableIntStateOf(0) }
     var savingPreset by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<EqPreset?>(null) }
@@ -81,19 +77,19 @@ fun EqualizerScreen(
             )
         }
         Spacer(Modifier.height(14.dp))
-        LabSegmented(options = Tabs, selectedIndex = tab, onSelect = { tab = it })
+        LabSegmented(
+            options = Tabs,
+            selectedIndex = tab,
+            onSelect = { tab = it },
+            position = slide.mix,
+            onDragPages = slide::dragPages,
+            onDragEnd = slide::end,
+        )
         Spacer(Modifier.height(18.dp))
 
         val dim = animatedDim(!eq.enabled)
         Column(Modifier.fillMaxWidth().graphicsLayer { alpha = dim }) {
-            AnimatedContent(
-                targetState = tab,
-                transitionSpec = {
-                    val dir = if (targetState > initialState) 1 else -1
-                    (fadeIn(tween(220, 60)) + slideInHorizontally(spring(dampingRatio = 0.9f, stiffness = 420f)) { it / 8 * dir }) togetherWith fadeOut(tween(120))
-                },
-                label = "eqTab",
-            ) { page ->
+            LabPager(pageCount = Tabs.size, slide = slide) { page ->
                 Column(Modifier.fillMaxWidth()) {
                     when (page) {
                         0, 1 -> {

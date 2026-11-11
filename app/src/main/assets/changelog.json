@@ -1,7 +1,7 @@
 {
   "versionName": "8.3.3-xbibz.12",
   "versionCode": 85,
-  "description": "Mochy Xbibz **8.3.3-xbibz.12**: ganti lagu saat sedang diputar tidak lagi putus. Lagu lama *samar menghilang*, baru lagu yang dipilih masuk.",
+  "description": "Mochy Xbibz **8.3.3-xbibz.12**: ganti lagu saat sedang diputar tidak lagi putus, dan Graph / Bands / AutoEQ di equalizer bisa *digeser* dengan chip kaca yang ikut jalan.",
   "changelog": [
     {
       "title": "Dari Mochy Music resmi",
@@ -21,6 +21,7 @@
     {
       "title": "Yang tetap milik fork",
       "items": [
+        "Equalizer **Graph / Bands / AutoEQ**: geser halaman atau chip-nya — keduanya satu pegas (`AppMotion.Slide`). Track-nya liquid glass (frost halaman + rim), chip putih yang berjalan, bukan ganti tab kaku.",
         "Saklar **Music / Video** di pemutar: satu *slider* kaca (bukan dua tombol terpisah). Geser atau ketuk, chip-nya berjalan ke sisi yang dipilih. Hanya muncul untuk lagu yang punya video, dan pilihannya diingat — kembali dari Video ke gaya pemutar sebelumnya, bukan ke bawaan.",
         "Perpindahan **Music ↔ Video** memakai pegas yang sama dengan sisa pemutar (`AppMotion.Scene`): video muncul dengan *fade* dan *scale* sangat kecil, cover flagship bertahan sampai pertengahan transisi, jadi tidak ada lompatan kaku.",
         "Liquid glass tetap utuh: tint 46 persen, rim 1,2 dp yang menyala dari kiri atas, dan pill tab berupa lensa kaca yang mengalir ke tab yang ditekan.",

@@ -163,7 +163,10 @@ fun SubSettingsScaffold(
                 Spacer(modifier = Modifier.height(SearchBarHeight + 16.dp))
             }
 
-            CompositionLocalProvider(LocalSettingsScroll provides settingsScroll) { content() }
+            CompositionLocalProvider(
+                LocalSettingsScroll provides settingsScroll,
+                LocalSettingsGlass provides glassState,
+            ) { content() }
 
             Spacer(modifier = Modifier.height(bottomInset.calculateBottomPadding() + 24.dp))
         }

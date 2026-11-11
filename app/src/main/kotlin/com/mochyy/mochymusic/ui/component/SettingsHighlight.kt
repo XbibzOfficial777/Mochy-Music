@@ -33,6 +33,9 @@ class SettingsScroll(val state: ScrollState, val clearTop: Dp)
 
 val LocalSettingsScroll = staticCompositionLocalOf<SettingsScroll?> { null }
 
+/** the settings page's glass capture, so cards and sliders can frost what's behind them */
+val LocalSettingsGlass = staticCompositionLocalOf<GlassState?> { null }
+
 // where a highlight target was laid out, kept off the snapshot so scrolling doesn't recompose anything
 class SettingsPlacement {
     var coords: LayoutCoordinates? = null
