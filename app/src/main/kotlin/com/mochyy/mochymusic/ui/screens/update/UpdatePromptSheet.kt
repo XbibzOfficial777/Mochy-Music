@@ -77,6 +77,7 @@ fun UpdatePromptSheet(
     }
 
     var needsPermission by remember { mutableStateOf(false) }
+    val allowUnknownApps = stringResource(R.string.allow_unknown_apps)
 
     val startInstall: (java.io.File) -> Unit = { file ->
         if (installApk(context, file)) {
@@ -84,7 +85,7 @@ fun UpdatePromptSheet(
         } else {
             needsPermission = true
             readyToInstall = true
-            error = context.getString(R.string.allow_unknown_apps)
+            error = allowUnknownApps
         }
     }
 

@@ -488,10 +488,12 @@ private fun ColumnScope.UpdateDetailContent(
     var downloading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val progress = remember { mutableFloatStateOf(0f) }
+    val allowUnknownApps = stringResource(R.string.allow_unknown_apps)
+    val downloadFailed = stringResource(R.string.download_failed)
 
     val startInstall: (java.io.File) -> Unit = { file ->
         if (!installApk(context, file)) {
-            error = context.getString(R.string.allow_unknown_apps)
+            error = allowUnknownApps
         }
     }
 
@@ -624,7 +626,7 @@ private fun ColumnScope.UpdateDetailContent(
                             onLocked(false)
                             result.fold(
                                 onSuccess = { startInstall(it) },
-                                onFailure = { error = it.message ?: context.getString(R.string.download_failed) },
+                                onFailure = { error = it.message ?: downloadFailed },
                             )
                         }
                     }
