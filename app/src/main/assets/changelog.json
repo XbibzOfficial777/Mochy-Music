@@ -1,8 +1,17 @@
 {
-  "versionName": "8.3.3-xbibz.13",
-  "versionCode": 86,
-  "description": "Mochy Xbibz **8.3.3-xbibz.13**: Equalizer tidak lagi force-close, dan saklar Music / Video memakai drop kaca yang sama dengan bar dashboard.",
+  "versionName": "8.3.3-xbibz.14",
+  "versionCode": 87,
+  "description": "Mochy Xbibz **8.3.3-xbibz.14**: ketukan Grafik / Pita / EQ otomatis memakai drop kaca yang sama dengan Musik / Video, catatan pembaruan merender tabel, dan unduhan otomatis memilih berkas yang cocok dengan perangkat.",
   "changelog": [
+    {
+      "title": "8.3.3-xbibz.14",
+      "items": [
+        "Ketukan Grafik, Pita, dan EQ otomatis memakai drop kaca yang sama dengan saklar Musik / Video (mengalir, terangkat, lalu mengendap). Musik / Video tidak diubah.",
+        "Catatan pembaruan merender tabel Markdown sebagai kolom, bukan teks pipa mentah.",
+        "Jika bahasa aplikasi Indonesia, teks antarmuka pembaruan dan tab ekualiser memakai Indonesia; bahasa Inggris memakai Inggris. Catatan rilis GitHub bisa memuat dua blok `lang:id` dan `lang:en`.",
+        "Pembaruan mengunduh APK sesuai arsitektur perangkat (64-bit atau 32-bit), bukan mengikuti paket universal yang kebetulan terpasang. Universal hanya cadangan."
+      ]
+    },
     {
       "title": "Dari Mochy Music resmi",
       "items": [
