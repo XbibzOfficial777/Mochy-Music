@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Deterministic debug-only UI regressions. No accounts or third-party services are used.
 set -euo pipefail
+# shellcheck source=smoke-device.sh
+source "$(dirname "$0")/smoke-device.sh"
+wait_for_emulator 45
 package="$(cat smoke-package.txt)"
 activity="$package/com.mochyy.mochymusic.ui.screens.recap.LatestIssuesSmokeActivity"
 export APP_PACKAGE="$package"

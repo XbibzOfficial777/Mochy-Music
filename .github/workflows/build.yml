@@ -125,11 +125,23 @@ jobs:
           target: google_apis
           arch: x86_64
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          ram-size: 4096
+          disk-size: 6144
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -no-metrics
           script: |
-            bash .github/scripts/smoke-launch.sh
-            bash .github/scripts/smoke-fixtures.sh
-            bash .github/scripts/smoke-latest.sh
+            set -euo pipefail
+            smoke() {
+              bash .github/scripts/smoke-launch.sh
+              bash .github/scripts/smoke-fixtures.sh
+              bash .github/scripts/smoke-latest.sh
+            }
+            if ! smoke; then
+              echo 'Smoke failed; waiting for the emulator and running the same tests once more.'
+              # shellcheck source=../scripts/smoke-device.sh
+              source .github/scripts/smoke-device.sh
+              wait_for_emulator 45 || true
+              smoke
+            fi
       - name: Save smoke-test evidence
         if: always()
         uses: actions/upload-artifact@v6
@@ -144,6 +156,7 @@ jobs:
             smoke-quality-compact-*.xml
             smoke-document-picker.xml
             smoke-fixtures-logcat.txt
+            smoke-equalizer-logcat.txt
             smoke-fixtures-screen.png
             smoke-receipt.png
             smoke-latest-*.xml

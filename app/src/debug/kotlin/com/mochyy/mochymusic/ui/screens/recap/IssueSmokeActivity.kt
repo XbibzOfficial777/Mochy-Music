@@ -6,8 +6,13 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -18,11 +23,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import com.mochyy.mochymusic.constants.VideoQuality
 import com.mochyy.mochymusic.lyrics.AiTranslationSession
 import com.mochyy.mochymusic.ui.player.menu.AiTranslationSettingsSheet
+import com.mochyy.mochymusic.ui.component.GlassState
+import com.mochyy.mochymusic.ui.component.LocalSettingsGlass
 import com.mochyy.mochymusic.ui.component.PopupSheetHost
 import com.mochyy.mochymusic.ui.component.PopupSheetState
+import com.mochyy.mochymusic.ui.component.glassRoot
+import com.mochyy.mochymusic.ui.screens.audiolab.LabCard
+import com.mochyy.mochymusic.ui.screens.audiolab.LabSegmented
 import com.mochyy.mochymusic.ui.screens.settings.showVideoQualitySheet
 import com.mochyy.mochymusic.ui.screens.settings.videoQualityName
 import java.time.LocalDate
@@ -41,6 +52,29 @@ class IssueSmokeActivity : ComponentActivity() {
                     PopupSheetHost(states = listOf(sheet)) {
                         Box(Modifier.fillMaxSize().background(Color(0xFF252528))) {
                             Text("Selected: ${videoQualityName(selected)}", color = Color.White)
+                        }
+                    }
+                }
+                "equalizer" -> {
+                    // Same nesting that force-closed .12: glassRoot + LocalSettingsGlass + lab cards/tabs.
+                    val glass = remember { GlassState() }
+                    CompositionLocalProvider(LocalSettingsGlass provides glass) {
+                        Column(
+                            Modifier
+                                .fillMaxSize()
+                                .glassRoot(glass)
+                                .background(Color(0xFF111114))
+                                .padding(16.dp),
+                        ) {
+                            Text("Equalizer smoke", color = Color.White)
+                            Spacer(Modifier.height(12.dp))
+                            LabSegmented(
+                                options = listOf("Graph", "Bands", "AutoEQ"),
+                                selectedIndex = 0,
+                                onSelect = {},
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            LabCard { Text("Card", color = Color.White) }
                         }
                     }
                 }

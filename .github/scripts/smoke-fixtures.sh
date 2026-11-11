@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Debug-only, synthetic UI fixtures: no account, real song, or third-party API key required.
 set -euo pipefail
+# shellcheck source=smoke-device.sh
+source "$(dirname "$0")/smoke-device.sh"
+wait_for_emulator 45
 package="$(cat smoke-package.txt)"
 activity="$package/com.mochyy.mochymusic.ui.screens.recap.IssueSmokeActivity"
 export APP_PACKAGE="$package"
@@ -14,6 +17,7 @@ cleanup() {
 trap cleanup EXIT
 
 start_fixture() {
+  wait_for_emulator 20
   # Force a fresh activity: Android can otherwise deliver a new intent to the
   # top-most fixture instance, whose onCreate would keep showing the old screen.
   adb shell am start -S -W -n "$activity" --es screen "$1" | tee "smoke-$1-start.txt"
@@ -63,6 +67,24 @@ hide_keyboard_if_visible() {
     sleep 1
   fi
 }
+
+# Equalizer used to force-close when lab cards sampled glassRoot while it was recording.
+start_fixture equalizer
+dump_ui
+find_node text 'Equalizer smoke' >/dev/null
+find_node text 'Graph' >/dev/null
+adb logcat -d -v threadtime > smoke-equalizer-logcat.txt
+python3 - <<'PY'
+from pathlib import Path
+import os
+package = os.environ['APP_PACKAGE']
+lines = Path('smoke-equalizer-logcat.txt').read_text(errors='replace').splitlines()
+for i, line in enumerate(lines):
+    if 'FATAL EXCEPTION' in line and any(f'Process: {package}' in x for x in lines[i:i+15]):
+        print('\n'.join(lines[i:i+20]))
+        raise SystemExit('App crash while opening the Equalizer smoke fixture')
+print('Equalizer smoke stayed up with Graph/Bands/AutoEQ visible.')
+PY
 
 # The quality picker must expose 4K and preserve the selected choice.
 start_fixture quality

@@ -15,7 +15,9 @@ if [ -z "$package" ]; then
 fi
 export APP_PACKAGE="$package"
 printf '%s' "$package" > smoke-package.txt
-adb wait-for-device
+# shellcheck source=smoke-device.sh
+source "$(dirname "$0")/smoke-device.sh"
+wait_for_emulator 60
 adb install -r "${apks[0]}"
 # The app exposes its launcher through an activity-alias. Some aapt versions omit
 # aliases from badging, so ask Android's package manager for the enabled launcher.
