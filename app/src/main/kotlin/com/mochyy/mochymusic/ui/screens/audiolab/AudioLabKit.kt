@@ -493,7 +493,7 @@ fun LabSegmented(
     ) {
         val dragModifier = if (onDragPages != null) {
             Modifier.pointerInput(tabCount) {
-                val travelPx = (size.width / tabCount).coerceAtLeast(1f)
+                val travelPx = (size.width.toFloat() / tabCount).coerceAtLeast(1f)
                 detectHorizontalDragGestures(
                     onDragStart = { },
                     onHorizontalDrag = { _, amount -> onDragPages(amount / travelPx) },
