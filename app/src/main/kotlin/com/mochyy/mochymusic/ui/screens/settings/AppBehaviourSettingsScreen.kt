@@ -44,6 +44,7 @@ import com.mochyy.mochymusic.constants.DisableVideoAutoplayKey
 import com.mochyy.mochymusic.constants.DontSkipOnFailureKey
 import com.mochyy.mochymusic.constants.HideSettingsDescriptionsKey
 import com.mochyy.mochymusic.constants.HideUpdateNoticeKey
+import com.mochyy.mochymusic.constants.IncludePreReleaseUpdatesKey
 import com.mochyy.mochymusic.constants.LarpLevelKey
 import com.mochyy.mochymusic.constants.LarpModeKey
 import com.mochyy.mochymusic.constants.LocalSongAutoMetadataKey
@@ -178,6 +179,7 @@ private fun larpItems(): List<SettingsItem> {
 private fun generalItems(navController: NavController): List<SettingsItem> {
     val context = LocalContext.current
     val (noticeHidden, onNoticeHidden) = rememberPreference(HideUpdateNoticeKey, defaultValue = false)
+    val (includePreRelease, onIncludePreRelease) = rememberPreference(IncludePreReleaseUpdatesKey, defaultValue = false)
     val (offlineMode, onOfflineModeChange) = rememberPreference(OfflineModeKey, defaultValue = false)
     val (dataSaver, onDataSaverChange) = rememberPreference(DataSaverKey, defaultValue = false)
     val (dataSaverMobileOnly, onDataSaverMobileOnlyChange) = rememberPreference(DataSaverMobileOnlyKey, defaultValue = true)
@@ -203,6 +205,17 @@ private fun generalItems(navController: NavController): List<SettingsItem> {
             icon = painterResource(R.drawable.update),
             checked = noticeHidden,
             onCheckedChange = setNoticeHidden,
+        ),
+        switchItem(
+            key = "Pre-release updates",
+            title = stringResource(R.string.pre_release_updates),
+            description = stringResource(R.string.pre_release_updates_subtitle),
+            icon = painterResource(R.drawable.update),
+            checked = includePreRelease,
+            onCheckedChange = { on ->
+                onIncludePreRelease(on)
+                com.mochyy.mochymusic.core.updater.setIncludePreReleaseUpdates(on)
+            },
         ),
         switchItem(
             key = "Offline mode",

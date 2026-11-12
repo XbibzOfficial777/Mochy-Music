@@ -1,6 +1,6 @@
 package com.mochyy.mochymusic.ui.screens.donate
 
-const val ForkDeveloperName = "Xbibz Official Technology ID"
+const val ForkDeveloperName = "Xbibz Official777"
 
 const val KofiUrl = "https://ko-fi.com/xbibzofficial"
 const val SaweriaUrl = "https://saweria.co/xbibzofficial"

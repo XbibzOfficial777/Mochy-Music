@@ -3,6 +3,23 @@ package com.mochyy.mochymusic.core.updater
 /** Every build of this branch must avoid offering an upstream-signed APK. */
 internal fun isXbibzVersion(version: String): Boolean = version.contains("-xbibz.", ignoreCase = true)
 
+private val StableForkTag = Regex("""^v\d+\.\d+\.\d+-xbibz\.\d+$""", RegexOption.IGNORE_CASE)
+private val PreForkTag = Regex("""^v\d+\.\d+\.\d+-xbibz\.\d+-pre(?:\.\d+)?$""", RegexOption.IGNORE_CASE)
+
+/**
+ * Stable channel: `v8.3.3-xbibz.14` only, never a GitHub pre-release.
+ * Pre-release channel: those tags plus `v8.3.3-xbibz.15-pre` / `.pre.1`, including GitHub's prerelease flag.
+ * Desktop tags (`…-xbibz.desktop-pre.1`) stay out — they have no APK.
+ */
+internal fun isEligibleXbibzUpdateTag(
+    tag: String,
+    prerelease: Boolean,
+    includePreRelease: Boolean,
+): Boolean {
+    if (includePreRelease) return StableForkTag.matches(tag) || PreForkTag.matches(tag)
+    return !prerelease && StableForkTag.matches(tag)
+}
+
 /** Only the three published GMS flavors may offer our signed fork assets. */
 internal fun isXbibzRelease(
     applicationId: String,

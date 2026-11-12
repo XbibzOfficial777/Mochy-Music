@@ -79,8 +79,11 @@ import com.mochyy.mochymusic.core.updater.UpdateState
 import com.mochyy.mochymusic.core.updater.apkFileFor
 import com.mochyy.mochymusic.core.updater.downloadApk
 import com.mochyy.mochymusic.core.updater.formatBytes
+import com.mochyy.mochymusic.constants.IncludePreReleaseUpdatesKey
 import com.mochyy.mochymusic.core.updater.getLatestRelease
 import com.mochyy.mochymusic.core.updater.getPreviousRelease
+import com.mochyy.mochymusic.core.updater.setIncludePreReleaseUpdates
+import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.core.updater.installApk
 import com.mochyy.mochymusic.core.updater.isDownloaded
 import com.mochyy.mochymusic.core.updater.isNewerThanInstalled
@@ -173,6 +176,7 @@ private fun ColumnScope.UpdateSheetContent(
     var state by remember { mutableStateOf(initialState) }
     var latest by remember { mutableStateOf((initialState as? UpdateState.Available)?.release) }
     var previous by remember { mutableStateOf<GithubRelease?>(null) }
+    val (includePreRelease, onIncludePreRelease) = rememberPreference(IncludePreReleaseUpdatesKey, defaultValue = false)
 
     suspend fun refresh(force: Boolean) {
         state = checkUpdate(force)
@@ -251,6 +255,19 @@ private fun ColumnScope.UpdateSheetContent(
                     label = if (state is UpdateState.Checking) "Checking…" else "Check for update",
                     spinning = state is UpdateState.Checking,
                     onClick = checkAgain,
+                )
+                ActionRow(
+                    icon = R.drawable.update,
+                    label = stringResource(R.string.pre_release_updates),
+                    hint = stringResource(
+                        if (includePreRelease) R.string.pre_release_on else R.string.pre_release_off,
+                    ),
+                    onClick = {
+                        val next = !includePreRelease
+                        onIncludePreRelease(next)
+                        setIncludePreReleaseUpdates(next)
+                        checkAgain()
+                    },
                 )
                 AnimatedVisibility(
                     visible = previous != null,

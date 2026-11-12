@@ -1,8 +1,15 @@
 {
-  "versionName": "8.3.3-xbibz.14",
-  "versionCode": 87,
-  "description": "Mochy Xbibz **8.3.3-xbibz.14**: ketukan Grafik / Pita / EQ otomatis memakai drop kaca yang sama dengan Musik / Video, catatan pembaruan merender tabel, dan unduhan otomatis memilih berkas yang cocok dengan perangkat.",
+  "versionName": "8.3.3-xbibz.15",
+  "versionCode": 88,
+  "description": "Mochy Xbibz **8.3.3-xbibz.15**: saklar pembaruan pra-rilis (default mati) dan pengembang **Xbibz Official777**.",
   "changelog": [
+    {
+      "title": "8.3.3-xbibz.15",
+      "items": [
+        "Pengaturan pembaruan punya saklar **pra-rilis** (default mati). Saat nyala, aplikasi juga menawarkan rilis GitHub yang ditandai pra-rilis dan masih punya APK. Tag desktop tanpa APK tetap diabaikan.",
+        "Pengembang fork: **Xbibz Official777**."
+      ]
+    },
     {
       "title": "8.3.3-xbibz.14",
       "items": [

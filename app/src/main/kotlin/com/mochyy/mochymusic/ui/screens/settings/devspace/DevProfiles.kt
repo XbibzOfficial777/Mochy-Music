@@ -73,7 +73,7 @@ internal data class DevPerson(
 internal val DevPeople = listOf(
     DevPerson(
         name = ForkDeveloperName,
-        bio = "Xbibz Official Technology ID",
+        bio = "Xbibz Official777",
         avatar = R.drawable.dev_xbibz,
         takesDonations = true,
         socials = listOf(

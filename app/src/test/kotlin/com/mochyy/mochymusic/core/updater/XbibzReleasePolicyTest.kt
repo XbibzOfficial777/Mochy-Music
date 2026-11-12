@@ -65,6 +65,18 @@ class XbibzReleasePolicyTest {
     }
 
     @Test
+    fun preReleaseToggleKeepsStableTagsAndSkipsDesktop() {
+        assertTrue(isEligibleXbibzUpdateTag("v8.3.3-xbibz.14", prerelease = false, includePreRelease = false))
+        assertFalse(isEligibleXbibzUpdateTag("v8.3.3-xbibz.14", prerelease = true, includePreRelease = false))
+        assertFalse(isEligibleXbibzUpdateTag("v8.3.3-xbibz.15-pre.1", prerelease = true, includePreRelease = false))
+        assertTrue(isEligibleXbibzUpdateTag("v8.3.3-xbibz.14", prerelease = true, includePreRelease = true))
+        assertTrue(isEligibleXbibzUpdateTag("v8.3.3-xbibz.15-pre.1", prerelease = true, includePreRelease = true))
+        assertTrue(isEligibleXbibzUpdateTag("v8.3.3-xbibz.15-pre", prerelease = true, includePreRelease = true))
+        assertFalse(isEligibleXbibzUpdateTag("v8.3.3-xbibz.desktop-pre.1", prerelease = true, includePreRelease = true))
+        assertFalse(isEligibleXbibzUpdateTag("v8.3.2", prerelease = false, includePreRelease = true))
+    }
+
+    @Test
     fun missingAbiDoesNotFallBackToAnIncompatibleApk() {
         assertFalse(isCompatibleXbibzAsset("armeabi", "Mochy-Music-v8.2.3-xbibz.4-arm64-gms.apk"))
         assertFalse(isCompatibleXbibzAsset("arm64", "Mochy-Music-v8.2.3-xbibz.5-armeabi-v7a-gms.apk"))

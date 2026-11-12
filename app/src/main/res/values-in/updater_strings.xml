@@ -55,7 +55,7 @@
     <string name="collaborator_section">KOLABORATOR</string>
     <string name="app_info_section">INFO APLIKASI</string>
     <string name="community_section">KOMUNITAS</string>
-    <string name="developer_name">Xbibz Official Technology ID</string>
+    <string name="developer_name">Xbibz Official777</string>
     <string name="app_developer">Pengembang utama</string>
     <string name="website">Situs web</string>
     <string name="collaborator_tboyke">T-Boyke</string>
@@ -71,6 +71,10 @@
     <string name="support_development">Dukung pengembangan</string>
     <string name="beta_updates">Pembaruan beta</string>
     <string name="beta_updates_subtitle">Aktifkan jika Anda ingin menerima pembaruan beta (misalnya b5.0.1)</string>
+    <string name="pre_release_updates">Pembaruan pra-rilis</string>
+    <string name="pre_release_updates_subtitle">Juga tawarkan rilis GitHub yang ditandai pra-rilis. Bisa dipakai, belum resmi. Default mati.</string>
+    <string name="pre_release_on">Nyala</string>
+    <string name="pre_release_off">Mati</string>
     <string name="on_latest_version">Anda menggunakan versi terbaru</string>
     <string name="current_version_v">Versi saat ini: %1$s</string>
     <string name="update_to_v">Pembaruan tersedia %1$s</string>

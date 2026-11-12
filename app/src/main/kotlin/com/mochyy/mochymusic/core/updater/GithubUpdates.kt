@@ -47,7 +47,18 @@ private val ReleasesApi: String
         "https://api.github.com/repos/$GithubOwner/$GithubRepo/releases?per_page=20"
     }
 
-private val ForkTagPattern = Regex("""^v\d+\.\d+\.\d+-xbibz\.\d+$""", RegexOption.IGNORE_CASE)
+@Volatile
+private var includePreReleaseUpdates: Boolean = false
+
+/** Call when the settings switch changes so the next GitHub read uses the new channel. */
+fun setIncludePreReleaseUpdates(enabled: Boolean) {
+    synchronized(cacheLock) {
+        if (includePreReleaseUpdates == enabled) return
+        includePreReleaseUpdates = enabled
+        cachedResult = null
+        cachedAt = 0L
+    }
+}
 
 data class GithubRelease(
     val title: String,
@@ -174,9 +185,14 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                 if (release.optBoolean("draft", false)) continue
 
                 val tag = release.optString("tag_name").orEmpty()
-                // A fork may later publish test or unrelated artifacts; only stable, matching
-                // fork tags signed by the release workflow are eligible for this build.
-                if (isXbibzBuild && (release.optBoolean("prerelease", false) || !ForkTagPattern.matches(tag))) continue
+                // Stable: v8.3.3-xbibz.N only. Pre-release channel is opt-in and still APK-only.
+                if (isXbibzBuild &&
+                    !isEligibleXbibzUpdateTag(
+                        tag = tag,
+                        prerelease = release.optBoolean("prerelease", false),
+                        includePreRelease = includePreReleaseUpdates,
+                    )
+                ) continue
                 val title = release.optString("name").orEmpty().ifBlank { tag }
                 val fullVer = parseFullVersion("$title $tag")
 

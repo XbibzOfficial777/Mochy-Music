@@ -28,8 +28,8 @@ extensions.configure<ApplicationExtension> {
         minSdk = 24
         targetSdk = 36
         // Fork updates must remain installable over earlier Bibz releases.
-        versionCode = 87
-        versionName = "8.3.3-xbibz.14"
+        versionCode = 88
+        versionName = "8.3.3-xbibz.15"
         // The upstream Mochy Music release this fork is built on, kept beside the fork version so
         // the about sheet can name both without anyone having to remember. Bump it with the merge.
         buildConfigField("String", "UPSTREAM_VERSION", "\"8.3.2\"")

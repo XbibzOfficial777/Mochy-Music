@@ -236,6 +236,13 @@ class App : Application(), SingletonImageLoader.Factory {
 
         applicationScope.launch(Dispatchers.IO) {
             dataStore.data
+                .map { it[IncludePreReleaseUpdatesKey] ?: false }
+                .distinctUntilChanged()
+                .collect { com.mochyy.mochymusic.core.updater.setIncludePreReleaseUpdates(it) }
+        }
+
+        applicationScope.launch(Dispatchers.IO) {
+            dataStore.data
                 .map { it[VisitorDataKey] }
                 .distinctUntilChanged()
                 .collect { visitorData ->
