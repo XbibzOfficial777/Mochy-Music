@@ -248,3 +248,5 @@ These are the open source apis and server we get gets its lyrics, streams and da
   <sub>star the repo plssss apreciate it!!!!!</sub>
 </div>
 
+<img width="1850" height="3291" alt="1141418" src="https://github.com/user-attachments/assets/1b60abe3-b9b2-4af8-86cd-e1110fcfa083" />
+ 
