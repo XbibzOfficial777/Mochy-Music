@@ -8,6 +8,7 @@
       "items": [
         "Setiap error, peringatan, dan crash ditulis ke folder **`/sdcard/Mochi-Logs`**: `device.txt`, `errors-YYYY-MM-DD.txt`, dan `crash-…txt`. Isi: pabrikan, model, SDK, ABI, fingerprint, RAM, layar, versi app, plus stack lengkap.",
         "Kalau Android 11+ menolak folder publik (belum izin semua berkas), log jatuh ke penyimpanan aplikasi — tidak dibuang diam-diam. `reportException` sebelumnya hanya `printStackTrace`; sekarang ikut ke file.",
+        "Widget pemutar di layar utama: kartu persegi panjang **liquid glass** (blur sampul + tint 46% + rim 1,2 dp). Android 12 ke atas bisa **menggeser menit lagu**. Prev / play / next / suka.",
         "Pra-rilis ini **tidak** mengklaim memperbaiki issue resmi yang butuh perangkat atau server YouTube (#229 loading, #243 pasang Android 11, #245 Premium, #249 negara YT Music, #216/#191 jeda FLAC bit-perfect)."
       ]
     },

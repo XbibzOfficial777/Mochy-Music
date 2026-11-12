@@ -4312,6 +4312,18 @@ class MusicService :
                 player.seekToPrevious()
                 updateWidgetUI(player.isPlaying)
             }
+            MusicWidgetReceiver.ACTION_SEEK -> {
+                val progress = sequenceOf(
+                    MusicWidgetReceiver.EXTRA_SEEK_PROGRESS,
+                    "androidx.core.widget.extra.PROGRESS",
+                    "progress",
+                ).map { intent.getIntExtra(it, -1) }.firstOrNull { it >= 0 } ?: -1
+                val duration = player.duration
+                if (progress >= 0 && duration != C.TIME_UNSET && duration > 0) {
+                    player.seekTo(com.mochyy.mochymusic.widget.WidgetProgress.positionFromLevel(progress, duration))
+                }
+                updateWidgetUI(player.isPlaying)
+            }
             MusicWidgetReceiver.ACTION_UPDATE_WIDGET -> {
                 updateWidgetUI(player.isPlaying)
             }

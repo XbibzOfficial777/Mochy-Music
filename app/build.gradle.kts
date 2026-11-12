@@ -421,6 +421,7 @@ dependencies {
     implementation(libs.materialKolor)
 
     implementation(libs.appcompat)
+    implementation(libs.core.remoteviews)
 
     implementation(libs.coil)
     implementation(libs.coil.svg)

@@ -55,7 +55,7 @@ class MusicWidgetReceiver : AppWidgetProvider() {
         super.onReceive(context, intent)
 
         when (intent.action) {
-            ACTION_PLAY_PAUSE, ACTION_LIKE, ACTION_NEXT, ACTION_PREVIOUS -> {
+            ACTION_PLAY_PAUSE, ACTION_LIKE, ACTION_NEXT, ACTION_PREVIOUS, ACTION_SEEK -> {
 
                 val serviceIntent = Intent(context, MusicService::class.java).apply {
                     action = intent.action
@@ -75,6 +75,8 @@ class MusicWidgetReceiver : AppWidgetProvider() {
         const val ACTION_LIKE = "com.mochyy.mochymusic.widget.LIKE"
         const val ACTION_NEXT = "com.mochyy.mochymusic.widget.NEXT"
         const val ACTION_PREVIOUS = "com.mochyy.mochymusic.widget.PREVIOUS"
+        const val ACTION_SEEK = "com.mochyy.mochymusic.widget.SEEK"
         const val ACTION_UPDATE_WIDGET = "com.mochyy.mochymusic.widget.UPDATE_WIDGET"
+        const val EXTRA_SEEK_PROGRESS = "android.widget.extra.PROGRESS"
     }
 }

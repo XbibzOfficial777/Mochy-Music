@@ -13,9 +13,11 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
+import android.os.Build
 import android.os.Bundle
 import android.widget.RemoteViews
 import androidx.core.graphics.createBitmap
+import androidx.core.widget.RemoteViewsCompat
 import coil3.ImageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
@@ -45,6 +47,7 @@ class MochyWidgetManager @Inject constructor(
     private var cachedArtworkUri: String? = null
     private var cachedAlbumArt: Bitmap? = null
     private var cachedCircularAlbumArt: Bitmap? = null
+    private var cachedGlass: Bitmap? = null
 
     /** One update at a time: they share the cached artwork, and they no longer run on one thread. */
     private val updating = kotlinx.coroutines.sync.Mutex()
@@ -89,17 +92,30 @@ class MochyWidgetManager @Inject constructor(
 
         val albumArt: Bitmap?
         val circularAlbumArt: Bitmap?
+        val glass: Bitmap?
 
         if (artworkUri != null && artworkUri == cachedArtworkUri && cachedAlbumArt != null) {
             albumArt = cachedAlbumArt
             circularAlbumArt = cachedCircularAlbumArt
+            glass = cachedGlass
         } else {
             albumArt = artworkUri?.let { loadAlbumArt(it, 300) }
             circularAlbumArt = albumArt?.let { getCircularBitmap(it) }
+            glass = albumArt?.let { cover ->
+                val d = context.resources.displayMetrics.density
+                WidgetGlass.frosted(
+                    cover = cover,
+                    widthPx = (260 * d).toInt().coerceIn(240, 720),
+                    heightPx = (124 * d).toInt().coerceIn(120, 360),
+                    cornerPx = 28f * d,
+                    rimPx = 1.2f * d,
+                )
+            }
 
             cachedArtworkUri = artworkUri
             cachedAlbumArt = albumArt
             cachedCircularAlbumArt = circularAlbumArt
+            cachedGlass = glass
         }
 
         if (widgetIds.isNotEmpty()) {
@@ -110,6 +126,7 @@ class MochyWidgetManager @Inject constructor(
                     title,
                     artist,
                     albumArt,
+                    glass,
                     isPlaying,
                     isLiked,
                     duration,
@@ -136,6 +153,7 @@ class MochyWidgetManager @Inject constructor(
         title: String,
         artist: String,
         albumArt: Bitmap?,
+        glass: Bitmap?,
         isPlaying: Boolean,
         isLiked: Boolean,
         duration: Long,
@@ -146,16 +164,13 @@ class MochyWidgetManager @Inject constructor(
 
         return when {
             minWidth < 180 && minHeight < 100 -> {
-
                 createCompactSquareRemoteViews(albumArt, isPlaying)
             }
             minWidth >= 180 && minHeight < 100 -> {
-
                 createCompactWideRemoteViews(title, artist, albumArt, isPlaying, isLiked)
             }
             else -> {
-
-                createRemoteViews(title, artist, albumArt, isPlaying, isLiked, duration, currentPosition)
+                createRemoteViews(title, artist, albumArt, glass, isPlaying, isLiked, duration, currentPosition)
             }
         }
     }
@@ -164,6 +179,7 @@ class MochyWidgetManager @Inject constructor(
         title: String,
         artist: String,
         albumArt: Bitmap?,
+        glass: Bitmap?,
         isPlaying: Boolean,
         isLiked: Boolean,
         duration: Long = 0,
@@ -173,6 +189,9 @@ class MochyWidgetManager @Inject constructor(
 
         views.setTextViewText(R.id.widget_song_title, title)
         views.setTextViewText(R.id.widget_artist_name, artist)
+        if (glass != null) {
+            views.setImageViewBitmap(R.id.widget_glass_bg, glass)
+        }
 
         if (albumArt != null) {
             val roundedAlbumArt = getRoundedCornerBitmap(albumArt, 48f)
@@ -187,16 +206,17 @@ class MochyWidgetManager @Inject constructor(
         val likeIcon = if (isLiked) R.drawable.ic_widget_heart_nav else R.drawable.ic_widget_heart_outline_nav
         views.setImageViewResource(R.id.widget_like_button, likeIcon)
 
-        if (duration > 0) {
-            val level = ((currentPosition.toDouble() / duration.toDouble()) * 10000).toInt()
-            views.setInt(R.id.widget_progress_fill, "setImageLevel", level)
-        } else {
-            views.setInt(R.id.widget_progress_fill, "setImageLevel", 0)
-        }
+        val level = WidgetProgress.level(currentPosition, duration)
+        views.setProgressBar(R.id.widget_seek, WidgetProgress.MAX, level, false)
+        views.setTextViewText(R.id.widget_time_pos, WidgetProgress.formatMs(currentPosition))
+        views.setTextViewText(R.id.widget_time_dur, WidgetProgress.formatMs(duration))
+        bindSeek(views)
 
         views.setOnClickPendingIntent(R.id.widget_album_art, getOpenAppIntent())
         views.setOnClickPendingIntent(R.id.widget_play_pause_container, getPlayPauseIntent())
         views.setOnClickPendingIntent(R.id.widget_like_button, getLikeIntent())
+        views.setOnClickPendingIntent(R.id.widget_prev, getPreviousIntent())
+        views.setOnClickPendingIntent(R.id.widget_next, getNextIntent())
 
         return views
     }
@@ -365,6 +385,53 @@ class MochyWidgetManager @Inject constructor(
         drawable.setBounds(0, 0, size, size)
         drawable.draw(canvas)
         return getRoundedCornerBitmap(bitmap, cornerRadius)
+    }
+
+    private fun bindSeek(views: RemoteViews) {
+        if (Build.VERSION.SDK_INT < 31) return
+        runCatching {
+            RemoteViewsCompat.setOnSeekBarChangeResponse(
+                views,
+                R.id.widget_seek,
+                RemoteViewsCompat.RemoteResponse.fromPendingIntent(getSeekIntent()),
+            )
+        }
+    }
+
+    private fun getSeekIntent(): PendingIntent {
+        val intent = Intent(context, MusicWidgetReceiver::class.java).apply {
+            action = MusicWidgetReceiver.ACTION_SEEK
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            6,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+        )
+    }
+
+    private fun getNextIntent(): PendingIntent {
+        val intent = Intent(context, MusicWidgetReceiver::class.java).apply {
+            action = MusicWidgetReceiver.ACTION_NEXT
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            7,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    private fun getPreviousIntent(): PendingIntent {
+        val intent = Intent(context, MusicWidgetReceiver::class.java).apply {
+            action = MusicWidgetReceiver.ACTION_PREVIOUS
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            8,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
     }
 
     private fun getOpenAppIntent(): PendingIntent {

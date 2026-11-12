@@ -386,7 +386,8 @@
     <string name="play_pause">Putar/Jeda</string>
     <string name="next">Selanjutnya</string>
     <string name="like">Suka</string>
-    <string name="widget_description">Widget pemutar musik dengan kontrol pemutaran</string>
+    <string name="widget_description">Widget kaca cair: sampul blur, geser menit lagu, putar dan loncat</string>
+    <string name="widget_time_zero">0:00</string>
     <string name="turntable_widget_description">Widget musik berbentuk lingkaran dengan kontrol putar dan suka</string>
     <string name="system_equalizer">Ekualiser Sistem</string>
     <string name="queue_widget_description">Pemutar musik dengan pratinjau antrean</string>
