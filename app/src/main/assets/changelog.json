@@ -1,8 +1,16 @@
 {
-  "versionName": "8.3.3-xbibz.15",
-  "versionCode": 88,
-  "description": "Mochy Xbibz **8.3.3-xbibz.15**: saklar pembaruan pra-rilis (default mati) dan pengembang **Xbibz Official777**.",
+  "versionName": "8.3.3-xbibz.16",
+  "versionCode": 89,
+  "description": "Mochy Xbibz **8.3.3-xbibz.16**: kartu pemutar di layar kunci mengikuti warna sampul lagu, plus baris lirik yang sedang dinyanyikan kalau tersedia.",
   "changelog": [
+    {
+      "title": "8.3.3-xbibz.16",
+      "items": [
+        "Kartu pemutar di notifikasi dan layar kunci mewarnai dirinya dari sampul lagu yang sedang diputar, bukan abu-abu polos.",
+        "Baris lirik yang sedang dinyanyikan ditampilkan di kartu itu kalau lirik tersinkron tersedia.",
+        "Kanal notifikasi pemutar diganti supaya Android mengizinkan pewarnaan (tanpa bunyi atau getar)."
+      ]
+    },
     {
       "title": "8.3.3-xbibz.15",
       "items": [

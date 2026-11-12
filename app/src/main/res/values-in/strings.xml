@@ -147,6 +147,8 @@
     <string name="queue_all_songs">Semua lagu</string>
     <string name="queue_searched_songs">Lagu yang dicari</string>
     <string name="music_player">Pemutar Musik</string>
+    <string name="playing_status">Memutar</string>
+    <string name="paused_status">Dijeda</string>
     <string name="settings">Pengaturan</string>
     <string name="appearance">Tampilan</string>
     <string name="enable_dynamic_theme">Aktifkan tema dinamis</string>

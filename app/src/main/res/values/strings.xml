@@ -257,6 +257,8 @@
 
     <!-- Notification name -->
     <string name="music_player">Music Player</string>
+    <string name="playing_status">Playing</string>
+    <string name="paused_status">Paused</string>
 
     <!-- Settings -->
     <string name="settings">Settings</string>

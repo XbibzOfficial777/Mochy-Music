@@ -73,7 +73,6 @@ import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.mkv.MatroskaExtractor
 import androidx.media3.extractor.mp4.FragmentedMp4Extractor
 import androidx.media3.session.CommandButton
-import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
@@ -85,6 +84,7 @@ import com.music.innertube.models.SongItem
 import com.music.innertube.models.WatchEndpoint
 import com.mochyy.mochymusic.MainActivity
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.core.updater.downloadmanager.MochyNotificationProvider
 import com.mochyy.mochymusic.constants.AudioNormalizationKey
 import com.mochyy.mochymusic.constants.AudioOffload
 import com.mochyy.mochymusic.constants.AudioQualityKey
@@ -188,6 +188,7 @@ import com.mochyy.mochymusic.extensions.toMediaItem
 import com.mochyy.mochymusic.extensions.toPersistQueue
 import com.mochyy.mochymusic.extensions.toQueue
 import com.mochyy.mochymusic.lyrics.LyricsHelper
+import com.mochyy.mochymusic.lyrics.LyricsUtils
 import com.mochyy.mochymusic.models.PersistPlayerState
 import com.mochyy.mochymusic.models.PersistQueue
 import com.mochyy.mochymusic.models.toMediaMetadata
@@ -742,13 +743,21 @@ class MusicService :
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val nm = getSystemService(NotificationManager::class.java)
-                nm?.createNotificationChannel(
-                    NotificationChannel(
-                        CHANNEL_ID,
-                        getString(R.string.music_player),
-                        NotificationManager.IMPORTANCE_LOW
-                    )
-                )
+                // The old silent LOW channel never colourised MediaStyle. A new id is required
+                // because Android will not raise an existing channel's importance.
+                runCatching { nm?.deleteNotificationChannel("music_channel_01") }
+                val channel = NotificationChannel(
+                    CHANNEL_ID,
+                    getString(R.string.music_player),
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                ).apply {
+                    setSound(null, null)
+                    enableVibration(false)
+                    enableLights(false)
+                    setShowBadge(false)
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                }
+                nm?.createNotificationChannel(channel)
             }
             val pending = PendingIntent.getActivity(
                 this,
@@ -770,15 +779,12 @@ class MusicService :
         }
 
         setMediaNotificationProvider(
-            DefaultMediaNotificationProvider(
+            MochyNotificationProvider(
                 this,
                 { NOTIFICATION_ID },
                 CHANNEL_ID,
-                R.string.music_player
-            )
-                .apply {
-                    setSmallIcon(R.drawable.mochy_notification)
-                },
+                R.string.music_player,
+            ).setSmallIcon(R.drawable.mochy_notification),
         )
         audioOutputs.onRouteChanged = ::applyOutputRoute
         audioOutputs.preferUsb = dataStore.get(PreferUsbDacKey, false)
@@ -1027,6 +1033,56 @@ class MusicService :
                         )
                     }
                 }
+            }
+        }
+
+        currentMediaMetadata.distinctUntilChangedBy { it?.id }.collectLatest(scope) { mediaMetadata ->
+            NowPlayingChrome.lyricLine = null
+            NowPlayingChrome.artworkColor = null
+            if (mediaMetadata == null) {
+                updateNotification()
+                return@collectLatest
+            }
+            val lyricsText = withContext(Dispatchers.IO) {
+                val stored = runCatching { database.lyrics(mediaMetadata.id).first()?.lyrics }.getOrNull()
+                if (stored != null) return@withContext stored.takeUnless { it == LyricsEntity.LYRICS_NOT_FOUND }
+                val found = kotlinx.coroutines.withTimeoutOrNull(10_000L) {
+                    runCatching { lyricsHelper.getLyrics(mediaMetadata) }.getOrNull()
+                } ?: return@withContext null
+                if (found.provider == com.mochyy.mochymusic.lyrics.LyricsHelper.NoConnectionProvider) {
+                    return@withContext null
+                }
+                runCatching {
+                    database.query {
+                        upsert(
+                            LyricsEntity(
+                                id = mediaMetadata.id,
+                                lyrics = found.lyrics,
+                                provider = found.provider,
+                            ),
+                        )
+                    }
+                }
+                found.lyrics.takeUnless { it == LyricsEntity.LYRICS_NOT_FOUND }
+            }
+            val lines = lyricsText
+                ?.let { runCatching { LyricsUtils.parseLyricsCached(it) }.getOrNull() }
+                ?.filter { it.text.isNotBlank() }
+                .orEmpty()
+            if (lines.isEmpty()) {
+                updateNotification()
+                return@collectLatest
+            }
+            var lastLine: String? = null
+            while (isActive && currentMediaMetadata.value?.id == mediaMetadata.id) {
+                val index = LyricsUtils.findCurrentLineIndex(lines, player.currentPosition)
+                val line = lines.getOrNull(index)?.text?.trim()?.takeIf { it.isNotBlank() }
+                if (line != lastLine) {
+                    lastLine = line
+                    NowPlayingChrome.lyricLine = line
+                    updateNotification()
+                }
+                delay(if (player.isPlaying) 350L else 900L)
             }
         }
 
@@ -4216,6 +4272,7 @@ class MusicService :
         crossmixDirector.release()
         fadingLoudnessEnhancer?.runCatching { release() }
         fadingLoudnessEnhancer = null
+        NowPlayingChrome.clear()
         mediaSession.release()
         player.removeListener(this)
         player.removeListener(sleepTimer)
@@ -5108,7 +5165,7 @@ class MusicService :
         const val SEARCH = "search"
         const val SHUFFLE_ACTION = "__shuffle__"
 
-        const val CHANNEL_ID = "music_channel_01"
+        const val CHANNEL_ID = "music_channel_color_01"
         const val ERROR_CHANNEL_ID = "playback_errors_01"
         const val ERROR_NOTIFICATION_ID = 889
         const val NOTIFICATION_ID = 888
