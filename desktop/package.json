@@ -1,0 +1,80 @@
+{
+  "name": "mochy-xbibz-desktop",
+  "version": "0.1.0",
+  "description": "Mochy Xbibz untuk Windows dan Linux — pra-rilis. Pengembang: Xbibz Official Technology ID.",
+  "homepage": "https://github.com/XbibzOfficial777/Mochy-Music",
+  "main": "main.js",
+  "author": "Xbibz Official Technology ID <xbibzke2@gmail.com>",
+  "license": "GPL-3.0-only",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron . --smoke",
+    "dist:win": "electron-builder --win nsis --x64",
+    "dist:linux": "electron-builder --linux deb --x64"
+  },
+  "dependencies": {
+    "youtubei.js": "15.1.1"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "id.xbibz.mochymusic.desktop",
+    "productName": "Mochy Xbibz",
+    "copyright": "Copyright (C) 2026 Xbibz Official Technology ID — GNU GPL v3.0",
+    "directories": {
+      "output": "dist",
+      "buildResources": "resources"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "resources/icon.png",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "prerelease": true
+    },
+    "win": {
+      "icon": "resources/icon.png",
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Mochy Xbibz",
+      "artifactName": "Mochy-Xbibz-desktop-${version}-win-x64-setup.exe"
+    },
+    "linux": {
+      "icon": "resources/icon.png",
+      "category": "AudioVideo;Audio;Player;",
+      "maintainer": "Xbibz Official Technology ID <xbibzke2@gmail.com>",
+      "synopsis": "Pemutar musik Mochy Xbibz (pra-rilis desktop)",
+      "desktop": {
+        "Name": "Mochy Xbibz",
+        "Comment": "Pemutar musik Mochy Xbibz — pra-rilis"
+      },
+      "target": [
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "deb": {
+      "artifactName": "Mochy-Xbibz-desktop-${version}-linux-amd64.deb"
+    }
+  }
+}

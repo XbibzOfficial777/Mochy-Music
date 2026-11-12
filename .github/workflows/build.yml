@@ -14,6 +14,8 @@ on:
       - 'fastlane/**'
       - 'assets/**'
       - '.github/**/*.md'
+      - 'desktop/**'
+      - 'release-notes/**'
   pull_request:
     branches: [ '**' ]
 

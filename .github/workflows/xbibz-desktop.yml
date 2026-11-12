@@ -1,0 +1,163 @@
+name: Xbibz desktop pre-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'After tests, publish a GitHub pre-release (exe + deb)'
+        required: false
+        default: false
+        type: boolean
+  push:
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/xbibz-desktop.yml'
+  pull_request:
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/xbibz-desktop.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: xbibz-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke-linux:
+    name: Desktop smoke · Linux virtual display
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install display and Electron libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 libgbm1
+          sudo apt-get install -y libasound2t64 || sudo apt-get install -y libasound2
+      - name: Install npm packages
+        run: npm install --no-fund --no-audit
+      - name: Launch Electron on Xvfb
+        run: |
+          set -euo pipefail
+          xvfb-run -a npx electron . --smoke
+          test -s desktop-smoke-ok.txt
+          cat desktop-smoke-ok.txt
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: desktop-smoke-linux
+          path: desktop/desktop-smoke-ok.txt
+          if-no-files-found: warn
+
+  smoke-windows:
+    name: Desktop smoke · Windows
+    runs-on: windows-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install npm packages
+        run: npm install --no-fund --no-audit
+      - name: Launch Electron
+        shell: pwsh
+        run: |
+          npx electron . --smoke
+          if (-not (Test-Path desktop-smoke-ok.txt)) { throw 'smoke marker missing' }
+          Get-Content desktop-smoke-ok.txt
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: desktop-smoke-windows
+          path: desktop/desktop-smoke-ok.txt
+          if-no-files-found: warn
+
+  package-linux:
+    name: Package .deb
+    needs: smoke-linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dpkg tools
+        run: sudo apt-get update && sudo apt-get install -y fakeroot dpkg
+      - run: npm install --no-fund --no-audit
+      - name: Build Debian package
+        run: npx electron-builder --linux deb --x64
+      - uses: actions/upload-artifact@v6
+        with:
+          name: mochy-xbibz-linux-deb
+          path: desktop/dist/*.deb
+          if-no-files-found: error
+
+  package-windows:
+    name: Package .exe
+    needs: smoke-windows
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: desktop
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-fund --no-audit
+      - name: Build NSIS installer
+        run: npx electron-builder --win nsis --x64
+      - uses: actions/upload-artifact@v6
+        with:
+          name: mochy-xbibz-windows-exe
+          path: desktop/dist/*.exe
+          if-no-files-found: error
+
+  publish-prerelease:
+    name: Publish GitHub pre-release
+    needs: [package-linux, package-windows]
+    if: github.event_name == 'workflow_dispatch' && inputs.publish == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: mochy-xbibz-*
+          path: dist
+          merge-multiple: true
+      - name: Create pre-release (does not replace Android latest)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          tag="v8.3.3-xbibz.desktop-pre.1"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Pre-release $tag already exists; uploading assets if missing."
+            gh release upload "$tag" dist/*.exe dist/*.deb --clobber
+            exit 0
+          fi
+          notes="release-notes/desktop-pre.1.md"
+          gh release create "$tag" dist/*.exe dist/*.deb \
+            --prerelease \
+            --title "Mochy Xbibz Desktop 0.1.0 (pra-rilis)" \
+            --notes-file "$notes"

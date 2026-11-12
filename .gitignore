@@ -100,3 +100,8 @@ lint/
 # Python verification outputs
 __pycache__/
 *.pyc
+
+# Desktop (Electron) outputs — sources in desktop/ stay tracked
+desktop/node_modules/
+desktop/dist/
+desktop/desktop-smoke-ok.txt

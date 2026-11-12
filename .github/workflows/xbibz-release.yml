@@ -12,7 +12,8 @@ on:
       # Builds and verifies all three APKs without publishing; the tag push is what publishes.
       - optimize/bibz-uiux-fixes
     tags:
-      - 'v*'
+      # Official Android tags only (v8.3.3-xbibz.14). Desktop pre-release tags must not match.
+      - 'v*-xbibz.[0-9]*'
 
 permissions:
   contents: write

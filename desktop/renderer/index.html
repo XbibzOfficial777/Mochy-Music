@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mochy Xbibz</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="app">
+    <aside class="rail glass">
+      <div class="brand">
+        <img src="../resources/icon.png" alt="" width="40" height="40" />
+        <div>
+          <strong>Mochy Xbibz</strong>
+          <span>Pra-rilis desktop</span>
+        </div>
+      </div>
+      <nav>
+        <button class="nav-btn is-on" data-view="home" type="button">Beranda</button>
+        <button class="nav-btn" data-view="search" type="button">Cari</button>
+        <button class="nav-btn" data-view="queue" type="button">Antrian</button>
+        <button class="nav-btn" data-view="about" type="button">Tentang</button>
+      </nav>
+      <p class="rail-note">Bukan rilis Android resmi. Bisa dipakai, masih diuji.</p>
+    </aside>
+
+    <main class="stage">
+      <header class="top glass">
+        <div class="search-wrap">
+          <input id="q" type="search" placeholder="Cari lagu, artis, atau album…" autocomplete="off" />
+          <button id="go" type="button">Cari</button>
+        </div>
+        <div id="status" class="status">Siap</div>
+      </header>
+
+      <section id="view-home" class="view is-on">
+        <h1>Untuk kamu</h1>
+        <p class="lede">Cari di YouTube Music, lalu putar di jendela ini. Animasi kaca cair, tanpa saklar kaku.</p>
+        <div id="home-grid" class="grid"></div>
+      </section>
+
+      <section id="view-search" class="view">
+        <h1>Hasil</h1>
+        <div id="results" class="list"></div>
+      </section>
+
+      <section id="view-queue" class="view">
+        <h1>Antrian</h1>
+        <div id="queue" class="list"></div>
+      </section>
+
+      <section id="view-about" class="view">
+        <h1>Xbibz Official Technology ID</h1>
+        <p class="lede">Fork Mochy Music untuk desktop. Versi Android resmi tetap di GitHub Releases (bukan pra-rilis).</p>
+        <div class="about-actions">
+          <button type="button" data-open="https://ko-fi.com/xbibzofficial">Ko-fi</button>
+          <button type="button" data-open="https://saweria.co/xbibzofficial">Saweria</button>
+          <button type="button" data-open="https://t.me/xbibzofficial">Telegram</button>
+          <button type="button" data-open="https://www.youtube.com/@XbibzOfficial">YouTube</button>
+        </div>
+        <p id="about-ver" class="muted"></p>
+      </section>
+    </main>
+  </div>
+
+  <footer class="player glass">
+    <img id="cover" alt="" />
+    <div class="now">
+      <strong id="title">Belum ada lagu</strong>
+      <span id="artist">Pilih lagu untuk mulai</span>
+    </div>
+    <div class="transport">
+      <button id="prev" type="button" aria-label="Sebelumnya">⏮</button>
+      <button id="play" class="play" type="button" aria-label="Putar">▶</button>
+      <button id="next" type="button" aria-label="Berikutnya">⏭</button>
+    </div>
+    <div class="seek">
+      <span id="t0">0:00</span>
+      <div id="bar" class="bar"><i id="fill"></i><b id="thumb"></b></div>
+      <span id="t1">0:00</span>
+    </div>
+    <input id="vol" type="range" min="0" max="1" step="0.01" value="0.9" aria-label="Volume" />
+  </footer>
+
+  <aside id="lyrics" class="lyrics glass" hidden>
+    <h2>Lirik</h2>
+    <pre id="lyrics-body"></pre>
+  </aside>
+
+  <audio id="audio" preload="none"></audio>
+  <script src="app.js"></script>
+</body>
+</html>
