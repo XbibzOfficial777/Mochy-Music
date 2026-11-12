@@ -104,7 +104,8 @@ class MochyNotificationProvider(
             val painted = builder.build()
             if (color != null) {
                 painted.color = color
-                painted.extras.putBoolean(Notification.EXTRA_COLORIZED, true)
+                // Literal extra: Notification.EXTRA_COLORIZED is API 26; minSdk is 24.
+                painted.extras.putBoolean("android.colorized", true)
             }
             if (lyric != null) {
                 painted.extras.putCharSequence("android.media.metadata.LYRICS", lyric)
