@@ -1074,7 +1074,7 @@ class MusicService :
                 return@collectLatest
             }
             var lastLine: String? = null
-            while (isActive && currentMediaMetadata.value?.id == mediaMetadata.id) {
+            while (scope.isActive && currentMediaMetadata.value?.id == mediaMetadata.id) {
                 val index = LyricsUtils.findCurrentLineIndex(lines, player.currentPosition)
                 val line = lines.getOrNull(index)?.text?.trim()?.takeIf { it.isNotBlank() }
                 if (line != lastLine) {
