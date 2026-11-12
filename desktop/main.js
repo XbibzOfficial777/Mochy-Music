@@ -11,6 +11,9 @@ const SMOKE = process.argv.includes('--smoke')
 if (SMOKE) {
   app.disableHardwareAcceleration()
 }
+if (SMOKE || process.env.ELECTRON_DISABLE_SANDBOX === '1') {
+  app.commandLine.appendSwitch('no-sandbox')
+}
 const IDENTITY = {
   name: 'Xbibz Official Technology ID',
   kofi: 'https://ko-fi.com/xbibzofficial',
