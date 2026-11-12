@@ -47,7 +47,7 @@ jobs:
       - name: Launch Electron on Xvfb
         run: |
           set -euo pipefail
-          xvfb-run -a npx electron . --smoke
+          xvfb-run -a npx electron --no-sandbox . --smoke
           test -s desktop-smoke-ok.txt
           cat desktop-smoke-ok.txt
       - uses: actions/upload-artifact@v6
