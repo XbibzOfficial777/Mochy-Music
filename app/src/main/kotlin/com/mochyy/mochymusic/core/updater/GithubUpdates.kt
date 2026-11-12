@@ -50,6 +50,8 @@ private val ReleasesApi: String
 @Volatile
 private var includePreReleaseUpdates: Boolean = false
 
+fun includePreReleaseUpdatesEnabled(): Boolean = includePreReleaseUpdates
+
 /** Call when the settings switch changes so the next GitHub read uses the new channel. */
 fun setIncludePreReleaseUpdates(enabled: Boolean) {
     synchronized(cacheLock) {

@@ -80,6 +80,7 @@ import com.mochyy.mochymusic.core.updater.apkFileFor
 import com.mochyy.mochymusic.core.updater.downloadApk
 import com.mochyy.mochymusic.core.updater.formatBytes
 import com.mochyy.mochymusic.constants.IncludePreReleaseUpdatesKey
+import com.mochyy.mochymusic.core.updater.appDisplayName
 import com.mochyy.mochymusic.core.updater.getLatestRelease
 import com.mochyy.mochymusic.core.updater.getPreviousRelease
 import com.mochyy.mochymusic.core.updater.setIncludePreReleaseUpdates
@@ -197,7 +198,7 @@ private fun ColumnScope.UpdateSheetContent(
     Box(Modifier.fillMaxWidth()) {
         // centred just inside the sheet's top-right corner so its edge cuts the ring off, no size of its own so it never pushes content around
         VersionRing(
-            text = "MOCHY $installed",
+            text = "${appDisplayName("MOCHY", includePreRelease = includePreRelease)} $installed",
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .layout { measurable, constraints ->

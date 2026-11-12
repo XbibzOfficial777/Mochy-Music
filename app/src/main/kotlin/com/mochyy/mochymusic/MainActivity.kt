@@ -4,6 +4,7 @@ package com.mochyy.mochymusic
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
@@ -160,6 +161,9 @@ import com.mochyy.mochymusic.constants.SwipeToSongKey
 import com.mochyy.mochymusic.constants.DisableScreenshotKey
 import com.mochyy.mochymusic.constants.DynamicThemeKey
 import com.mochyy.mochymusic.constants.EnableHighRefreshRateKey
+import com.mochyy.mochymusic.constants.IncludePreReleaseUpdatesKey
+import com.mochyy.mochymusic.core.updater.appDisplayName
+import com.mochyy.mochymusic.core.updater.applyAppDisplayName
 import com.mochyy.mochymusic.constants.MiniPlayerBottomSpacing
 import com.mochyy.mochymusic.constants.MiniPlayerHeight
 import com.mochyy.mochymusic.constants.NavigationBarAnimationSpec
@@ -468,7 +472,12 @@ class MainActivity : ComponentActivity() {
     ) {
         val enableDynamicTheme by rememberPreference(DynamicThemeKey, defaultValue = true)
         val enableHighRefreshRate by rememberPreference(EnableHighRefreshRateKey, defaultValue = true)
+        val includePreRelease by rememberPreference(IncludePreReleaseUpdatesKey, defaultValue = false)
         val context = LocalContext.current
+        val brandedName = appDisplayName(stringResource(R.string.app_name), includePreRelease = includePreRelease)
+        LaunchedEffect(brandedName) {
+            (context as? Activity)?.applyAppDisplayName(brandedName)
+        }
 
         LaunchedEffect(Unit) {
             if (getAutoUpdateCheckSetting(context)) {

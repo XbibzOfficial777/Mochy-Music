@@ -7,6 +7,7 @@
       "title": "8.3.3-xbibz.15",
       "items": [
         "Pengaturan pembaruan punya saklar **pra-rilis** (default mati). Saat nyala, aplikasi juga menawarkan rilis GitHub yang ditandai pra-rilis dan masih punya APK. Tag desktop tanpa APK tetap diabaikan.",
+        "Saat saluran pra-rilis nyala (atau versi `-pre`), nama aplikasi menjadi **Mochy Xbibz (Beta)**.",
         "Pengembang fork: **Xbibz Official777**."
       ]
     },
