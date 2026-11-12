@@ -6,7 +6,7 @@
     {
       "title": "8.3.3-xbibz.16",
       "items": [
-        "Kartu pemutar di notifikasi dan layar kunci mewarnai dirinya dari sampul lagu yang sedang diputar, bukan abu-abu polos.",
+        "Kartu pemutar di notifikasi dan layar kunci mewarnai dirinya dari sampul lagu yang sedang diputar, termasuk Android 16 (MediaStyle + setColorized, bukan Live Update yang malah memaksa kartu abu-abu).",
         "Baris lirik yang sedang dinyanyikan ditampilkan di kartu itu kalau lirik tersinkron tersedia.",
         "Kanal notifikasi pemutar diganti supaya Android mengizinkan pewarnaan (tanpa bunyi atau getar)."
       ]

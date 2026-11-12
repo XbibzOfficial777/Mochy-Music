@@ -9,9 +9,8 @@ import android.graphics.drawable.BitmapDrawable
 import android.os.Build
 import android.os.Bundle
 import androidx.annotation.OptIn
+import androidx.core.app.NotificationCompat
 import androidx.core.graphics.ColorUtils
-import androidx.media3.common.C
-import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -21,8 +20,21 @@ import androidx.palette.graphics.Palette
 import com.google.common.collect.ImmutableList
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.playback.NowPlayingChrome
-import java.util.Locale
 
+/**
+ * MediaStyle card tinted from the current cover, including Android 16.
+ *
+ * Platform rules that matter here:
+ * - From Oreo, a MediaStyle notification with a media session is colourised from
+ *   artwork unless the app opts out with [Notification.Builder.setColorized] false.
+ *   See Notification.MediaStyle.
+ * - Android 16 Live Updates (promoted ongoing) must NOT be colourised and must NOT
+ *   use MediaStyle. Requesting promotion on this card would force a grey slab.
+ *   See https://developer.android.com/develop/ui/views/notifications/live-update
+ *
+ * So this provider keeps MediaStyle, sets an explicit palette colour, and never
+ * asks to be promoted.
+ */
 @OptIn(UnstableApi::class)
 class MochyNotificationProvider(
     private val context: Context,
@@ -54,78 +66,60 @@ class MochyNotificationProvider(
             customLayout,
             actionFactory,
         ) { updated ->
-            onNotificationChangedCallback.onNotificationChanged(paint(updated, mediaSession))
+            onNotificationChangedCallback.onNotificationChanged(paint(updated))
         }
-        return paint(mediaNotification, mediaSession)
+        return paint(mediaNotification)
     }
 
     override fun handleCustomCommand(session: MediaSession, action: String, extras: Bundle): Boolean =
         defaultProvider.handleCustomCommand(session, action, extras)
 
-    private fun paint(mediaNotification: MediaNotification, mediaSession: MediaSession): MediaNotification {
+    private fun paint(mediaNotification: MediaNotification): MediaNotification {
         return runCatching {
             val notification = mediaNotification.notification
-            val builder = Notification.Builder.recoverBuilder(context, notification)
-            val artwork = largeArtwork(notification)
+            // Compat recover keeps Media3's MediaStyle + session token. Platform
+            // recoverBuilder can drop them, and without a session token Android
+            // will not colourise the card.
+            val builder = NotificationCompat.Builder(context, notification)
+            val artwork = usableArtwork(notification)
             val color = NowPlayingChrome.artworkColor
                 ?: artwork?.let { colorFromCover(it) }?.also { NowPlayingChrome.artworkColor = it }
             if (color != null) {
                 builder.setColor(color)
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                builder.setColorized(true)
-            }
+            builder.setColorized(true)
             if (artwork != null) builder.setLargeIcon(artwork)
-            builder.setVisibility(Notification.VISIBILITY_PUBLIC)
-            builder.setCategory(Notification.CATEGORY_TRANSPORT)
+            builder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            builder.setCategory(NotificationCompat.CATEGORY_TRANSPORT)
             builder.setSmallIcon(R.drawable.mochy_notification)
+            builder.setOngoing(true)
+            builder.setOnlyAlertOnce(true)
+            builder.setSilent(true)
 
             val lyric = NowPlayingChrome.lyricLine?.trim()?.takeIf { it.isNotEmpty() }?.take(90)
             if (lyric != null) {
                 builder.setSubText(lyric)
-                builder.extras.putCharSequence("android.media.metadata.LYRICS", lyric)
-                builder.extras.putCharSequence("androidx.media3.metadata.extras.LYRICS", lyric)
-            }
-
-            if (Build.VERSION.SDK_INT >= 36 || Build.VERSION.CODENAME == "Baklava") {
-                applyAndroid16Transport(builder, mediaSession.player)
             }
 
             val painted = builder.build()
+            if (color != null) {
+                painted.color = color
+                painted.extras.putBoolean(Notification.EXTRA_COLORIZED, true)
+            }
+            if (lyric != null) {
+                painted.extras.putCharSequence("android.media.metadata.LYRICS", lyric)
+            }
             copyMediaSessionToken(notification, painted)
             MediaNotification(mediaNotification.notificationId, painted)
         }.getOrElse { mediaNotification }
     }
 
-    private fun applyAndroid16Transport(builder: Notification.Builder, player: Player) {
-        builder.setOngoing(true)
-        setRequestPromotedOngoingSafely(builder, true)
-        builder.extras.putBoolean("android.requestPromotedOngoing", true)
-
-        val durationMs = player.duration
-        val currentPosMs = player.currentPosition
-        val isPlaying = player.playWhenReady && player.playbackState == Player.STATE_READY
-        val formattedTime = if (durationMs != C.TIME_UNSET && durationMs > 0) {
-            val totalSeconds = durationMs / 1000
-            String.format(Locale.getDefault(), "%d:%02d", totalSeconds / 60, totalSeconds % 60)
-        } else {
-            null
-        }
-        if (isPlaying) {
-            setShortCriticalTextSafely(builder, NowPlayingChrome.lyricLine ?: formattedTime ?: context.getString(R.string.playing_status))
-            if (durationMs != C.TIME_UNSET && durationMs > 0) {
-                builder.setWhen(System.currentTimeMillis() + (durationMs - currentPosMs))
-                builder.setUsesChronometer(true)
-                setChronometerCountDownSafely(builder, true)
-            } else {
-                builder.setWhen(System.currentTimeMillis())
-                builder.setShowWhen(true)
-            }
-        } else {
-            setShortCriticalTextSafely(builder, NowPlayingChrome.lyricLine ?: formattedTime ?: context.getString(R.string.paused_status))
-            builder.setShowWhen(false)
-            builder.setUsesChronometer(false)
-        }
+    private fun usableArtwork(notification: Notification): Bitmap? {
+        val bitmap = largeArtwork(notification) ?: return null
+        // CoilBitmapLoader's 64×64 fallback is an empty square; SystemUI's
+        // palette then paints the lock-screen card grey.
+        if (bitmap.width < 96 || bitmap.height < 96) return null
+        return bitmap
     }
 
     private fun largeArtwork(notification: Notification): Bitmap? {
@@ -169,39 +163,6 @@ class MochyNotificationProvider(
             @Suppress("DEPRECATION")
             from.extras.getParcelable<android.media.session.MediaSession.Token>(Notification.EXTRA_MEDIA_SESSION)
                 ?.let { to.extras.putParcelable(Notification.EXTRA_MEDIA_SESSION, it) }
-        }
-    }
-
-    private fun setShortCriticalTextSafely(builder: Notification.Builder, text: String) {
-        try {
-            val method = Notification.Builder::class.java.getMethod("setShortCriticalText", CharSequence::class.java)
-            method.invoke(builder, text)
-        } catch (_: Exception) {
-            builder.extras.putCharSequence("android.shortCriticalText", text)
-        }
-    }
-
-    private fun setChronometerCountDownSafely(builder: Notification.Builder, countDown: Boolean) {
-        try {
-            val method = Notification.Builder::class.java.getMethod(
-                "setChronometerCountDown",
-                Boolean::class.javaPrimitiveType,
-            )
-            method.invoke(builder, countDown)
-        } catch (_: Exception) {
-            builder.extras.putBoolean("android.chronometerCountDown", countDown)
-        }
-    }
-
-    private fun setRequestPromotedOngoingSafely(builder: Notification.Builder, promoted: Boolean) {
-        val methodNames = arrayOf("setRequestPromotedOngoing", "setPromotedOngoing", "setOngoingActivity")
-        for (name in methodNames) {
-            try {
-                val method = Notification.Builder::class.java.getMethod(name, Boolean::class.javaPrimitiveType)
-                method.invoke(builder, promoted)
-                return
-            } catch (_: Exception) {
-            }
         }
     }
 }
