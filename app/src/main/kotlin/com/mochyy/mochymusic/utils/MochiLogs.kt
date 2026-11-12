@@ -25,6 +25,7 @@ import java.util.concurrent.Executors
  * downloads). If it cannot be created, the same files go to the app's external
  * files dir, then to internal files — never silently dropped.
  */
+@SuppressLint("StaticFieldLeak")
 object MochiLogs {
     const val DIR_NAME = MochiLogFormat.DIR_NAME
 
@@ -68,10 +69,10 @@ object MochiLogs {
         }
     }
 
+    @Suppress("DEPRECATION")
     fun dir(): File {
         val ctx = app
         val candidates = buildList {
-            add(File("/sdcard/$DIR_NAME"))
             runCatching { add(File(Environment.getExternalStorageDirectory(), DIR_NAME)) }
             if (ctx != null) {
                 ctx.getExternalFilesDir(null)?.let { add(File(it, DIR_NAME)) }
@@ -81,7 +82,7 @@ object MochiLogs {
         for (candidate in candidates.distinctBy { it.absolutePath }) {
             if (ensureWritable(candidate)) return candidate
         }
-        return File("/sdcard/$DIR_NAME")
+        return File(Environment.getExternalStorageDirectory(), DIR_NAME)
     }
 
     @Suppress("DEPRECATION")
