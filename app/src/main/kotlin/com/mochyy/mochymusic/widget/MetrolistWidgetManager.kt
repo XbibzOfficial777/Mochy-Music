@@ -13,11 +13,9 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
-import android.os.Build
 import android.os.Bundle
 import android.widget.RemoteViews
 import androidx.core.graphics.createBitmap
-import androidx.core.widget.RemoteViewsCompat
 import coil3.ImageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
@@ -51,6 +49,22 @@ class MochyWidgetManager @Inject constructor(
 
     /** One update at a time: they share the cached artwork, and they no longer run on one thread. */
     private val updating = kotlinx.coroutines.sync.Mutex()
+
+    private val SEEK_REQUEST_BASE = 200
+
+    private val seekHitIds = intArrayOf(
+        R.id.widget_seek_hit_0,
+        R.id.widget_seek_hit_1,
+        R.id.widget_seek_hit_2,
+        R.id.widget_seek_hit_3,
+        R.id.widget_seek_hit_4,
+        R.id.widget_seek_hit_5,
+        R.id.widget_seek_hit_6,
+        R.id.widget_seek_hit_7,
+        R.id.widget_seek_hit_8,
+        R.id.widget_seek_hit_9,
+    )
+
 
     /**
      * Redraws every placed widget. Runs off the main thread: the system calls and bitmap work here
@@ -388,25 +402,24 @@ class MochyWidgetManager @Inject constructor(
     }
 
     private fun bindSeek(views: RemoteViews) {
-        if (Build.VERSION.SDK_INT < 31) return
-        runCatching {
-            RemoteViewsCompat.setOnSeekBarChangeResponse(
-                views,
-                R.id.widget_seek,
-                RemoteViewsCompat.RemoteResponse.fromPendingIntent(getSeekIntent()),
-            )
+        // RemoteViews has no SeekBar listener (AOSP / core-remoteviews 1.1.0).
+        // Tap zones along the ProgressBar jump to that part of the song.
+        seekHitIds.forEachIndexed { index, id ->
+            views.setOnClickPendingIntent(id, getSeekIntent(index))
         }
     }
 
-    private fun getSeekIntent(): PendingIntent {
+    private fun getSeekIntent(segment: Int): PendingIntent {
+        val level = WidgetProgress.segmentLevel(segment, seekHitIds.size)
         val intent = Intent(context, MusicWidgetReceiver::class.java).apply {
             action = MusicWidgetReceiver.ACTION_SEEK
+            putExtra(MusicWidgetReceiver.EXTRA_SEEK_PROGRESS, level)
         }
         return PendingIntent.getBroadcast(
             context,
-            6,
+            SEEK_REQUEST_BASE + segment,
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
 

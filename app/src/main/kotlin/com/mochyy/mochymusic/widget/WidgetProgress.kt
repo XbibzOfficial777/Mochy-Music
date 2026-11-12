@@ -19,4 +19,10 @@ object WidgetProgress {
         if (duration <= 0L || max <= 0) return 0L
         return (duration * level.coerceIn(0, max).toLong()) / max
     }
+
+    fun segmentLevel(index: Int, segments: Int = 10, max: Int = MAX): Int {
+        if (segments <= 0 || max <= 0) return 0
+        val i = index.coerceIn(0, segments - 1)
+        return ((i * 2 + 1) * max) / (segments * 2)
+    }
 }

@@ -24,4 +24,11 @@ class WidgetProgressTest {
         assertEquals(0, WidgetProgress.level(10, 0))
         assertEquals(0L, WidgetProgress.positionFromLevel(500, 0))
     }
+
+    @Test
+    fun segmentMidpoints() {
+        assertEquals(50, WidgetProgress.segmentLevel(0))
+        assertEquals(450, WidgetProgress.segmentLevel(4))
+        assertEquals(950, WidgetProgress.segmentLevel(9))
+    }
 }
