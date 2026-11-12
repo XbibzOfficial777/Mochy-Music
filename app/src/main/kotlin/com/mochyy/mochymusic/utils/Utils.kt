@@ -9,6 +9,7 @@ import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 import androidx.compose.ui.graphics.Shape
 fun reportException(throwable: Throwable) {
     throwable.printStackTrace()
+    timber.log.Timber.e(throwable, "reported exception")
 }
 
 fun listItemShape(index: Int, count: Int, radius: Dp = 24.dp): Shape {

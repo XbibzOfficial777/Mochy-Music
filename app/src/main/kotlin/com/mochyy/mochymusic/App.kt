@@ -80,6 +80,20 @@ private class ReleaseTree : Timber.Tree() {
     }
 }
 
+/** Every warning and error also lands in /sdcard/Mochi-Logs, debug and release. */
+private class MochiFileTree : Timber.Tree() {
+    override fun isLoggable(tag: String?, priority: Int): Boolean = priority >= android.util.Log.WARN
+
+    override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
+        val labelled = if (tag.isNullOrBlank()) message else "$tag: $message"
+        if (priority >= android.util.Log.ERROR) {
+            com.mochyy.mochymusic.utils.MochiLogs.error(labelled, t)
+        } else {
+            com.mochyy.mochymusic.utils.MochiLogs.warn(labelled, t)
+        }
+    }
+}
+
 @HiltAndroidApp
 class App : Application(), SingletonImageLoader.Factory {
 
@@ -106,6 +120,7 @@ class App : Application(), SingletonImageLoader.Factory {
 
         CipherDeobfuscator.initialize(this)
 
+        Timber.plant(MochiFileTree())
         Timber.plant(
             if (BuildConfig.DEBUG || BuildConfig.BUILD_TYPE == "fast") Timber.DebugTree() else ReleaseTree()
         )

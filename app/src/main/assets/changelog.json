@@ -1,8 +1,16 @@
 {
-  "versionName": "8.3.3-xbibz.16",
-  "versionCode": 89,
-  "description": "Mochy Xbibz **8.3.3-xbibz.16**: kartu pemutar di layar kunci mengikuti warna sampul lagu, plus baris lirik yang sedang dinyanyikan kalau tersedia.",
+  "versionName": "8.3.3-xbibz.17-pre.1",
+  "versionCode": 90,
+  "description": "Mochy Xbibz **8.3.3-xbibz.17-pre.1** (Beta): setiap error/crash disimpan di `/sdcard/Mochi-Logs` dengan info perangkat lengkap.",
   "changelog": [
+    {
+      "title": "8.3.3-xbibz.17-pre.1",
+      "items": [
+        "Setiap error, peringatan, dan crash ditulis ke folder **`/sdcard/Mochi-Logs`**: `device.txt`, `errors-YYYY-MM-DD.txt`, dan `crash-…txt`. Isi: pabrikan, model, SDK, ABI, fingerprint, RAM, layar, versi app, plus stack lengkap.",
+        "Kalau Android 11+ menolak folder publik (belum izin semua berkas), log jatuh ke penyimpanan aplikasi — tidak dibuang diam-diam. `reportException` sebelumnya hanya `printStackTrace`; sekarang ikut ke file.",
+        "Pra-rilis ini **tidak** mengklaim memperbaiki issue resmi yang butuh perangkat atau server YouTube (#229 loading, #243 pasang Android 11, #245 Premium, #249 negara YT Music, #216/#191 jeda FLAC bit-perfect)."
+      ]
+    },
     {
       "title": "8.3.3-xbibz.16",
       "items": [

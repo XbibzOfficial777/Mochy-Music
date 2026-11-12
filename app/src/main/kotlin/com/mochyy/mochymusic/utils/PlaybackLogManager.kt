@@ -41,6 +41,9 @@ object PlaybackLogManager {
         } else {
             currentLogs
         }
+        if (level == PlaybackLogLevel.ERROR || level == PlaybackLogLevel.BOT) {
+            MochiLogs.error(if (details.isNullOrBlank()) message else "$message | $details")
+        }
     }
 
     fun clearLogs() {

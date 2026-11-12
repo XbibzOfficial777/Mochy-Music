@@ -212,6 +212,11 @@ jobs:
           if [ -z "$DISCORD_CLIENT_ID" ]; then
             printf '\nDiscord client ID is not configured in this build.\n' >> /tmp/release-notes.md
           fi
+          extra=()
+          if [[ "$GITHUB_REF_NAME" == *-pre* ]]; then
+            extra+=(--prerelease)
+          fi
           gh release create "$GITHUB_REF_NAME" release-assets/*.apk release-assets/*.idsig \
             release-assets/changelog.json release-assets/SHA256SUMS.txt \
-            --verify-tag --title "Mochy Music $GITHUB_REF_NAME · GMS" --notes-file /tmp/release-notes.md
+            --verify-tag --title "Mochy Music $GITHUB_REF_NAME · GMS" --notes-file /tmp/release-notes.md \
+            "${extra[@]}"
