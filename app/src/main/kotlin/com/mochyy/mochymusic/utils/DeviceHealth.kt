@@ -92,8 +92,9 @@ object DeviceHealth {
 
     fun onTrimMemory(level: Int) {
         if (!DeviceHealthPolicy.aggressiveTrim(ramOptimize, level)) return
-        val aggressive = ramOptimize && level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW
-        trimImageMemory(aggressive = aggressive || level >= android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
+        // Numeric ComponentCallbacks2 levels: RUNNING_LOW=10, COMPLETE=80 (named fields are deprecated).
+        val aggressive = ramOptimize && level >= 10
+        trimImageMemory(aggressive = aggressive || level >= 80)
     }
 
     /**
