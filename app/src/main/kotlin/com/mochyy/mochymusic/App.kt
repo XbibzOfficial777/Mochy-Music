@@ -205,6 +205,7 @@ class App : Application(), SingletonImageLoader.Factory {
         val settings = dataStore.data.first()
         com.mochyy.mochymusic.utils.OfflineMode.set(settings[OfflineModeKey] ?: false)
         com.mochyy.mochymusic.utils.DataSaver.attach(this)
+        com.mochyy.mochymusic.utils.DeviceHealth.attach(this, applicationScope)
         val locale = AppLanguage.systemLocale(this)
         val languageTag = locale.language
 
@@ -339,7 +340,10 @@ class App : Application(), SingletonImageLoader.Factory {
     // the screen went to the background: covers decoded for it were the most the app held while music played on, so most of them go; the latest stay for coming back
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (level == android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
+        com.mochyy.mochymusic.utils.DeviceHealth.onTrimMemory(level)
+        if (level == android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN &&
+            !com.mochyy.mochymusic.utils.DeviceHealth.ramOptimize
+        ) {
             SingletonImageLoader.get(this).memoryCache?.let { cache -> cache.trimToSize(cache.size / 4) }
         }
     }
@@ -348,6 +352,7 @@ class App : Application(), SingletonImageLoader.Factory {
         val cacheSize = runBlocking {
             dataStore.data.map { it[MaxImageCacheSizeKey] ?: 512 }.first()
         }
+        val ramPercent = com.mochyy.mochymusic.utils.DeviceHealth.coilMaxSizePercent()
         return ImageLoader.Builder(this).apply {
             components {
                 add(SvgDecoder.Factory())
@@ -358,7 +363,7 @@ class App : Application(), SingletonImageLoader.Factory {
 
             memoryCache {
                 MemoryCache.Builder()
-                    .maxSizePercent(context, 0.30)
+                    .maxSizePercent(context, ramPercent)
                     .build()
             }
             if (cacheSize == 0) {

@@ -401,4 +401,25 @@
     <string name="error_stream_unavailable_title">Couldn\'t play this track</string>
     <string name="playback_error_channel_name">Playback errors</string>
     <string name="playing_music_video_audio">YouTube wouldn\'t play this song, so you\'re hearing its music video instead</string>
+    <string name="settings_ram_status">Device memory</string>
+    <string name="settings_ram_status_line">In use %1$s of %2$s · this app %3$s</string>
+    <string name="settings_ram_optimize">Optimize RAM usage</string>
+    <string name="settings_ram_optimize_desc">Shrink the in-memory cover cache, the player ahead-buffer, and widget ticks. Does not kill other apps.</string>
+    <string name="settings_ram_optimize_detail">Uses ActivityManager memory figures and Coil\'s memory cache. Playback keeps going; only unused decoded art and extra buffered audio are dropped.</string>
+    <string name="settings_ram_free">Free app RAM</string>
+    <string name="settings_ram_free_desc">Clear decoded covers this app is holding in memory</string>
+    <string name="settings_ram_free_done">Released %1$s of image cache</string>
+    <string name="settings_thermal_optimize">Optimize device heat</string>
+    <string name="settings_thermal_optimize_desc">Turn off this app\'s high refresh, canvas motion, and extra lyrics bloom so it produces less heat.</string>
+    <string name="settings_thermal_optimize_detail">Listens to PowerManager thermal status. When the chip is already warm, haptics stop too. This cannot cool other apps.</string>
+    <string name="settings_thermal_status">Thermal status</string>
+    <string name="thermal_status_none">Normal</string>
+    <string name="thermal_status_light">Light</string>
+    <string name="thermal_status_moderate">Moderate</string>
+    <string name="thermal_status_severe">Severe</string>
+    <string name="thermal_status_critical">Critical</string>
+    <string name="thermal_status_emergency">Emergency</string>
+    <string name="thermal_status_shutdown">Shutdown</string>
+    <string name="thermal_status_unknown">Unavailable on this Android version</string>
+
 </resources>

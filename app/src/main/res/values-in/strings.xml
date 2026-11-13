@@ -326,4 +326,25 @@
     <string name="error_stream_unavailable_title">Lagu ini tidak dapat diputar</string>
     <string name="playback_error_channel_name">Kesalahan pemutaran</string>
     <string name="more_options">Opsi lainnya</string>
+    <string name="settings_ram_status">Memori perangkat</string>
+    <string name="settings_ram_status_line">Terpakai %1$s dari %2$s · aplikasi ini %3$s</string>
+    <string name="settings_ram_optimize">Optimasi penggunaan RAM</string>
+    <string name="settings_ram_optimize_desc">Perkecil cache sampul di memori, buffer pemutar, dan centang widget. Tidak menutup aplikasi lain.</string>
+    <string name="settings_ram_optimize_detail">Angka dari ActivityManager dan cache memori Coil. Lagu tetap jalan; yang dilepas hanya gambar ter-decode yang tidak dipakai dan audio yang di-buffer berlebih.</string>
+    <string name="settings_ram_free">Kosongkan RAM aplikasi</string>
+    <string name="settings_ram_free_desc">Hapus sampul ter-decode yang masih dipegang di memori</string>
+    <string name="settings_ram_free_done">Dilepas %1$s cache gambar</string>
+    <string name="settings_thermal_optimize">Optimasi panas perangkat</string>
+    <string name="settings_thermal_optimize_desc">Matikan refresh tinggi, gerak canvas, dan bloom lirik ekstra dari aplikasi ini supaya lebih dingin.</string>
+    <string name="settings_thermal_optimize_detail">Mendengar status termal PowerManager. Kalau chip sudah hangat, getar haptik ikut berhenti. Tidak bisa mendinginkan aplikasi lain.</string>
+    <string name="settings_thermal_status">Status termal</string>
+    <string name="thermal_status_none">Normal</string>
+    <string name="thermal_status_light">Ringan</string>
+    <string name="thermal_status_moderate">Sedang</string>
+    <string name="thermal_status_severe">Berat</string>
+    <string name="thermal_status_critical">Kritis</string>
+    <string name="thermal_status_emergency">Darurat</string>
+    <string name="thermal_status_shutdown">Shutdown</string>
+    <string name="thermal_status_unknown">Tidak tersedia di Android ini</string>
+
 </resources>

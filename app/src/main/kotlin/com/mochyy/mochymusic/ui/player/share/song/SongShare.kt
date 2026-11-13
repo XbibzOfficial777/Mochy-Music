@@ -186,7 +186,8 @@ private fun MovesThePlayhead(session: SongShareSession) {
 @Composable
 private fun ReadLyricsLook(session: SongShareSession) {
     val (motionStyle) = rememberEnumPreference(LyricsMotionStyleKey, defaultValue = LyricsMotionStyle.MOTION)
-    val (highBloom) = rememberPreference(LyricsHighBloomKey, defaultValue = true)
+    val (highBloomPref) = rememberPreference(LyricsHighBloomKey, defaultValue = true)
+    val highBloom = highBloomPref && com.mochyy.mochymusic.utils.DeviceHealth.allowHeavyVisuals
     val (lineBlur) = rememberPreference(ElementBlurKey, defaultValue = true)
     LaunchedEffect(motionStyle, highBloom, lineBlur) {
         session.lyricsLook = ShareLyricsLook(motionStyle, highBloom, lineBlur)

@@ -53,6 +53,7 @@ import androidx.media3.datasource.cache.ContentMetadata
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.decoder.ffmpeg.FfmpegFallbackRenderer
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
@@ -1354,6 +1355,7 @@ class MusicService :
         hapticAudioProcessor = HapticAudioProcessor { amplitude, isBassKick ->
             scope.launch(Dispatchers.Default) {
                 delay(150)
+                if (com.mochyy.mochymusic.utils.DeviceHealth.suppressHaptics) return@launch
                 try {
                     if (hapticVibrator.hasVibrator()) {
                         val scale = (amplitude / 255f).coerceIn(0.01f, 1f)
@@ -1400,7 +1402,7 @@ class MusicService :
             silenceProcessor.instantModeEnabled = skipSilence && instantSkip
         }
 
-        val player = ExoPlayer.Builder(this)
+        val playerBuilder = ExoPlayer.Builder(this)
             .setMediaSourceFactory(createMediaSourceFactory())
             .setRenderersFactory(createRenderersFactory(eqProcessor, fxProcessors, silenceProcessor, hapticAudioProcessor, crossmixProcessor, replayGain, spectrum, inspector))
             .setHandleAudioBecomingNoisy(true)
@@ -1417,7 +1419,19 @@ class MusicService :
             .setDeviceVolumeControlEnabled(true)
             // wake the playback loop when the audio buffer needs more, not every 10 ms: it was a third of a core in the background
             .experimentalSetDynamicSchedulingEnabled(true)
-            .build()
+        if (com.mochyy.mochymusic.utils.DeviceHealth.ramOptimize) {
+            playerBuilder.setLoadControl(
+                DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(
+                        com.mochyy.mochymusic.utils.DeviceHealthPolicy.EXO_MIN_BUFFER_OPTIMIZED_MS,
+                        com.mochyy.mochymusic.utils.DeviceHealthPolicy.EXO_MAX_BUFFER_OPTIMIZED_MS,
+                        com.mochyy.mochymusic.utils.DeviceHealthPolicy.EXO_PLAYBACK_BUFFER_OPTIMIZED_MS,
+                        com.mochyy.mochymusic.utils.DeviceHealthPolicy.EXO_REBUFFER_OPTIMIZED_MS,
+                    )
+                    .build(),
+            )
+        }
+        val player = playerBuilder.build()
 
         player.addListener(object : Player.Listener {
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
@@ -4371,7 +4385,7 @@ class MusicService :
                 }
                 // the widget's progress bar moves in whole seconds anyway; more often only cost
                 // frames in the app
-                delay(WidgetProgressIntervalMs)
+                delay(com.mochyy.mochymusic.utils.DeviceHealth.widgetIntervalMs())
             }
         }
     }
@@ -5226,7 +5240,6 @@ class MusicService :
 }
 
 /** How often a placed home screen widget's progress is redrawn while playing. */
-private const val WidgetProgressIntervalMs = 1_000L
 
 // a timed save skips a place in the song that moved less than this; coming back a second or two early doesn't matter
 private const val PositionSaveStepMs = 2_000L

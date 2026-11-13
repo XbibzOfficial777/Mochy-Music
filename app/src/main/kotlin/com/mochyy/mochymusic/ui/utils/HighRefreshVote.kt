@@ -23,6 +23,7 @@ fun HighRefreshWhile(active: () -> Boolean) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return
     val (enabled) = rememberPreference(EnableHighRefreshRateKey, defaultValue = true)
     if (!enabled) return
+    if (!com.mochyy.mochymusic.utils.DeviceHealth.allowHighRefresh) return
     val view = LocalView.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val currentActive by rememberUpdatedState(active)

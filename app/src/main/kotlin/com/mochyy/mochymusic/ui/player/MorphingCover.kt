@@ -2021,7 +2021,7 @@ private fun CoverCanvasLayer(
     val context = LocalContext.current
     val playerConnection = LocalPlayerConnection.current
     var canvasArtwork by remember(trackInfo.mediaId) { mutableStateOf<CanvasArtwork?>(null) }
-    val canvasEnabled = rememberPreference(CanvasThumbnailAnimationKey, defaultValue = true).value && !alternateStyle
+    val canvasEnabled = rememberPreference(CanvasThumbnailAnimationKey, defaultValue = true).value && !alternateStyle && com.mochyy.mochymusic.utils.DeviceHealth.allowHeavyVisuals
     val canvasWifiOnly by rememberPreference(CanvasWifiOnlyKey, defaultValue = true)
     LaunchedEffect(trackInfo.mediaId, trackInfo.title, trackInfo.artist, canvasEnabled, canvasWifiOnly) {
         val mediaId = trackInfo.mediaId

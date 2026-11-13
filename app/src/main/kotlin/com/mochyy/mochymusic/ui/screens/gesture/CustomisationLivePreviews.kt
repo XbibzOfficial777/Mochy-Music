@@ -271,7 +271,8 @@ internal fun LyricsStylePreview(style: LyricsMotionStyle) {
     val current by remember {
         derivedStateOf { PreviewLyrics.indexOfLast { it.first.time <= position() }.coerceAtLeast(0) }
     }
-    val (highBloom) = rememberPreference(LyricsHighBloomKey, defaultValue = true)
+    val (highBloomPref) = rememberPreference(LyricsHighBloomKey, defaultValue = true)
+    val highBloom = highBloomPref && com.mochyy.mochymusic.utils.DeviceHealth.allowHeavyVisuals
     val heights = remember { mutableStateListOf(0, 0, 0) }
     val scroll by animateFloatAsState(
         targetValue = heights.take(current).sum().toFloat(),

@@ -174,6 +174,8 @@ val AudioQualityKey = stringPreferencesKey("audioQuality")
 // data saver: lighter streams and no canvas or video backgrounds, on mobile data only unless the second switch is off
 val DataSaverKey = booleanPreferencesKey("dataSaver")
 val DataSaverMobileOnlyKey = booleanPreferencesKey("dataSaverMobileOnly")
+val RamOptimizeKey = booleanPreferencesKey("ramOptimize")
+val ThermalOptimizeKey = booleanPreferencesKey("thermalOptimize")
 val IpVersionKey = stringPreferencesKey("ipVersion")
 
 enum class AudioQuality {

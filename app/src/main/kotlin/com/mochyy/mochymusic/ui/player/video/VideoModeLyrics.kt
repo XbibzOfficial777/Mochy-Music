@@ -181,7 +181,8 @@ internal fun rememberVideoLyrics(): VideoLyrics {
 @Composable
 internal fun rememberVideoLyricLook(): VideoLyricLook {
     val (motion) = rememberEnumPreference(LyricsMotionStyleKey, defaultValue = LyricsMotionStyle.MOTION)
-    val (highBloom) = rememberPreference(LyricsHighBloomKey, defaultValue = true)
+    val (highBloomPref) = rememberPreference(LyricsHighBloomKey, defaultValue = true)
+    val highBloom = highBloomPref && com.mochyy.mochymusic.utils.DeviceHealth.allowHeavyVisuals
     val (blurAllowed) = rememberPreference(com.mochyy.mochymusic.constants.ElementBlurKey, defaultValue = true)
     val status by LyricsTranslationHelper.status.collectAsState()
     val translating = status is LyricsTranslationHelper.TranslationStatus.Translating

@@ -11,12 +11,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DataSaverOn
+import androidx.compose.material.icons.rounded.DeviceThermostat
+import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.HighQuality
 import androidx.compose.material.icons.rounded.SignalCellularAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +60,7 @@ import com.mochyy.mochymusic.constants.PauseSearchHistoryKey
 import com.mochyy.mochymusic.constants.PersistentQueueKey
 import com.mochyy.mochymusic.constants.PersistentShuffleAcrossQueuesKey
 import com.mochyy.mochymusic.constants.ProxyEnabledKey
+import com.mochyy.mochymusic.constants.RamOptimizeKey
 import com.mochyy.mochymusic.constants.ProxyUrlKey
 import com.mochyy.mochymusic.constants.PlayVideoBackgroundKey
 import com.mochyy.mochymusic.constants.SYSTEM_DEFAULT
@@ -65,6 +69,7 @@ import com.mochyy.mochymusic.constants.ShowFormatBadgeKey
 import com.mochyy.mochymusic.constants.ShowFormatSampleRateKey
 import com.mochyy.mochymusic.constants.SkipSilenceKey
 import com.mochyy.mochymusic.constants.StopPlaybackOnTaskRemovedKey
+import com.mochyy.mochymusic.constants.ThermalOptimizeKey
 import com.mochyy.mochymusic.constants.StreamFailureTimeoutKey
 import com.mochyy.mochymusic.constants.SyncLyricsToVideoKey
 import com.mochyy.mochymusic.constants.VideoQuality
@@ -88,8 +93,11 @@ import com.mochyy.mochymusic.ui.component.SubSettingsSearchBar
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.utils.rememberEnumPreference
 import com.mochyy.mochymusic.utils.AppProxy
+import com.mochyy.mochymusic.utils.DeviceHealth
+import com.mochyy.mochymusic.utils.DeviceHealthPolicy
 import com.mochyy.mochymusic.utils.rememberPreference
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // settings > app behaviour: how the app and the player act, what used to be general, playback and most of appearance
@@ -183,6 +191,16 @@ private fun generalItems(navController: NavController): List<SettingsItem> {
     val (offlineMode, onOfflineModeChange) = rememberPreference(OfflineModeKey, defaultValue = false)
     val (dataSaver, onDataSaverChange) = rememberPreference(DataSaverKey, defaultValue = false)
     val (dataSaverMobileOnly, onDataSaverMobileOnlyChange) = rememberPreference(DataSaverMobileOnlyKey, defaultValue = true)
+    val (ramOptimize, onRamOptimizeChange) = rememberPreference(RamOptimizeKey, defaultValue = false)
+    val (thermalOptimize, onThermalOptimizeChange) = rememberPreference(ThermalOptimizeKey, defaultValue = false)
+    var ramLine by remember { mutableStateOf(DeviceHealth.ramLine(context)) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            ramLine = DeviceHealth.ramLine(context)
+            delay(2_000)
+        }
+    }
+    val thermalLine = DeviceHealth.thermalLabel(context, DeviceHealth.thermalStatus)
     val (stopOnTaskRemoved, onStopOnTaskRemoved) = rememberPreference(StopPlaybackOnTaskRemovedKey, defaultValue = false)
     val (mixWithOtherApps, onMixWithOtherAppsChange) = rememberPreference(MixWithOtherAppsKey, defaultValue = false)
     val (resumeOnBluetooth, onResumeOnBluetoothChange) = rememberPreference(ResumeOnBluetoothConnectKey, defaultValue = false)
@@ -243,6 +261,60 @@ private fun generalItems(navController: NavController): List<SettingsItem> {
             checked = dataSaverMobileOnly,
             onCheckedChange = onDataSaverMobileOnlyChange,
             subOptionOf = dataSaver,
+        ),
+        SettingsItem(
+            title = { Text(stringResource(R.string.settings_ram_status)) },
+            highlightKey = "RAM status",
+            searchText = stringResource(R.string.settings_ram_status),
+            descriptionText = ramLine,
+            icon = rememberVectorPainter(Icons.Rounded.Memory),
+            iconShape = CircleShape,
+        ),
+        switchItem(
+            key = "Optimize RAM usage",
+            title = stringResource(R.string.settings_ram_optimize),
+            description = stringResource(R.string.settings_ram_optimize_desc),
+            detail = stringResource(R.string.settings_ram_optimize_detail),
+            icon = rememberVectorPainter(Icons.Rounded.Memory),
+            checked = ramOptimize,
+            onCheckedChange = onRamOptimizeChange,
+        ),
+        SettingsItem(
+            title = { Text(stringResource(R.string.settings_ram_free)) },
+            highlightKey = "Free app RAM",
+            searchText = stringResource(R.string.settings_ram_free),
+            descriptionText = stringResource(R.string.settings_ram_free_desc),
+            icon = rememberVectorPainter(Icons.Rounded.Memory),
+            iconShape = CircleShape,
+            onClick = {
+                val freed = DeviceHealth.freeAppMemory()
+                Toast.makeText(
+                    context,
+                    context.getString(
+                        R.string.settings_ram_free_done,
+                        DeviceHealthPolicy.formatBytes(freed),
+                    ),
+                    Toast.LENGTH_SHORT,
+                ).show()
+                ramLine = DeviceHealth.ramLine(context)
+            },
+        ),
+        switchItem(
+            key = "Optimize device heat",
+            title = stringResource(R.string.settings_thermal_optimize),
+            description = stringResource(R.string.settings_thermal_optimize_desc),
+            detail = stringResource(R.string.settings_thermal_optimize_detail),
+            icon = rememberVectorPainter(Icons.Rounded.DeviceThermostat),
+            checked = thermalOptimize,
+            onCheckedChange = onThermalOptimizeChange,
+        ),
+        SettingsItem(
+            title = { Text(stringResource(R.string.settings_thermal_status)) },
+            highlightKey = "Thermal status",
+            searchText = stringResource(R.string.settings_thermal_status),
+            descriptionText = thermalLine,
+            icon = rememberVectorPainter(Icons.Rounded.DeviceThermostat),
+            iconShape = CircleShape,
         ),
         SettingsItem(
             title = { Text(stringResource(R.string.proxy)) },

@@ -224,7 +224,8 @@ internal fun MiniLyricsTicker(
 
     val (motionStyle) = rememberEnumPreference(LyricsMotionStyleKey, defaultValue = LyricsMotionStyle.MOTION)
     val waveEnabled = motionStyle.shaded
-    val (highBloom) = rememberPreference(LyricsHighBloomKey, defaultValue = true)
+    val (highBloomPref) = rememberPreference(LyricsHighBloomKey, defaultValue = true)
+    val highBloom = highBloomPref && com.mochyy.mochymusic.utils.DeviceHealth.allowHeavyVisuals
 
     // Still looking the lyrics up is its own state, so the dots hand over to the first line (or to
     // "No lyrics") with the same roll as any line change.

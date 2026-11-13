@@ -1,8 +1,16 @@
 {
-  "versionName": "8.3.3-xbibz.17-pre.1",
-  "versionCode": 90,
-  "description": "Mochy Xbibz **8.3.3-xbibz.17-pre.1** (Beta): setiap error/crash disimpan di `/sdcard/Mochi-Logs` dengan info perangkat lengkap.",
+  "versionName": "8.3.3-xbibz.17-pre.2",
+  "versionCode": 91,
+  "description": "Mochy Xbibz **8.3.3-xbibz.17-pre.2** (Beta): toggle optimasi RAM dan panas yang benar-benar memotong cache, buffer, refresh, canvas, dan bloom.",
   "changelog": [
+    {
+      "title": "8.3.3-xbibz.17-pre.2",
+      "items": [
+        "Pengaturan Perilaku aplikasi: **Optimasi penggunaan RAM** (default mati). Mengecilkan cache sampul Coil di memori, buffer ExoPlayer, dan centang widget. Tombol **Kosongkan RAM aplikasi** melepaskan cache gambar dan menampilkan jumlah byte yang benar-benar dilepas. Angka memori dari ActivityManager, bukan tebakan.",
+        "**Optimasi panas perangkat** (default mati) mematikan refresh tinggi, canvas, dan bloom lirik ekstra dari aplikasi ini. Status termal dibaca dari PowerManager; kalau chip sudah hangat, getar haptik ikut berhenti. Tidak mengklaim mendinginkan aplikasi lain.",
+        "Pra-rilis. Tidak menimpa rilis resmi 8.3.3-xbibz.16."
+      ]
+    },
     {
       "title": "8.3.3-xbibz.17-pre.1",
       "items": [
