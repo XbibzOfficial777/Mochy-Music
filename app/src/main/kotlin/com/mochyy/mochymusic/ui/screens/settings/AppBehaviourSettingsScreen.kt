@@ -201,6 +201,7 @@ private fun generalItems(navController: NavController): List<SettingsItem> {
         }
     }
     val thermalLine = DeviceHealth.thermalLabel(context, DeviceHealth.thermalStatus)
+    val ramFreedFmt = stringResource(R.string.settings_ram_free_done)
     val (stopOnTaskRemoved, onStopOnTaskRemoved) = rememberPreference(StopPlaybackOnTaskRemovedKey, defaultValue = false)
     val (mixWithOtherApps, onMixWithOtherAppsChange) = rememberPreference(MixWithOtherAppsKey, defaultValue = false)
     val (resumeOnBluetooth, onResumeOnBluetoothChange) = rememberPreference(ResumeOnBluetoothConnectKey, defaultValue = false)
@@ -290,10 +291,7 @@ private fun generalItems(navController: NavController): List<SettingsItem> {
                 val freed = DeviceHealth.freeAppMemory()
                 Toast.makeText(
                     context,
-                    context.getString(
-                        R.string.settings_ram_free_done,
-                        DeviceHealthPolicy.formatBytes(freed),
-                    ),
+                    ramFreedFmt.format(DeviceHealthPolicy.formatBytes(freed)),
                     Toast.LENGTH_SHORT,
                 ).show()
                 ramLine = DeviceHealth.ramLine(context)
