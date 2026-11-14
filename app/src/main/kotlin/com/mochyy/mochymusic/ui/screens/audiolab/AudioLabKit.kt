@@ -3,6 +3,7 @@
 package com.mochyy.mochymusic.ui.screens.audiolab
 
 import com.mochyy.mochymusic.ui.component.liquidTabSlide
+import com.mochyy.mochymusic.ui.component.liquidTabIndicator
 import com.mochyy.mochymusic.ui.component.drawChromeOutline
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.geometry.Offset
