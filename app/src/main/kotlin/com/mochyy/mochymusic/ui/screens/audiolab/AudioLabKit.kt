@@ -2,36 +2,11 @@
 
 package com.mochyy.mochymusic.ui.screens.audiolab
 
-import com.mochyy.mochymusic.ui.component.rememberLiquidTabState
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.runtime.SideEffect
-import kotlin.math.roundToInt
-import kotlin.math.floor
-import kotlin.math.ceil
-import kotlin.math.abs
-import com.mochyy.mochymusic.ui.utils.AppMotion
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.MutableIntState
-import androidx.compose.runtime.MutableFloatState
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.animation.core.animate
 import androidx.compose.animation.AnimatedVisibility
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.semantics.Role
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -47,20 +22,20 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -73,23 +48,34 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.MutableFloatState
+import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -104,9 +90,18 @@ import com.mochyy.mochymusic.ui.component.AppSwitch
 import com.mochyy.mochymusic.ui.component.DefaultPlayerSeekBarSlider
 import com.mochyy.mochymusic.ui.component.LocalNavAnimatedContentScope
 import com.mochyy.mochymusic.ui.component.damageBoundary
+import com.mochyy.mochymusic.ui.component.drawChromeOutline
+import com.mochyy.mochymusic.ui.component.liquidTabIndicator
+import com.mochyy.mochymusic.ui.component.liquidTabSlide
+import com.mochyy.mochymusic.ui.component.rememberLiquidTabState
+import com.mochyy.mochymusic.ui.utils.AppMotion
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import kotlinx.coroutines.flow.first
 import com.mochyy.mochymusic.ui.component.RemoteFocus
+import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.roundToInt
 
 object LabColors {
     val Card = Color(0xFF1C1C1E)
@@ -136,6 +131,8 @@ fun LabCard(
     padding: Dp = 14.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    // Solid fill only. Frosting these cards with the settings page's glassRoot samples that
+    // RenderNode while it is still being recorded — that is an instant crash on open.
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -384,6 +381,72 @@ private fun Modifier.combinedClickableCompat(
 )
 
 /**
+ * Finger-follow for a row of pages (Graph / Bands / AutoEQ). Mix is continuous so the glass
+ * chip and the pages stay on the same spring ([AppMotion.Slide]).
+ */
+class LabSlide internal constructor(
+    private val mixState: MutableFloatState,
+    private val widthState: MutableIntState,
+    private val draggingState: MutableState<Boolean>,
+    private val lastIndex: () -> Int,
+    private val onSelect: () -> (Int) -> Unit,
+) {
+    val mix: Float get() = mixState.floatValue
+    val dragging: Boolean get() = draggingState.value
+    var widthPx: Int
+        get() = widthState.intValue
+        set(value) { widthState.intValue = value.coerceAtLeast(1) }
+
+    fun dragPages(delta: Float) {
+        draggingState.value = true
+        mixState.floatValue = (mixState.floatValue + delta).coerceIn(0f, lastIndex().toFloat())
+    }
+
+    fun dragPx(delta: Float) {
+        draggingState.value = true
+        mixState.floatValue = (mixState.floatValue - delta / widthPx).coerceIn(0f, lastIndex().toFloat())
+    }
+
+    fun end() {
+        val to = mixState.floatValue.roundToInt().coerceIn(0, lastIndex())
+        draggingState.value = false
+        onSelect()(to)
+    }
+}
+
+@Composable
+fun rememberLabSlide(
+    selectedIndex: Int,
+    lastIndex: Int,
+    onSelect: (Int) -> Unit,
+): LabSlide {
+    val mixState = remember { mutableFloatStateOf(selectedIndex.toFloat()) }
+    val widthState = remember { mutableIntStateOf(1) }
+    val draggingState = remember { mutableStateOf(false) }
+    val lastIndexState = rememberUpdatedState(lastIndex)
+    val onSelectState = rememberUpdatedState(onSelect)
+    val slide = remember {
+        LabSlide(mixState, widthState, draggingState, { lastIndexState.value }, { onSelectState.value })
+    }
+    LaunchedEffect(selectedIndex, draggingState.value) {
+        if (draggingState.value) return@LaunchedEffect
+        val dest = selectedIndex.toFloat()
+        if (abs(mixState.floatValue - dest) < 0.001f) return@LaunchedEffect
+        if (!AppMotion.enabled) {
+            mixState.floatValue = dest
+            return@LaunchedEffect
+        }
+        // Same droplet spring as the dashboard / Music-Video pill, so a tap is not a stiff slide.
+        animate(
+            initialValue = mixState.floatValue,
+            targetValue = dest,
+            animationSpec = spring(dampingRatio = 0.7f, stiffness = 340f),
+        ) { v, _ -> mixState.floatValue = v }
+    }
+    return slide
+}
+
+/**
  * Same liquid drop as Music/Video and the dashboard tabs (stretch, lift, spring).
  * Solid track only — never nest frost under glassRoot (that force-closed Equalizer on .12).
  */
@@ -482,74 +545,6 @@ fun LabSegmented(
 }
 
 /** pages that travel with [slide] — wrap-content so they can sit in a scrolling column */
-
-/**
- * Finger-follow for a row of pages (Graph / Bands / AutoEQ). Mix is continuous so the glass
- * chip and the pages stay on the same spring ([AppMotion.Slide]).
- */
-class LabSlide internal constructor(
-    private val mixState: MutableFloatState,
-    private val widthState: MutableIntState,
-    private val draggingState: MutableState<Boolean>,
-    private val lastIndex: () -> Int,
-    private val onSelect: () -> (Int) -> Unit,
-) {
-    val mix: Float get() = mixState.floatValue
-    val dragging: Boolean get() = draggingState.value
-    var widthPx: Int
-        get() = widthState.intValue
-        set(value) { widthState.intValue = value.coerceAtLeast(1) }
-
-    fun dragPages(delta: Float) {
-        draggingState.value = true
-        mixState.floatValue = (mixState.floatValue + delta).coerceIn(0f, lastIndex().toFloat())
-    }
-
-    fun dragPx(delta: Float) {
-        draggingState.value = true
-        mixState.floatValue = (mixState.floatValue - delta / widthPx).coerceIn(0f, lastIndex().toFloat())
-    }
-
-    fun end() {
-        val to = mixState.floatValue.roundToInt().coerceIn(0, lastIndex())
-        draggingState.value = false
-        onSelect()(to)
-    }
-}
-
-@Composable
-fun rememberLabSlide(
-    selectedIndex: Int,
-    lastIndex: Int,
-    onSelect: (Int) -> Unit,
-): LabSlide {
-    val mixState = remember { mutableFloatStateOf(selectedIndex.toFloat()) }
-    val widthState = remember { mutableIntStateOf(1) }
-    val draggingState = remember { mutableStateOf(false) }
-    val lastIndexState = rememberUpdatedState(lastIndex)
-    val onSelectState = rememberUpdatedState(onSelect)
-    val slide = remember {
-        LabSlide(mixState, widthState, draggingState, { lastIndexState.value }, { onSelectState.value })
-    }
-    LaunchedEffect(selectedIndex, draggingState.value) {
-        if (draggingState.value) return@LaunchedEffect
-        val dest = selectedIndex.toFloat()
-        if (abs(mixState.floatValue - dest) < 0.001f) return@LaunchedEffect
-        if (!AppMotion.enabled) {
-            mixState.floatValue = dest
-            return@LaunchedEffect
-        }
-        // Same droplet spring as the dashboard / Music-Video pill, so a tap is not a stiff slide.
-        animate(
-            initialValue = mixState.floatValue,
-            targetValue = dest,
-            animationSpec = spring(dampingRatio = 0.7f, stiffness = 340f),
-        ) { v, _ -> mixState.floatValue = v }
-    }
-    return slide
-}
-
-/** pages that travel with [slide] — wrap-content so they can sit in a scrolling column */
 @Composable
 fun LabPager(
     pageCount: Int,
@@ -593,3 +588,104 @@ fun LabPager(
 }
 
 /** the 32dp light circle with a dark glyph that mochy's settings rows lead with */
+@Composable
+fun LabGlyph(iconRes: Int, modifier: Modifier = Modifier, size: Dp = 32.dp) {
+    Box(
+        modifier = modifier.size(size).clip(CircleShape).background(Color(0xFFE5E5EA)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(painterResource(iconRes), null, tint = Color.Black, modifier = Modifier.size(size * 0.55f))
+    }
+}
+
+/** dims a section while what it belongs to is off, without removing it */
+fun Modifier.dimmedWhen(off: Boolean, alpha: Float): Modifier = graphicsLayer { this.alpha = if (off) alpha else 1f }
+
+@Composable
+fun animatedDim(off: Boolean): Float =
+    animateFloatAsState(if (off) 0.45f else 1f, tween(220), label = "dim").value
+
+/** whether pictures should move: not while the player covers the app, the page is opening or closing, or it is scrolled out of view */
+@Composable
+fun rememberPicturesHeld(onScreen: State<Boolean>): State<Boolean> {
+    val obscured = LocalAppContentObscured.current
+    val navTransition = LocalNavAnimatedContentScope.current?.transition
+    return remember(obscured, navTransition, onScreen) {
+        derivedStateOf {
+            !onScreen.value || obscured.value || (navTransition != null &&
+                (navTransition.currentState != EnterExitState.Visible || navTransition.targetState != EnterExitState.Visible))
+        }
+    }
+}
+
+/** seconds, advancing every frame while the picture is free to move, or checking back a few times a second when moving says no */
+@Composable
+fun rememberLabTime(held: State<Boolean>, moving: () -> Boolean = { true }): State<Float> {
+    val time = remember { mutableFloatStateOf(0f) }
+    val currentMoving by androidx.compose.runtime.rememberUpdatedState(moving)
+    LaunchedEffect(held) {
+        var last = 0L
+        while (true) {
+            if (held.value) {
+                snapshotFlow { held.value }.first { !it }
+                last = 0L
+            }
+            if (!currentMoving()) {
+                kotlinx.coroutines.delay(250)
+                last = 0L
+                continue
+            }
+            withFrameNanos { now ->
+                if (last != 0L) time.floatValue += ((now - last) / 1e9f).coerceAtMost(0.05f)
+                last = now
+            }
+        }
+    }
+    return time
+}
+
+/** true while any part of this is inside the window; written only when it flips */
+@Composable
+fun Modifier.trackOnScreen(state: MutableState<Boolean>): Modifier {
+    val view = LocalView.current
+    return onGloballyPositioned { coords ->
+        val bounds = coords.boundsInWindow()
+        val visible = bounds.height > 0f && bounds.bottom > 0f && bounds.top < view.height
+        if (visible != state.value) state.value = visible
+    }
+}
+
+/** asks the audio tap to fill while this page shows a live picture */
+@Composable
+fun ListenToAudio() {
+    DisposableEffect(Unit) {
+        AudioTap.listen()
+        onDispose { AudioTap.stopListening() }
+    }
+}
+
+/** a smoothed music level 0..1 for pictures to breathe with, updated from the frame clock */
+class LevelFollower {
+    private val scratch = FloatArray(1024)
+    var level = 0f
+        private set
+    var punch = 0f
+        private set
+    private var slow = 0f
+
+    /** call once per frame with the seconds since the last one */
+    fun update(dt: Float) {
+        val now = AudioTap.level(scratch)
+        level += (now - level) * (if (now > level) 0.5f else 0.12f)
+        slow += (now - slow) * 0.03f
+        // how far above its own recent average it is: a kick or a downbeat
+        val p = ((now - slow * 1.25f) * 6f).coerceIn(0f, 1f)
+        punch = if (p > punch) p else (punch - dt * 3f).coerceAtLeast(0f)
+    }
+}
+
+@Composable
+fun rememberOnScreen(): MutableState<Boolean> = remember { mutableStateOf(true) }
+
+@Composable
+fun dpToPx(dp: Dp): Float = with(LocalDensity.current) { dp.toPx() }
