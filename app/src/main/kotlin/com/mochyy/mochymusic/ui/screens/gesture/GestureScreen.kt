@@ -261,10 +261,11 @@ private fun PlayerSection() {
     PlayerStyleCard(
         selected = playerStyle,
         onOpenEditor = {
-            val hasMedia = playerConnection?.player?.currentMediaItem != null
-            if (hasMedia) {
+            val connection = playerConnection
+            val hasMedia = connection?.player?.currentMediaItem != null
+            if (hasMedia && connection != null) {
                 playerSheetState?.expandSoft()
-                playerConnection?.requestPlayerStudio()
+                connection.requestPlayerStudio()
             } else {
                 Toast.makeText(context, playFirst, Toast.LENGTH_SHORT).show()
             }

@@ -252,8 +252,9 @@ class SkinParserTest {
         assertEquals(1f, cover.originY)
 
         val title = player.blocks[1] as SkinBlock.Styled
-        assertEquals(EnterKind.Keyframes, title.enter!!.kind)
-        assertTrue(title.enter!!.eachSong)
+        val enter = requireNotNull(title.enter)
+        assertEquals(EnterKind.Keyframes, enter.kind)
+        assertTrue(enter.eachSong)
         // an event mochy doesn't know is skipped
         assertEquals(listOf(SkinEvent.Like, SkinEvent.Beat), title.triggers.map { it.event })
         assertEquals(SkinRepeat.Once, title.triggers[0].timeline.repeat)

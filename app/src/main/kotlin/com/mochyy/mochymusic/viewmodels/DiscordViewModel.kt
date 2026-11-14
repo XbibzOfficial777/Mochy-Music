@@ -82,6 +82,6 @@ class DiscordViewModel @Inject constructor(
 
     /** finishes even if the user leaves the page straight away, so Discord forgets the token too */
     fun logOut() {
-        viewModelScope.launch(NonCancellable) { auth.logOut() }
+        viewModelScope.launch { kotlinx.coroutines.withContext(NonCancellable) { auth.logOut() } }
     }
 }

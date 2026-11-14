@@ -1,5 +1,7 @@
 // VoiceRequest.kt
 
+@file:Suppress("DEPRECATION")
+
 package com.mochyy.mochymusic.playback.voice
 
 import android.os.Bundle

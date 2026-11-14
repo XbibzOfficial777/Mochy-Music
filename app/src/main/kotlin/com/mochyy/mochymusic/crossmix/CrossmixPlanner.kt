@@ -146,7 +146,7 @@ object CrossmixPlanner {
                     if (start < windowStart || end > naturalEnd - 150L) continue
                     val exitScore = exitScore(out, bars, exit.grid, exit.swapMs, end, naturalEnd, outLines, style) ?: continue
                     val landing = pickLanding(style, out, inc, exit.swapMs, swap, period, tempo, locked, outVoice, inVoice, latestLanding) ?: continue
-                    val match = if (locked) beatMatch(inc!!, landing.timeMs, tempo!!, period, maxSpeedUp) else null
+                    val match = if (locked && inc != null && tempo != null) beatMatch(inc, landing.timeMs, tempo, period, maxSpeedUp) else null
                     if (style.needsBeatMatch && match == null) continue
                     val inBeat = match?.inBeatMs ?: period
                     // heard from the start of a blend, or from the hand-over for a drop; up to a bar of silent run-up before that, so the beat is locked before anyone hears it

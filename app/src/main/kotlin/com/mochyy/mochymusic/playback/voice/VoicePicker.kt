@@ -207,7 +207,6 @@ class VoicePicker(
                 is AlbumItem -> albumQueue(item, shuffle)
                 is ArtistItem -> artistQueue(item, shuffle)
                 is PlaylistItem -> youtubePlaylist(item.id, item.title, shuffle)
-                else -> null
             }
             if (queue != null) return queue
         }

@@ -1391,10 +1391,11 @@ private fun BackingVocalLine(
             .graphicsLayer { alpha = expand.floatValue.coerceIn(0f, 1f) },
     ) {
 
-        if (useSweep) {
+        val sungWords = words
+        if (useSweep && sungWords != null) {
             KaraokeSweepText(
                 text = text,
-                words = words!!,
+                words = sungWords,
                 positionProvider = positionProvider,
                 waveAmplitudeProvider = waveAmplitudeProvider,
                 baseColor = { color().copy(alpha = ActiveUnsungAlpha) },
