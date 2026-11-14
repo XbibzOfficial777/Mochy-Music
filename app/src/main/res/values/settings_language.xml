@@ -191,4 +191,14 @@
     <string name="settings_floating_lyrics">Floating lyrics</string>
     <string name="settings_floating_lyrics_desc">Keep the line being sung in a little bubble over other apps</string>
     <string name="settings_floating_lyrics_detail">Tap the cover to open Mochy, or hold it for play and pause. Drag the bubble anywhere, or drop it on the cross to hide it until you come back to Mochy.</string>
+    <string name="playback_hifi_desc">Mochy\'s own filter turns songs to your speaker\'s rate</string>
+    <string name="playback_hifi_detail">Most songs are 44.1 kHz and your phone plays at 48 kHz, so something has to convert them. With this on, Mochy does it with its own high-quality filter (flat to 20 kHz, 120 dB of rejection, in 32-bit float) instead of leaving it to the phone. It works on the speaker and the headphone jack. Bluetooth and USB are left alone: Bluetooth\'s rate can\'t be read reliably, and USB has passthrough. It uses a little more battery.</string>
+    <string name="playback_hires_desc">Keeps 24-bit songs at full detail as 32-bit float</string>
+    <string name="playback_hires_detail">Sends hi-res songs to the speaker as 32-bit float instead of cutting them down to 16-bit. It only kicks in while the equalizer, Audio FX, Crossmix, layered fades, haptics, skip silence and speed changes are all off, because those work in 16-bit. Turn any of them on and the song carries on in 16-bit with every effect.</string>
+    <string name="playback_output">Output</string>
+    <string name="playback_usb_connected">%1$s is plugged in</string>
+    <string name="playback_usb_passthrough_desc">Each song at its own rate, bit-perfect when nothing changes the sound</string>
+    <string name="playback_usb_passthrough_detail" formatted="false">Asks the DAC to run at the song\'s own sample rate instead of Android\'s 48 kHz, so nothing is resampled. When the equalizer and effects are off and the volume is at 100%, the song goes out bit-perfect. While it\'s on, your phone\'s volume buttons may set the DAC\'s own volume.</string>
+    <string name="playback_usb_prefer_desc">Plays through a USB DAC when one is plugged in</string>
+    <string name="playback_usb_prefer_detail">Sends the music to a plugged-in USB DAC even while Bluetooth or other headphones are connected. Unplug it and the music goes back to where it was.</string>
 </resources>
