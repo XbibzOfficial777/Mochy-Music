@@ -25,6 +25,7 @@ text = args.report.read_text(errors='replace')
 ignore = (
     'We recommend using a newer Android Gradle plugin',
     'The SDK Manager CLI tool (sdkmanager) is deprecated',
+    'WARNING: R8: An error occurred when parsing kotlin metadata',
 )
 findings = [line for line in text.splitlines() if re.match(
     r'^(?:w:|warn:|WARNING:|Warning:|warning:|.*:\d+:\s*warning:)', line)
