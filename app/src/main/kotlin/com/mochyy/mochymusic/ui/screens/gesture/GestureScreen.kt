@@ -262,8 +262,7 @@ private fun PlayerSection() {
         selected = playerStyle,
         onOpenEditor = {
             val connection = playerConnection
-            val hasMedia = connection?.player?.currentMediaItem != null
-            if (hasMedia && connection != null) {
+            if (connection?.player?.currentMediaItem != null) {
                 playerSheetState?.expandSoft()
                 connection.requestPlayerStudio()
             } else {
