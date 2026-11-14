@@ -1,5 +1,7 @@
 package com.mochyy.mochymusic.ui.screens.setup
 
+import androidx.compose.foundation.clickable
+
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
@@ -54,7 +56,7 @@ enum class CurrentAnimation {
 }
 
 @Composable
-fun WelcomeStep(isHiding: Boolean = false) {
+fun WelcomeStep(isHiding: Boolean = false, onNext: () -> Unit = {}) {
     var currentAnimation by remember { mutableStateOf(CurrentAnimation.Disc) }
     var thumbnails by remember { mutableStateOf<List<String>>(emptyList()) }
 
@@ -121,7 +123,7 @@ fun WelcomeStep(isHiding: Boolean = false) {
     )
 
     Box(
-        modifier = Modifier.fillMaxSize().clipToBounds()
+        modifier = Modifier.fillMaxSize().clipToBounds().clickable(onClick = onNext)
     ) {
 
         Canvas(modifier = Modifier.fillMaxSize().graphicsLayer { alpha = bgAlpha }) {

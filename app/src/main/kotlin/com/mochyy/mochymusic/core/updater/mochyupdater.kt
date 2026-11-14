@@ -628,7 +628,7 @@ suspend fun checkForUpdate(
     // The legacy update page shares the fork-aware checker; it must not fall back to an
     // incompatible official or nightly APK when this build is signed with the fork's key.
     if (isXbibzBuild) {
-        val result = getLatestRelease(force = true)
+        val result = getLatestRelease(updateChannel(context), force = true)
         withContext(Dispatchers.Main) {
             result.fold(
                 onSuccess = { release ->

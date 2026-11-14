@@ -2,6 +2,9 @@
 
 package com.mochyy.mochymusic.ui.screens.audiolab
 
+import com.mochyy.mochymusic.ui.component.rememberLiquidTabState
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.runtime.SideEffect
 import kotlin.math.roundToInt
 import kotlin.math.floor
 import kotlin.math.ceil
@@ -380,7 +383,10 @@ private fun Modifier.combinedClickableCompat(
     Modifier.combinedClickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick, onLongClick = onLongClick)
 )
 
-/** a track with a white pill that slides to the picked option */
+/**
+ * Same liquid drop as Music/Video and the dashboard tabs (stretch, lift, spring).
+ * Solid track only — never nest frost under glassRoot (that force-closed Equalizer on .12).
+ */
 @Composable
 fun LabSegmented(
     options: List<String>,
@@ -388,275 +394,94 @@ fun LabSegmented(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     height: Dp = 48.dp,
+    position: Float? = null,
+    onDragPages: ((Float) -> Unit)? = null,
+    onDragEnd: (() -> Unit)? = null,
 ) {
-    BoxWithConstraints(
+    val shape = RoundedCornerShape(height / 2)
+    val liquid = rememberLiquidTabState(selectedIndex)
+    val last = options.lastIndex.coerceAtLeast(0)
+    val tabCount = options.size.coerceAtLeast(1)
+
+    SideEffect { liquid.sliding = position != null }
+    LaunchedEffect(position, last) {
+        val mix = position
+        if (mix != null) {
+            liquid.position.snapTo(mix.coerceIn(0f, last.toFloat()))
+        }
+    }
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
-            .clip(RoundedCornerShape(height / 2))
+            .graphicsLayer {
+                val scale = liquid.barScale
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(shape)
             .background(LabColors.Card)
-            .border(1.dp, LabColors.StageLine, RoundedCornerShape(height / 2))
-            .padding(4.dp),
+            .drawWithContent {
+                drawContent()
+                val box = this.size
+                drawChromeOutline(Offset.Zero, box, box.height / 2f)
+            },
     ) {
-        val segment = maxWidth / options.size
-        val offset by animateDpAsState(segment * selectedIndex, spring(dampingRatio = 0.82f, stiffness = 520f), label = "segment")
-        Box(
-            Modifier
-                .offset(x = offset)
-                .width(segment)
-                .fillMaxHeight()
-                .clip(RoundedCornerShape(height / 2))
-                .background(Color.White)
-        )
-        Row(Modifier.fillMaxWidth().fillMaxHeight()) {
+        val dragModifier = if (onDragPages != null) {
+            Modifier.pointerInput(tabCount) {
+                val travelPx = (size.width.toFloat() / tabCount).coerceAtLeast(1f)
+                detectHorizontalDragGestures(
+                    onDragStart = { },
+                    onHorizontalDrag = { _, amount -> onDragPages(amount / travelPx) },
+                    onDragCancel = { onDragEnd?.invoke() },
+                    onDragEnd = { onDragEnd?.invoke() },
+                )
+            }
+        } else {
+            Modifier.liquidTabSlide(
+                state = liquid,
+                tabCount = tabCount,
+                selectedIndex = selectedIndex,
+                onSlideTo = onSelect,
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .liquidTabIndicator(liquid, tabCount)
+                .then(dragModifier),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             options.forEachIndexed { index, label ->
-                val color by animateColorAsState(if (index == selectedIndex) Color.Black else Color.White, tween(160), label = "segText")
+                val fill = liquid.litOf(index)
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .clip(RoundedCornerShape(height / 2))
-                        .clickable(remember { MutableInteractionSource() }, null) { onSelect(index) },
+                        .clickable(
+                            interactionSource = remember(index) { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { onSelect(index) },
+                        ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(label, fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = color,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        label,
+                        fontFamily = InterFontFamily,
+                        fontWeight = if (fill > 0.5f) FontWeight.SemiBold else FontWeight.Medium,
+                        fontSize = 15.sp,
+                        color = lerp(Color.White.copy(alpha = 0.55f), Color.White, fill),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }
     }
 }
 
-/** the 32dp light circle with a dark glyph that mochy's settings rows lead with */
-@Composable
-fun LabGlyph(iconRes: Int, modifier: Modifier = Modifier, size: Dp = 32.dp) {
-    Box(
-        modifier = modifier.size(size).clip(CircleShape).background(Color(0xFFE5E5EA)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(painterResource(iconRes), null, tint = Color.Black, modifier = Modifier.size(size * 0.55f))
-    }
-}
-
-/** dims a section while what it belongs to is off, without removing it */
-fun Modifier.dimmedWhen(off: Boolean, alpha: Float): Modifier = graphicsLayer { this.alpha = if (off) alpha else 1f }
-
-@Composable
-fun animatedDim(off: Boolean): Float =
-    animateFloatAsState(if (off) 0.45f else 1f, tween(220), label = "dim").value
-
-/** whether pictures should move: not while the player covers the app, the page is opening or closing, or it is scrolled out of view */
-@Composable
-fun rememberPicturesHeld(onScreen: State<Boolean>): State<Boolean> {
-    val obscured = LocalAppContentObscured.current
-    val navTransition = LocalNavAnimatedContentScope.current?.transition
-    return remember(obscured, navTransition, onScreen) {
-        derivedStateOf {
-            !onScreen.value || obscured.value || (navTransition != null &&
-                (navTransition.currentState != EnterExitState.Visible || navTransition.targetState != EnterExitState.Visible))
-        }
-    }
-}
-
-/** seconds, advancing every frame while the picture is free to move, or checking back a few times a second when moving says no */
-@Composable
-fun rememberLabTime(held: State<Boolean>, moving: () -> Boolean = { true }): State<Float> {
-    val time = remember { mutableFloatStateOf(0f) }
-    val currentMoving by androidx.compose.runtime.rememberUpdatedState(moving)
-    LaunchedEffect(held) {
-        var last = 0L
-        while (true) {
-            if (held.value) {
-                snapshotFlow { held.value }.first { !it }
-                last = 0L
-            }
-            if (!currentMoving()) {
-                kotlinx.coroutines.delay(250)
-                last = 0L
-                continue
-            }
-            withFrameNanos { now ->
-                if (last != 0L) time.floatValue += ((now - last) / 1e9f).coerceAtMost(0.05f)
-                last = now
-            }
-        }
-    }
-    return time
-}
-
-/** true while any part of this is inside the window; written only when it flips */
-@Composable
-fun Modifier.trackOnScreen(state: MutableState<Boolean>): Modifier {
-    val view = LocalView.current
-    return onGloballyPositioned { coords ->
-        val bounds = coords.boundsInWindow()
-        val visible = bounds.height > 0f && bounds.bottom > 0f && bounds.top < view.height
-        if (visible != state.value) state.value = visible
-    }
-}
-
-/** asks the audio tap to fill while this page shows a live picture */
-@Composable
-fun ListenToAudio() {
-    DisposableEffect(Unit) {
-        AudioTap.listen()
-        onDispose { AudioTap.stopListening() }
-    }
-}
-
-/** a smoothed music level 0..1 for pictures to breathe with, updated from the frame clock */
-class LevelFollower {
-    private val scratch = FloatArray(1024)
-    var level = 0f
-        private set
-    var punch = 0f
-        private set
-    private var slow = 0f
-
-    /** call once per frame with the seconds since the last one */
-    fun update(dt: Float) {
-        val now = AudioTap.level(scratch)
-        level += (now - level) * (if (now > level) 0.5f else 0.12f)
-        slow += (now - slow) * 0.03f
-        // how far above its own recent average it is: a kick or a downbeat
-        val p = ((now - slow * 1.25f) * 6f).coerceIn(0f, 1f)
-        punch = if (p > punch) p else (punch - dt * 3f).coerceAtLeast(0f)
-    }
-}
-
-@Composable
-fun rememberOnScreen(): MutableState<Boolean> = remember { mutableStateOf(true) }
-
-@Composable
-fun dpToPx(dp: Dp): Float = with(LocalDensity.current) { dp.toPx() }
-
-/** a discord style select: the choice on the left and a chevron on the right, and opening it unrolls the list right under it as one box with the picked row lit and checked; the first option is the "none" one and reads muted */
-@Composable
-fun LabSelect(
-    options: List<String>,
-    selectedIndex: Int,
-    onSelect: (Int) -> Unit,
-    contentDescription: String,
-    modifier: Modifier = Modifier,
-    mutedIndex: Int = 0,
-    maxListHeight: Dp = 264.dp,
-) {
-    var open by rememberSaveable { mutableStateOf(false) }
-    val chevron by animateFloatAsState(if (open) 180f else 0f, spring(dampingRatio = 0.8f, stiffness = 420f), label = "chevron")
-    val edge by animateColorAsState(if (open) LabSelectEdgeOpen else LabSelectEdge, tween(180), label = "selectEdge")
-    val listScroll = rememberScrollState()
-    val rowHeight = with(LocalDensity.current) { LabSelectRowHeight.roundToPx() }
-    val bringIntoView = remember { BringIntoViewRequester() }
-
-    // back closes the list before it leaves the page
-    BackHandler(enabled = open) { open = false }
-    LaunchedEffect(open) {
-        if (!open) return@LaunchedEffect
-        // open with the picked row in sight, then make room for the list once it has unrolled
-        listScroll.scrollTo(((selectedIndex - 2) * rowHeight).coerceAtLeast(0))
-        kotlinx.coroutines.delay(LabSelectUnrollMs.toLong())
-        bringIntoView.bringIntoView()
-    }
-
-    Column(
-        modifier
-            .fillMaxWidth()
-            .bringIntoViewRequester(bringIntoView)
-            .clip(LabSelectShape)
-            .background(LabSelectColor)
-            .border(1.dp, edge, LabSelectShape),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .clickable { open = !open }
-                .padding(start = 16.dp, end = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = options.getOrNull(selectedIndex).orEmpty(),
-                fontFamily = InterFontFamily,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 15.sp,
-                color = if (selectedIndex == mutedIndex) LabColors.Secondary else LabColors.Primary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            Icon(
-                painter = painterResource(com.mochyy.mochymusic.R.drawable.expand_more),
-                contentDescription = contentDescription,
-                tint = if (open) Color.White else LabColors.Secondary,
-                modifier = Modifier.size(22.dp).graphicsLayer { rotationZ = chevron },
-            )
-        }
-        AnimatedVisibility(
-            visible = open,
-            enter = expandVertically(tween(LabSelectUnrollMs, easing = FastOutSlowInEasing), expandFrom = Alignment.Top) + fadeIn(tween(160, 40)),
-            exit = shrinkVertically(tween(200, easing = FastOutSlowInEasing), shrinkTowards = Alignment.Top) + fadeOut(tween(120)),
-        ) {
-            Column {
-                Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(1.dp).background(LabSelectEdge))
-                Column(
-                    Modifier
-                        .heightIn(max = maxListHeight)
-                        .verticalScroll(listScroll)
-                        .padding(6.dp),
-                ) {
-                    options.forEachIndexed { index, label ->
-                        LabSelectRow(
-                            label = label,
-                            picked = index == selectedIndex,
-                            onClick = {
-                                onSelect(index)
-                                open = false
-                            },
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-// one option in the open list: the picked one sits on a lighter row with a filled check at its end
-@Composable
-private fun LabSelectRow(label: String, picked: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(LabSelectRowHeight)
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (picked) LabColors.Row else Color.Transparent)
-            .selectable(selected = picked, role = Role.RadioButton, onClick = onClick)
-            .padding(start = 10.dp, end = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = label,
-            fontFamily = InterFontFamily,
-            fontWeight = if (picked) FontWeight.SemiBold else FontWeight.Medium,
-            fontSize = 15.sp,
-            color = if (picked) LabColors.Primary else LabColors.Secondary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        if (picked) {
-            Box(Modifier.size(20.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
-                Icon(painterResource(com.mochyy.mochymusic.R.drawable.check), contentDescription = null, tint = Color.Black, modifier = Modifier.size(14.dp))
-            }
-        }
-    }
-}
-
-private const val LabSelectUnrollMs = 240
-private val LabSelectRowHeight = 44.dp
-private val LabSelectShape = RoundedCornerShape(16.dp)
-private val LabSelectColor = Color(0xFF141416)
-private val LabSelectEdge = Color(0xFF2A2A2F)
-private val LabSelectEdgeOpen = Color(0xFF3C3C42)
+/** pages that travel with [slide] — wrap-content so they can sit in a scrolling column */
 
 /**
  * Finger-follow for a row of pages (Graph / Bands / AutoEQ). Mix is continuous so the glass
