@@ -431,7 +431,11 @@ class CrossmixTest {
             analyze(synthTrack(100.0, 200)) to nearTempoTrack,
         )
         for ((out, inc) in pairs) {
-            val plan = CrossmixPlanner.plan(CrossmixTrackInput("o", 200_000L, out, null), CrossmixTrackInput("i", 0L, inc, null))
+            val plan = CrossmixPlanner.plan(
+                CrossmixTrackInput("o", 200_000L, out, null),
+                CrossmixTrackInput("i", 0L, inc, null),
+                CrossmixSettings(alwaysMix = false),
+            )
             assertTrue("${plan.style.label} is a flavour style", plan.style.use != StyleUse.Flavour)
             if (!plan.style.entersAtEnd) {
                 val seconds = plan.lengthBeats * plan.outBeatMs / 1_000.0
