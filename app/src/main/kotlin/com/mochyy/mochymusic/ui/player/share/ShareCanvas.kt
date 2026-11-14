@@ -56,6 +56,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import coil3.compose.AsyncImage
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.constants.ShareShowMochyWatermarkKey
+import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.ui.utils.resize
 import kotlin.math.sqrt
@@ -91,6 +93,8 @@ private fun shareText(size: Float, weight: FontWeight = FontWeight.Bold, color: 
 
 @Composable
 internal fun MochyMark(color: Color, size: Float = 14f) {
+    val (show) = rememberPreference(ShareShowMochyWatermarkKey, defaultValue = true)
+    if (!show) return
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             painter = painterResource(R.drawable.ic_mochy_mark),

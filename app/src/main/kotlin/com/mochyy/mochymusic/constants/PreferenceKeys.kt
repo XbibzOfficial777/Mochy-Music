@@ -1383,6 +1383,8 @@ val HideSettingsDescriptionsKey = booleanPreferencesKey("hideSettingsDescription
 val HideUpdateNoticeKey = booleanPreferencesKey("hideUpdateNotice")
 // Off by default: GitHub pre-releases are skipped. On: offer fork tags marked pre-release that still have an APK.
 val IncludePreReleaseUpdatesKey = booleanPreferencesKey("includePreReleaseUpdates")
+// Mochy mark on share cards (lyrics + song). On by default, same as before the switch existed.
+val ShareShowMochyWatermarkKey = booleanPreferencesKey("shareShowMochyWatermark")
 val AudioQualityBadgeDevKey = booleanPreferencesKey("audioQualityBadgeDev")
 val YtVideoBackgroundLyricsSyncKey = booleanPreferencesKey("ytVideoBackgroundLyricsSync")
 val ForceYtBackdropBlur1500Key = booleanPreferencesKey("forceYtBackdropBlur1500")

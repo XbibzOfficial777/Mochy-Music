@@ -9,7 +9,9 @@
         "Ditarik **19 commit Mochy resmi 8.4.1** (realidkroo, ujung eafbbe6): Android Auto + lirik di mobil, overlay lirik mengambang, vault rahasia di DataStore, perbaikan lirik/share/romanisasi/ekspor, crossmix, jeda saat mute (#251), lanjut Bluetooth (#248), saklar riwayat pencarian (#247), targetSdk 37.",
         "Identitas fork tetap: versi **8.4.1-xbibz.18** / kode **92** (bukan 73 resmi), `UPSTREAM_VERSION` 8.4.1, kanal rilis GitHub XbibzOfficial777, liquid glass, Music↔Video, widget, Mochi-Logs, saklar RAM/panas.",
         "Paket aplikasi **tetap** `com.mochyy.mochymusic` supaya pemasangan menimpa .16/.17-pre. Issue fork #1 (nama paket berbeda agar bisa berdampingan dengan Mochy asli) **belum** diubah — ganti applicationId akan memutus jalur update.",
-        "Rilis resmi, bukan pra-rilis. Tidak menimpa tag v8.3.3-xbibz.16."
+        "Rilis resmi, bukan pra-rilis. Tidak menimpa tag v8.3.3-xbibz.16.",
+        "Kartu berbagi lirik/lagu: saklar **watermark Mochy** (tampilkan atau sembunyikan logo Mochy di kartu). Default nyala.",
+        "About app menampilkan versi yang terpasang utuh, baik **rilis stabil** (`8.4.1-xbibz.18`) maupun **pra-rilis** (`…-pre.N`), plus saluran Release / Pre-release."
       ]
     },
     {

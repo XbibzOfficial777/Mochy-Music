@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.constants.ShareShowMochyWatermarkKey
 import com.mochyy.mochymusic.lyrics.LyricsUtils
 import com.mochyy.mochymusic.ui.component.AppSwitch
 import com.mochyy.mochymusic.ui.component.PopupSheetHandle
@@ -61,6 +62,7 @@ import com.mochyy.mochymusic.ui.player.share.showLinePicker
 import com.mochyy.mochymusic.ui.player.share.song.export.copySongLink
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.ui.utils.resize
+import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 // from a menu: the song on a card, its lyrics, or just the link
@@ -190,6 +192,14 @@ private fun ReadingSwitches(session: SongShareSession) {
             checked = choice.translate,
             enabled = true,
             onCheckedChange = { change(choice.copy(translate = it)) },
+        )
+        val (showMark, onShowMark) = rememberPreference(ShareShowMochyWatermarkKey, defaultValue = true)
+        ShareSwitchRow(
+            title = stringResource(R.string.song_share_watermark),
+            hint = stringResource(R.string.song_share_watermark_hint),
+            checked = showMark,
+            enabled = true,
+            onCheckedChange = onShowMark,
         )
     }
 }

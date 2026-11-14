@@ -320,10 +320,11 @@ private fun ColumnScope.AboutSheetContent(
     onOpenDevSpace: (Int) -> Unit,
 ) {
     val context = LocalContext.current
-    val installed = shortVersion(BuildConfig.VERSION_NAME)
-    // "xbibz.10" on the Xbibz APK, blank on a plain build: shown so the fork build is never a mystery
+    val installed = installedVersionName(BuildConfig.VERSION_NAME)
+    // "xbibz.18" or "xbibz.17-pre.2" on the Xbibz APK, blank on a plain build
     val fork = forkTag(BuildConfig.VERSION_NAME)
-    val upstream = BuildConfig.UPSTREAM_VERSION.ifBlank { installed }
+    val channel = if (isPreReleaseVersion(BuildConfig.VERSION_NAME)) "Pre-release" else "Release"
+    val upstream = BuildConfig.UPSTREAM_VERSION.ifBlank { shortVersion(BuildConfig.VERSION_NAME) }
     val scrollState = rememberScrollState()
     val ringScrollRangePx = with(LocalDensity.current) { 180.dp.toPx() }
     var contributors by remember { mutableStateOf(cachedContributors ?: FallbackContributors) }
@@ -412,7 +413,7 @@ private fun ColumnScope.AboutSheetContent(
                                 .background(Color(0xFF6FE3A8)),
                         )
                         Text(
-                            text = "Forked version \u00b7 $fork",
+                            text = "$channel \u00b7 $fork",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = (-0.2).sp,
@@ -473,8 +474,8 @@ private fun ColumnScope.AboutSheetContent(
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "Forked build $fork on top of realidkroo's Mochy Music " +
-                            "$upstream (app version $installed). Both the liquid glass look and every Mochy feature are " +
+                        text = "This install is $channel $installed, forked build $fork on top of realidkroo's Mochy Music " +
+                            "$upstream. Both the liquid glass look and every Mochy feature are " +
                             "kept, and this build carries its own signing key and its own release " +
                             "channel, so it updates from the fork and never from upstream.",
                         fontSize = 13.sp,

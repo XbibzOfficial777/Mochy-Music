@@ -33,7 +33,7 @@ jobs:
           packages: platform-tools
           log-accepted-android-sdk-licenses: false
       - name: Install Android build dependencies
-        run: sdkmanager 'platforms;android-37' 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.0.12077973' 'cmake;3.22.1'
+        run: bash .github/scripts/install-android-sdk.sh
       - name: Verify release inputs and native verifier
         run: |
           python3 .github/scripts/check_release_inputs.py
@@ -84,7 +84,7 @@ jobs:
           packages: platform-tools
           log-accepted-android-sdk-licenses: false
       - name: Install Android build dependencies
-        run: sdkmanager 'platforms;android-37' 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.0.12077973' 'cmake;3.22.1'
+        run: bash .github/scripts/install-android-sdk.sh
       - name: Restore repository release key
         env:
           KEYSTORE_BASE64: ${{ secrets.MOCHY_RELEASE_KEYSTORE_BASE64 }}

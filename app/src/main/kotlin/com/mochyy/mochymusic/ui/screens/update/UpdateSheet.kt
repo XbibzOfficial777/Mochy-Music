@@ -172,9 +172,15 @@ private const val StableLabel = "STABLE"
 /** "8.1.0 build#1165" -> "8.1.0", "8.0.2 (1100)" -> "8.0.2" */
 internal fun shortVersion(version: String): String = version.substringBefore(' ').substringBefore("-xbibz.")
 
-/** "xbibz.9" out of "8.3.2-xbibz.9": the fork's own build tag, blank on a build that isn't the fork. */
+/** The version on this APK, including -xbibz.N and -pre.N, without a trailing "build#…". */
+internal fun installedVersionName(version: String): String = version.substringBefore(' ')
+
+/** "xbibz.18" or "xbibz.17-pre.2" from a fork version; blank on a plain upstream build. */
 internal fun forkTag(version: String): String =
-    Regex("xbibz\\.\\d+", RegexOption.IGNORE_CASE).find(version)?.value?.lowercase().orEmpty()
+    Regex("xbibz\\.\\d+(?:-pre(?:\\.\\d+)?)?", RegexOption.IGNORE_CASE).find(version)?.value?.lowercase().orEmpty()
+
+internal fun isPreReleaseVersion(version: String): Boolean =
+    version.contains("-pre", ignoreCase = true)
 
 /** the app version sheet: the app, the version you're on and its channel, what's newer, and what you can do about it */
 @Composable
@@ -212,7 +218,7 @@ private fun ColumnScope.UpdateSheetContent(
         channel = target
     }
 
-    val installed = shortVersion(BuildConfig.VERSION_NAME)
+    val installed = installedVersionName(BuildConfig.VERSION_NAME)
     Box(Modifier.fillMaxWidth()) {
         // centred just inside the sheet's top-right corner so its edge cuts the ring off, no size of its own so it never pushes content around
         VersionRing(
