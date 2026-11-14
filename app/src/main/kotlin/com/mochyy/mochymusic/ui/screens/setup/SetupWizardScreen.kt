@@ -20,8 +20,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,6 +46,7 @@ import com.mochyy.mochymusic.constants.CrossmixMode
 import com.mochyy.mochymusic.constants.CrossmixModeKey
 import com.mochyy.mochymusic.constants.DisableAiFilterKey
 import com.mochyy.mochymusic.constants.DisableBlurKey
+import com.mochyy.mochymusic.constants.DefaultTransitionMode
 import com.mochyy.mochymusic.importer.account.AccountImportState
 import com.mochyy.mochymusic.importer.account.AccountService
 import com.mochyy.mochymusic.ui.screens.settings.importsync.onSignInTick
@@ -65,7 +64,6 @@ import com.mochyy.mochymusic.ui.screens.setup.onboarding.ImportAskPage
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.ImportModePage
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.LastOnePage
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.Onb
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.OnbButton
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.OnboardingBrowserSheet
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.ProfilePage
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.ProviderListPage
@@ -265,7 +263,7 @@ fun SetupWizardScreen(
 
     // ---- settings the last pages flip ----
     val (disableBlur, onDisableBlurChange) = rememberPreference(DisableBlurKey, defaultValue = false)
-    val (crossmixMode, onCrossmixModeChange) = rememberEnumPreference(CrossmixModeKey, defaultValue = CrossmixMode.AUTO_CROSSFADE)
+    val (crossmixMode, onCrossmixModeChange) = rememberEnumPreference(CrossmixModeKey, defaultValue = DefaultTransitionMode)
     val (disableAiFilter, onDisableAiFilterChange) = rememberPreference(DisableAiFilterKey, defaultValue = false)
 
     val card = CardInfo(username = username, photo = profilePicUri, cardNumber = vm.cardNumber, joinedText = vm.joinedText)
@@ -323,25 +321,21 @@ fun SetupWizardScreen(
                     modifier = Modifier.fillMaxSize(),
                 ) { current ->
                     when (current) {
-                        // the welcome page runs to the top of the sheet under the handle, pushed down its strip showed as a bar
-                        Step.Welcome -> Box(Modifier.fillMaxSize().background(Color.Black)) {
-                            WelcomeStep(isHiding = isLeavingWelcome)
-                            OnbButton(
-                                text = "Next",
-                                onClick = {
+                        // the welcome page runs to the top of the sheet under the handle, a tap anywhere on it moves on
+                        Step.Welcome -> WelcomeStep(
+                            isHiding = isLeavingWelcome,
+                            onNext = {
+                                // a second tap while she's waving goodbye would skip a page
+                                if (!isLeavingWelcome) {
                                     isLeavingWelcome = true
                                     scope.launch {
                                         delay(400)
                                         go(Step.ImportAsk)
                                         isLeavingWelcome = false
                                     }
-                                },
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .navigationBarsPadding()
-                                    .padding(horizontal = 28.dp, vertical = 18.dp),
-                            )
-                        }
+                                }
+                            },
+                        )
 
                         Step.ImportAsk -> ImportAskPage(
                             onYes = { go(Step.ImportMode) },
@@ -446,7 +440,7 @@ fun SetupWizardScreen(
 
                         Step.LastOne -> LastOnePage(
                             autoCrossfade = crossmixMode != CrossmixMode.OFF,
-                            onAutoCrossfadeChange = { on -> onCrossmixModeChange(if (on) CrossmixMode.AUTO_CROSSFADE else CrossmixMode.OFF) },
+                            onAutoCrossfadeChange = { on -> onCrossmixModeChange(if (on) CrossmixMode.CROSSMIX else CrossmixMode.OFF) },
                             aiArtistFilter = !disableAiFilter,
                             onAiArtistFilterChange = { on -> onDisableAiFilterChange(!on) },
                             onNext = { go(Step.Done) },

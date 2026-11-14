@@ -46,6 +46,7 @@ class ModuleSkin(
                     is SkinBlock.Row -> blocks(block.blocks)
                     is SkinBlock.Column -> blocks(block.blocks)
                     is SkinBlock.Stack -> blocks(block.blocks)
+                    is SkinBlock.Box -> blocks(block.blocks)
                     else -> Unit
                 }
             }
@@ -53,7 +54,7 @@ class ModuleSkin(
         player?.let { p ->
             background(p.background)
             p.layers.forEach { background(it.background) }
-            blocks(p.blocks)
+            blocks(p.header + p.blocks)
         }
         found
     }
@@ -97,10 +98,21 @@ data class SkinText(
     val lines: Int,
     val upper: Boolean,
     val align: SkinAlign?,
+    /** hug the words in a row instead of sharing its width, so a label and its value sit side by side */
+    val wrap: Boolean = false,
+    /** extra room between letters, in em */
+    val spacing: Float = 0f,
 )
 
+/** [wholeApp] puts the font on every screen; without it only the module's player uses it */
 @Immutable
-data class SkinFont(val regular: String, val bold: String?)
+data class SkinFont(val regular: String, val bold: String?, val wholeApp: Boolean = false)
+
+/** where mochy's chevron sits and how it's dressed: [side] start or end, or hidden when the module brings its own menu button */
+@Immutable
+data class SkinMenuButton(val side: MenuSide, val color: SkinColor?, val fill: SkinColor?)
+
+enum class MenuSide { Start, End, Hidden }
 
 // ---- the player -------------------------------------------------------------------------------
 
@@ -118,10 +130,45 @@ data class SkinPlayer(
     val customise: SkinCustomise? = null,
     /** the module's own items in the player's chevron menu, above mochy's other menu and edit player */
     val menu: List<SkinMenuItem> = emptyList(),
+    val menuButton: SkinMenuButton = DefaultMenuButton,
+    /** blocks in a row level with the chevron, at the very top, taking no room from the rest */
+    val header: List<SkinBlock> = emptyList(),
+    /** the blocks scroll when they're taller than the screen, and grow spaces stop growing */
+    val scroll: Boolean = false,
 ) {
     /** whether anything in it moves with the music or a loop, so the shared clock only runs when something reads it */
-    val moves: Boolean get() = layers.any { it.motion != null } || background is SkinBackground.Shader || blocks.any(SkinBlock::moves)
+    val moves: Boolean get() = layers.any { it.motion != null } || background is SkinBackground.Shader || blocks.any(SkinBlock::moves) || header.any(SkinBlock::moves)
+
+    // every block, the header's too, styled wrappers and groups opened up, worked out once since the layout never changes
+    val all: List<SkinBlock> by lazy { (header + blocks).flatMap { it.walk() } }
+
+    /** the built-in conditions the layout reads, so the player only follows the ones it uses */
+    val flags: Set<SkinFlag> by lazy {
+        all.filterIsInstance<SkinBlock.Styled>().flatMap { styled ->
+            listOfNotNull(styled.condition) + styled.states.map { it.condition }
+        }.mapNotNull { SkinFlag.of(it.key) }.toSet()
+    }
+
+    /** the events some block plays an animation on */
+    val events: Set<SkinEvent> by lazy { all.filterIsInstance<SkinBlock.Styled>().flatMap { s -> s.triggers.map { it.event } }.toSet() }
+
+    /** an animation that keeps going while the song is paused, so the clock can't rest just because nothing plays */
+    val alwaysMoves: Boolean by lazy { all.filterIsInstance<SkinBlock.Styled>().any { s -> s.timelines.any { it.always && it.clock == SkinClock.Time } } }
+
+    /** a box asks for frosted glass, so the backdrop has to be captured for it */
+    val frosted: Boolean by lazy { all.any { it is SkinBlock.Box && it.glass != null } }
+
+    /** some words name the stream or the phone ({codec}, {kbps}, {device}...), so mochy only gathers them for players that show them */
+    val audio: Boolean by lazy { all.any { it is SkinBlock.Label && SkinAudioField.containsMatchIn(it.value) } }
+
+    /** lyrics show somewhere, so the player fetches and parses them */
+    val lyrics: Boolean by lazy { SkinFlag.Lyrics in flags || all.any { it is SkinBlock.Lyrics } }
 }
+
+val DefaultMenuButton = SkinMenuButton(MenuSide.End, color = null, fill = null)
+
+/** the stream and phone placeholders a text block fills in; android's regex engine needs the closing brace escaped */
+val SkinAudioField = Regex("""\{(codec|khz|kbps|bits|size|quality|device|volume|cpu)\}""", RegexOption.IGNORE_CASE)
 
 @Immutable
 data class SkinCustomise(val title: String?, val keys: List<String>)
@@ -164,11 +211,11 @@ data class SkinMotion(val kind: MotionKind, val speed: Float, val amount: Float)
 
 enum class MotionKind { Float, Sway, Breathe, Pulse, Spin, Beat, Drift, Zoom, Shake }
 
-/** how a block comes in: when the player opens, or again with every new song when [eachSong] */
+/** how a block comes in: when the player opens, or again with every new song when [eachSong]; [frames] when it brings its own keyframes */
 @Immutable
-data class SkinEnter(val kind: EnterKind, val delayMs: Int, val durationMs: Int, val eachSong: Boolean)
+data class SkinEnter(val kind: EnterKind, val delayMs: Int, val durationMs: Int, val eachSong: Boolean, val frames: SkinKeyframes? = null)
 
-enum class EnterKind { Fade, Rise, Drop, Zoom, SlideStart, SlideEnd }
+enum class EnterKind { Fade, Rise, Drop, Zoom, SlideStart, SlideEnd, Keyframes }
 
 /** "key", "!key", "key=value" or "key!=value": a block that only shows while one of the module's settings says so */
 @Immutable
@@ -188,17 +235,31 @@ enum class TimeKind { Elapsed, Remaining, Length }
 
 enum class StackAlign { Center, Top, Bottom, Start, End }
 
+/** which way a box's colours run when it has more than one */
+enum class GradientKind { Vertical, Horizontal, Diagonal, Radial }
+
 @Immutable
 sealed interface SkinBlock {
     data class Cover(val shape: CoverShape, val corner: Dp, val size: Float, val spin: Boolean, val frame: String?, val shadow: Boolean, val spinSpeed: Float = 1f) : SkinBlock
     data class Title(val text: SkinText) : SkinBlock
     data class Artist(val text: SkinText) : SkinBlock
     data class Album(val text: SkinText) : SkinBlock
+    /** words of the module's own; {title}, {artist} and {album} fill in the song, {$key} one of its settings */
     data class Label(val value: String, val text: SkinText) : SkinBlock
-    data class Picture(val image: String, val width: Dp?, val height: Dp, val corner: Dp, val fit: Boolean = false) : SkinBlock
+    /** [tint] recolours every pixel, for an icon drawn in one colour */
+    data class Picture(val image: String, val width: Dp?, val height: Dp, val corner: Dp, val fit: Boolean = false, val tint: SkinColor? = null) : SkinBlock
     data class Progress(val style: ProgressStyle, val color: SkinColor, val track: SkinColor, val times: Boolean, val seek: Boolean) : SkinBlock
     data class Controls(val size: Dp, val plain: Boolean, val color: SkinColor?, val icon: SkinColor?) : SkinBlock
-    data class Lyrics(val height: Dp, val size: TextUnit, val color: SkinColor) : SkinBlock
+    /** [flow] swaps the big sung-through lyrics for a few small lines rolling up, the current one in [active] after [prefix] */
+    data class Lyrics(
+        val height: Dp,
+        val size: TextUnit,
+        val color: SkinColor,
+        val flow: Boolean = false,
+        val active: SkinColor? = null,
+        val prefix: String = "",
+        val align: SkinAlign? = null,
+    ) : SkinBlock
     data class Space(val size: Dp, val grow: Boolean) : SkinBlock
     data class Row(val blocks: List<SkinBlock>, val gap: Dp) : SkinBlock
     data class Column(val blocks: List<SkinBlock>, val gap: Dp) : SkinBlock
@@ -213,32 +274,78 @@ sealed interface SkinBlock {
     data class Time(val kind: TimeKind, val text: SkinText) : SkinBlock
     /** the module's own agsl drawn in a box, [fallback] colour where shaders can't run */
     data class Shader(val program: SkinShaderSource, val width: Dp?, val height: Dp, val corner: Dp, val fallback: SkinColor?) : SkinBlock
-    /** any block with a loop, an entrance, a condition, a nudge or see-through on top */
+    /** a panel holding blocks in a column (or a row): a fill, a gradient or frosted glass of [glass] dp behind them, a border, round corners */
+    data class Box(
+        val blocks: List<SkinBlock>,
+        val row: Boolean,
+        val gap: Dp,
+        val padding: Dp,
+        val corner: Dp,
+        val fill: List<SkinColor>,
+        val gradient: GradientKind,
+        val stroke: Dp?,
+        val strokeColor: SkinColor,
+        val glass: Float?,
+        val width: Dp?,
+        val height: Dp?,
+        val shadow: Boolean,
+    ) : SkinBlock
+    /** a shape drawn from svg path data, scaled from its [viewWidth] by [viewHeight] box into its own */
+    data class Vector(
+        val data: String,
+        val viewWidth: Float,
+        val viewHeight: Float,
+        val width: Dp?,
+        val height: Dp,
+        val fill: List<SkinColor>,
+        val stroke: Dp?,
+        val strokeColor: SkinColor?,
+    ) : SkinBlock
+    /** any block with loops, keyframes, states, events, an entrance, a condition, a nudge, a blur or see-through on top */
     data class Styled(
         val inner: SkinBlock,
-        val motion: SkinMotion?,
+        val motions: List<SkinMotion>,
         val enter: SkinEnter?,
         val condition: SkinCondition?,
         val opacity: Float,
         val x: Dp,
         val y: Dp,
         val rotate: Float,
+        val scale: Float = 1f,
+        val blur: Float = 0f,
+        val originX: Float = 0.5f,
+        val originY: Float = 0.5f,
+        val timelines: List<SkinTimeline> = emptyList(),
+        val states: List<SkinState> = emptyList(),
+        val transition: SkinTransition? = null,
+        val triggers: List<SkinTrigger> = emptyList(),
     ) : SkinBlock
 
     val moves: Boolean
         get() = when (this) {
-            is Styled -> motion != null || inner.moves
+            is Styled -> motions.isNotEmpty() || timelines.isNotEmpty() || inner.moves
             is Visualizer, is Shader -> true
             is Row -> blocks.any { it.moves }
             is Column -> blocks.any { it.moves }
             is Stack -> blocks.any { it.moves }
+            is Box -> blocks.any { it.moves }
             else -> false
         }
+
+    /** this block and every block inside it */
+    fun walk(): List<SkinBlock> = listOf(this) + when (this) {
+        is Styled -> inner.walk()
+        is Row -> blocks.flatMap { it.walk() }
+        is Column -> blocks.flatMap { it.walk() }
+        is Stack -> blocks.flatMap { it.walk() }
+        is Box -> blocks.flatMap { it.walk() }
+        else -> emptyList()
+    }
 }
 
 // ---- pages ------------------------------------------------------------------------------------
 
-/** a page of the module's own; [inSettings] lists it on the settings page too, with [icon] beside it */
+/** a page of the module's own; [inSettings] lists it on the settings page too, with [icon] beside it, and [background] behind it all */
 @Immutable
 data class SkinPage(
     val id: String,
@@ -247,7 +354,21 @@ data class SkinPage(
     val inSettings: Boolean = false,
     val subtitle: String? = null,
     val icon: String? = null,
-)
+    val background: PageBackground? = null,
+) {
+    /** a card asks for frosted glass, so the page's background is captured for it */
+    val frosted: Boolean get() = blocks.any { it is PageBlock.Card && it.glass != null }
+}
+
+/** what a page draws behind its blocks: colours, a picture, or the module's own shader */
+@Immutable
+sealed interface PageBackground {
+    data class Fill(val colors: List<SkinColor>) : PageBackground
+    /** [blur] in dp (android 12+), [dim] a black veil so the words stay readable */
+    data class Picture(val image: String, val blur: Float, val dim: Float) : PageBackground
+    /** the module's own agsl, android 13+; [fallback] colours everywhere else */
+    data class Shader(val program: SkinShaderSource, val fallback: List<SkinColor>) : PageBackground
+}
 
 @Immutable
 sealed interface PageBlock {
@@ -264,6 +385,10 @@ sealed interface PageBlock {
     data class Search(val query: String, val title: String) : PageBlock
     /** one of the module's own settings, changed right there on the page */
     data class Setting(val key: String) : PageBlock
+    /** blocks grouped on a card: frosted glass of [glass] dp over the page's background, or a fill */
+    data class Card(val blocks: List<PageBlock>, val colors: List<SkinColor>, val glass: Float?, val corner: Dp, val padding: Dp) : PageBlock
+    /** the module's own agsl in a box that answers touch, [fallback] colour where shaders can't run */
+    data class Shader(val program: SkinShaderSource, val height: Dp, val corner: Dp, val fallback: SkinColor?) : PageBlock
 }
 
 // ---- the player's menu ------------------------------------------------------------------------

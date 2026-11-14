@@ -48,6 +48,12 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
         with:
           cache-disabled: true
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Install Android build dependencies
+        run: sdkmanager 'platforms;android-37' 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.0.12077973' 'cmake;3.22.1'
       - name: Test the native release verifier
         run: |
           python3 .github/scripts/check_release_inputs.py
@@ -103,7 +109,7 @@ jobs:
           "$build_tools/aapt" dump badging "$apk" > /tmp/apk-badging.txt
           grep -q "package: name='com.mochyy.mochymusic'" /tmp/apk-badging.txt
           grep -Fx "sdkVersion:'24'" /tmp/apk-badging.txt
-          grep -Fx "targetSdkVersion:'36'" /tmp/apk-badging.txt
+          grep -Fx "targetSdkVersion:'37'" /tmp/apk-badging.txt
           ABI="$ABI" python3 - <<'PYABI'
           import os, re, sys
           sys.path.insert(0, '.github/scripts')
@@ -157,7 +163,7 @@ jobs:
               'versionName': os.environ['VERSION'],
               'versionCode': int(os.environ['CODE']),
               'minSdk': 24,
-              'targetSdk': 36,
+              'targetSdk': 37,
               'debuggable': False,
               'signerSha256': os.environ['CERT'],
           }

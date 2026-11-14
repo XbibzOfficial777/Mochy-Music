@@ -36,7 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -76,7 +76,7 @@ fun PopupSheetState.showFindModulesSheet(viewModel: ModulesViewModel, onAdded: (
 
 @Composable
 private fun FindModulesContent(viewModel: ModulesViewModel, onAdded: (String) -> Unit) {
-    val resources = LocalResources.current
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
     var link by rememberSaveable { mutableStateOf("") }
@@ -90,18 +90,7 @@ private fun FindModulesContent(viewModel: ModulesViewModel, onAdded: (String) ->
     LaunchedEffect(Unit) { catalog = viewModel.catalog() }
 
     fun show(result: LinkCheck) {
-        when (result) {
-            is LinkCheck.Ready -> ready = result
-            LinkCheck.NotALink -> problem = resources.getString(R.string.modules_link_not_a_link)
-            LinkCheck.Unreachable -> problem = resources.getString(R.string.modules_link_unreachable)
-            LinkCheck.NotAModule -> problem = resources.getString(R.string.modules_link_not_a_module)
-            LinkCheck.Website -> problem = resources.getString(R.string.modules_link_website)
-            LinkCheck.NotAZip -> problem = resources.getString(R.string.modules_file_not_a_zip)
-            LinkCheck.NeedsUrl -> problem = resources.getString(R.string.modules_file_needs_url)
-            LinkCheck.NotSigned -> problem = resources.getString(R.string.modules_file_not_signed)
-            LinkCheck.NoRelease -> problem = resources.getString(R.string.modules_github_no_release)
-            LinkCheck.NoModuleInRelease -> problem = resources.getString(R.string.modules_github_no_module)
-        }
+        if (result is LinkCheck.Ready) ready = result else problem = linkProblem(context, result)
     }
 
     fun check(target: String) {
@@ -156,7 +145,7 @@ private fun FindModulesContent(viewModel: ModulesViewModel, onAdded: (String) ->
                         checking = false
                         ready = null
                         problemFromFile = true
-                        problem = resources.getString(R.string.modules_code_broken)
+                        problem = context.getString(R.string.modules_code_broken)
                     }
                 },
                 onCancel = { ready = null },
@@ -201,6 +190,20 @@ private fun FindModulesContent(viewModel: ModulesViewModel, onAdded: (String) ->
         Spacer(Modifier.height(10.dp))
         CatalogList(catalog, busy = checking, onPick = { check(it.url) })
     }
+}
+
+/** why a link or a zip didn't turn into a module, in words people can act on; null when it did */
+internal fun linkProblem(context: android.content.Context, result: LinkCheck): String? = when (result) {
+    is LinkCheck.Ready -> null
+    LinkCheck.NotALink -> context.getString(R.string.modules_link_not_a_link)
+    LinkCheck.Unreachable -> context.getString(R.string.modules_link_unreachable)
+    LinkCheck.NotAModule -> context.getString(R.string.modules_link_not_a_module)
+    LinkCheck.Website -> context.getString(R.string.modules_link_website)
+    LinkCheck.NotAZip -> context.getString(R.string.modules_file_not_a_zip)
+    LinkCheck.NeedsUrl -> context.getString(R.string.modules_file_needs_url)
+    LinkCheck.NotSigned -> context.getString(R.string.modules_file_not_signed)
+    LinkCheck.NoRelease -> context.getString(R.string.modules_github_no_release)
+    LinkCheck.NoModuleInRelease -> context.getString(R.string.modules_github_no_module)
 }
 
 @Composable

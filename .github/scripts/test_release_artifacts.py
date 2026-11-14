@@ -25,7 +25,7 @@ class ArtifactVerifierTest(unittest.TestCase):
             digest = hashlib.sha256(file.read_bytes()).hexdigest()
             (self.folder / f'SHA256SUMS-{package}.txt').write_text(f'{digest}  {name}\n')
             data = dict(abi=package, applicationId='com.mochyy.mochymusic', versionName=self.version,
-                        versionCode=79, minSdk=24, targetSdk=36, debuggable=False, signerSha256=CERT)
+                        versionCode=79, minSdk=24, targetSdk=37, debuggable=False, signerSha256=CERT)
             (self.folder / f'metadata-{package}.json').write_text(json.dumps(data))
 
     def run_verifier(self, tag=None):

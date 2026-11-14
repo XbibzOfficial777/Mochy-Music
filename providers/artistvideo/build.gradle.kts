@@ -8,7 +8,7 @@ plugins {
 
 extensions.configure<LibraryExtension> {
     namespace = "com.mochyy.mochymusic.artistvideo"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 24

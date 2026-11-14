@@ -5,6 +5,7 @@ package com.mochyy.mochymusic.ui.player.share.song.export
 import android.media.MediaCodecList
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.compose.runtime.MutableLongState
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -21,7 +22,6 @@ import java.nio.ByteOrder
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.math.min
-import timber.log.Timber
 
 // the song comes in and goes out softly instead of starting and stopping mid-note
 private const val FadeInMs = 250L
@@ -36,9 +36,9 @@ internal object ShareEncoders {
         runCatching {
             MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.any { info ->
                 info.isEncoder && info.supportedTypes.any { it.equals(MimeTypes.VIDEO_H264, ignoreCase = true) } &&
-                    runCatching encoder@{
-                        val video = info.getCapabilitiesForType(MimeTypes.VIDEO_H264).videoCapabilities
-                            ?: return@encoder false
+                    runCatching {
+                        // an audio-only or odd codec has no video capabilities; it just can't encode this
+                        val video = info.getCapabilitiesForType(MimeTypes.VIDEO_H264).videoCapabilities ?: return@runCatching false
                         video.areSizeAndRateSupported(quality.height, quality.width, fps.toDouble()) ||
                             video.areSizeAndRateSupported(quality.width, quality.height, fps.toDouble())
                     }.getOrDefault(false)
@@ -101,7 +101,7 @@ internal class ExportFrames(
             frames.scope.launch(start = CoroutineStart.UNDISPATCHED) {
                 result = runCatching { draw(presentationTimeUs) }
                     .onFailure {
-                        if (failed == 0) Timber.tag("SongShare").e(it, "Couldn't draw the share's frame at $presentationTimeUs us")
+                        if (failed == 0) Log.e("SongShare", "Couldn't draw the share's frame at $presentationTimeUs us", it)
                         failed++
                     }
                     // the frame before stands in, so the card stays in the video instead of blinking out

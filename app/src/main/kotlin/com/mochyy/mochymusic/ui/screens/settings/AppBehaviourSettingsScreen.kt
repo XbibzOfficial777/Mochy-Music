@@ -56,6 +56,7 @@ import com.mochyy.mochymusic.constants.LyricsMotionStyle
 import com.mochyy.mochymusic.constants.LyricsMotionStyleKey
 import com.mochyy.mochymusic.constants.MixWithOtherAppsKey
 import com.mochyy.mochymusic.constants.OfflineModeKey
+import com.mochyy.mochymusic.constants.PauseOnMute
 import com.mochyy.mochymusic.constants.PauseSearchHistoryKey
 import com.mochyy.mochymusic.constants.PersistentQueueKey
 import com.mochyy.mochymusic.constants.PersistentShuffleAcrossQueuesKey
@@ -205,6 +206,7 @@ private fun generalItems(navController: NavController): List<SettingsItem> {
     val (stopOnTaskRemoved, onStopOnTaskRemoved) = rememberPreference(StopPlaybackOnTaskRemovedKey, defaultValue = false)
     val (mixWithOtherApps, onMixWithOtherAppsChange) = rememberPreference(MixWithOtherAppsKey, defaultValue = false)
     val (resumeOnBluetooth, onResumeOnBluetoothChange) = rememberPreference(ResumeOnBluetoothConnectKey, defaultValue = false)
+    val (pauseOnMute, onPauseOnMuteChange) = rememberPreference(PauseOnMute, defaultValue = false)
     val (persistentQueue, onPersistentQueueChange) = rememberPreference(PersistentQueueKey, defaultValue = true)
     val (albumsFromLikes, onAlbumsFromLikesChange) = rememberPreference(AlbumsFromLikedSongsKey, defaultValue = false)
     val (pauseSearchHistory, onPauseSearchHistoryChange) = rememberPreference(PauseSearchHistoryKey, defaultValue = false)
@@ -360,6 +362,14 @@ private fun generalItems(navController: NavController): List<SettingsItem> {
             icon = painterResource(R.drawable.bluetooth),
             checked = resumeOnBluetooth,
             onCheckedChange = onResumeOnBluetoothChange,
+        ),
+        switchItem(
+            key = "Pause when muted",
+            title = stringResource(R.string.pause_music_when_media_is_muted),
+            description = stringResource(R.string.pause_music_when_muted_desc),
+            icon = painterResource(R.drawable.volume_off),
+            checked = pauseOnMute,
+            onCheckedChange = onPauseOnMuteChange,
         ),
         switchItem(
             key = "Save Player's last state",
@@ -553,6 +563,8 @@ private fun playerLookItems(): List<SettingsItem> {
     val (canvasWifiOnly, onCanvasWifiOnlyChange) = rememberPreference(CanvasWifiOnlyKey, defaultValue = true)
     val (highBloom, onHighBloomChange) = rememberPreference(LyricsHighBloomKey, defaultValue = true)
     val (lyricsStyle) = rememberEnumPreference(LyricsMotionStyleKey, defaultValue = LyricsMotionStyle.MOTION)
+    val (romanizeAsMain, onRomanizeAsMainChange) = rememberPreference(com.mochyy.mochymusic.constants.LyricsRomanizeAsMainKey, defaultValue = false)
+    val (floatingLyrics, onFloatingLyricsChange) = com.mochyy.mochymusic.floating.rememberFloatingLyricsSwitch()
     return listOf(
         switchItem(
             key = "Audio format badge",
@@ -615,6 +627,23 @@ private fun playerLookItems(): List<SettingsItem> {
             checked = highBloom,
             onCheckedChange = onHighBloomChange,
             visible = lyricsStyle.shaded,
+        ),
+        switchItem(
+            key = "Romanisation as the main line",
+            title = stringResource(R.string.settings_romanize_as_main),
+            description = stringResource(R.string.settings_romanize_as_main_desc),
+            icon = painterResource(R.drawable.lyrics),
+            checked = romanizeAsMain,
+            onCheckedChange = onRomanizeAsMainChange,
+        ),
+        switchItem(
+            key = "Floating lyrics overlay bubble",
+            title = stringResource(R.string.settings_floating_lyrics),
+            description = stringResource(R.string.settings_floating_lyrics_desc),
+            detail = stringResource(R.string.settings_floating_lyrics_detail),
+            icon = painterResource(R.drawable.lyrics),
+            checked = floatingLyrics,
+            onCheckedChange = onFloatingLyricsChange,
         ),
     )
 }

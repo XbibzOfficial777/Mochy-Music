@@ -18,32 +18,35 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import timber.log.Timber
-import java.security.SecureRandom
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import java.net.URLDecoder
 import java.util.ArrayDeque
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 // the names both sides agree on, so a phone and a tv on different app versions still find each other
 object LinkWire {
-    // the phone keeps this one up while it has a tv paired
+    // a phone keeps this one up while it has any device paired
     const val PhoneServiceType = "_mochylink._tcp."
 
-    // the tv only shows up as this while its pairing screen is open
-    const val TvServiceType = "_mochytv._tcp."
+    // a device only shows up as this while its pairing screen is open, the name is from when only tvs had one
+    const val PairServiceType = "_mochytv._tcp."
 
     const val PhonePort = 47_801
-    const val TvPairPort = 47_802
+    const val PairPort = 47_802
 
     // the tv listens here for its phone's play, skip and look commands while a linked profile is open
     const val TvControlPort = 47_803
 
-    const val KeyHeader = "X-Mochy-Key"
+    // bumped when a route changes shape, so an old phone and a new tv can say so instead of failing quietly; 2 signs every call and pairs without sending the key
+    const val ProtocolVersion = 2
 
-    // bumped when a route changes shape, so an old phone and a new tv can say so instead of failing quietly
-    const val ProtocolVersion = 1
+    // the header the old protocol carried the key itself in; only looked for, so an un-updated device hears "update" instead of "unpaired"
+    const val OldKeyHeader = "X-Mochy-Key"
 
     const val AttrId = "id"
     const val AttrName = "n"
+    const val AttrKind = "k"
 
     // a lan is fast and a phone that's gone should be noticed quickly, so short waits
     val client: OkHttpClient by lazy {
@@ -54,24 +57,31 @@ object LinkWire {
             .build()
     }
 
-    fun baseUrl(host: String, port: Int) = "http://${if (host.contains(':')) "[$host]" else host}:$port"
-
-    fun newKey(): String {
-        val bytes = ByteArray(24)
-        SecureRandom().nextBytes(bytes)
-        return bytes.joinToString("") { "%02x".format(it) }
+    // a big library takes the phone a while to copy and squeeze before the first byte goes out
+    private val slowClient: OkHttpClient by lazy {
+        client.newBuilder().readTimeout(3, TimeUnit.MINUTES).build()
     }
 
-    fun get(url: String, key: String?): Response =
-        client.newCall(Request.Builder().url(url).apply { key?.let { header(KeyHeader, it) } }.build()).execute()
+    fun getSlow(url: String, auth: LinkCredentials?): Response = slowClient.newCall(request(url, auth, null)).execute()
 
-    fun postJson(url: String, key: String?, json: String): Response =
-        client.newCall(
-            Request.Builder().url(url)
-                .apply { key?.let { header(KeyHeader, it) } }
-                .post(json.toRequestBody("application/json; charset=utf-8".toMediaType()))
-                .build()
-        ).execute()
+    fun baseUrl(host: String, port: Int) = "http://${if (host.contains(':')) "[$host]" else host}:$port"
+
+    fun get(url: String, auth: LinkCredentials?): Response = client.newCall(request(url, auth, null)).execute()
+
+    fun postJson(url: String, auth: LinkCredentials?, json: String): Response = client.newCall(request(url, auth, json)).execute()
+
+    // a call signed with the key when there is one; the path and query are read back the way the server reads them, so both sign the same thing
+    private fun request(url: String, auth: LinkCredentials?, json: String?): Request {
+        val body = json?.toByteArray(Charsets.UTF_8)
+        val builder = Request.Builder().url(url)
+        if (auth != null) {
+            val parsed = url.toHttpUrl()
+            val path = URLDecoder.decode(parsed.encodedPath, "UTF-8")
+            builder.header(LinkAuth.Header, LinkAuth.header(auth, if (body == null) "GET" else "POST", path, LinkAuth.parseQuery(parsed.encodedQuery), body))
+        }
+        if (body != null) builder.post(body.toRequestBody("application/json; charset=utf-8".toMediaType()))
+        return builder.build()
+    }
 }
 
 // this device as the other side sees it: a stable id that survives renames, and a name people recognise
@@ -104,8 +114,8 @@ object LinkIdentity {
         }
 }
 
-// a device found on the wi-fi, with where to reach it
-data class LinkPeer(val id: String, val name: String, val host: String, val port: Int)
+// a device found on the wi-fi, with where to reach it; kind is a tv when the device didn't say
+data class LinkPeer(val id: String, val name: String, val host: String, val port: Int, val kind: DeviceKind = DeviceKind.Tv)
 
 // puts this device on the wi-fi under a service type until close is called
 class LinkAdvert(context: Context, type: String, name: String, port: Int, attributes: Map<String, String>) {
@@ -166,7 +176,8 @@ fun discoverPeers(context: Context, type: String): Flow<List<LinkPeer>> = callba
                     val id = attrs[LinkWire.AttrId]?.toString(Charsets.UTF_8)
                     if (host != null && id != null) {
                         val name = attrs[LinkWire.AttrName]?.toString(Charsets.UTF_8) ?: info.serviceName
-                        found[info.serviceName] = LinkPeer(id, name, host, info.port)
+                        val kind = DeviceKind.fromWire(attrs[LinkWire.AttrKind]?.toString(Charsets.UTF_8), DeviceKind.Tv)
+                        found[info.serviceName] = LinkPeer(id, name, host, info.port, kind)
                         publish()
                     }
                     resolving.set(false)

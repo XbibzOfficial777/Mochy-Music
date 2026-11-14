@@ -2,6 +2,7 @@
 
 package com.mochyy.mochymusic.ui.player.styles
 
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -19,6 +20,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalTextStyle
@@ -41,15 +44,19 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.mochyy.mochymusic.LocalAppContentObscured
@@ -57,6 +64,7 @@ import com.mochyy.mochymusic.LocalArtworkColor
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.modules.skin.ActiveSkin
 import com.mochyy.mochymusic.modules.skin.CoverShape
+import com.mochyy.mochymusic.modules.skin.MenuSide
 import com.mochyy.mochymusic.modules.skin.ModuleSkin
 import com.mochyy.mochymusic.modules.skin.ProgressStyle
 import com.mochyy.mochymusic.modules.skin.SkinAlign
@@ -64,10 +72,12 @@ import com.mochyy.mochymusic.modules.skin.SkinBackground
 import com.mochyy.mochymusic.modules.skin.SkinBlock
 import com.mochyy.mochymusic.modules.skin.SkinColor
 import com.mochyy.mochymusic.modules.skin.SkinCondition
+import com.mochyy.mochymusic.modules.skin.SkinFlag
 import com.mochyy.mochymusic.modules.skin.SkinPlayer
 import com.mochyy.mochymusic.modules.skin.SkinText
 import com.mochyy.mochymusic.modules.skin.StackAlign
 import com.mochyy.mochymusic.modules.skin.skinColor
+import com.mochyy.mochymusic.ui.component.GlassState
 import com.mochyy.mochymusic.ui.component.damageBoundary
 import com.mochyy.mochymusic.ui.player.CarouselPictures
 import com.mochyy.mochymusic.ui.player.SongCarousel
@@ -98,6 +108,15 @@ internal class SkinContext(
     val actions: StyleActions,
     val openMenu: () -> Unit,
     val openCustomise: () -> Unit,
+    /** the player's own state for the built-in @ conditions */
+    val live: SkinLive,
+    /** where event animations hear about songs, play, pause, likes and beats; null when nothing listens */
+    val events: SkinEvents?,
+    val landscape: Boolean,
+    /** the captured backdrop a frosted box blurs, null when no box asks for one */
+    val glass: GlassState?,
+    /** the stream's words for {codec}, {kbps} and friends, null when no text names them */
+    val audio: SkinAudio? = null,
 ) {
     fun color(color: SkinColor): Color = when (color) {
         is SkinColor.Fixed -> color.color
@@ -112,16 +131,28 @@ internal class SkinContext(
         is SkinColor.Setting -> skinColor(values[color.key])?.takeIf { it !is SkinColor.Setting }?.let(::color) ?: color(color.fallback)
     }
 
-    /** whether a block's "when" holds for the module's settings as they are now */
+    /** whether a block's "when" holds for the module's settings and the player as they are now */
     fun holds(condition: SkinCondition?): Boolean {
         condition ?: return true
-        val value = values[condition.key]?.trim()
+        val flag = if (condition.key.startsWith("@")) SkinFlag.of(condition.key) else null
+        val value = if (flag != null) flagOn(flag).toString() else values[condition.key]?.trim()
         val matches = if (condition.value == null) {
             !value.isNullOrEmpty() && !value.equals("false", ignoreCase = true) && value != "0"
         } else {
             value.equals(condition.value, ignoreCase = true)
         }
         return matches != condition.negate
+    }
+
+    // reading these only where a condition names them keeps play and pause from recomposing blocks that don't care
+    private fun flagOn(flag: SkinFlag): Boolean = when (flag) {
+        SkinFlag.Playing -> live.playing
+        SkinFlag.Paused -> !live.playing
+        SkinFlag.Liked -> live.liked
+        SkinFlag.Shuffle -> live.shuffle
+        SkinFlag.Repeat -> live.repeat
+        SkinFlag.Lyrics -> lyrics.lines.isNotEmpty()
+        SkinFlag.Landscape -> landscape
     }
 }
 
@@ -136,10 +167,15 @@ internal fun ModulePlayerStyle(actions: StyleActions, modifier: Modifier, previe
     val duration = rememberDurationMs()
     val carousel = rememberStyleCarousel(preview)
     // a layout without lyrics never fetches or parses any
-    val wantsLyrics = remember(layout) { layout.blocks.any(::showsLyrics) }
-    val lyrics = if (wantsLyrics) rememberStyleLyrics(readings = !preview) else NoLyrics
+    val lyrics = if (layout.lyrics) rememberStyleLyrics(readings = !preview) else NoLyrics
     // a still layout never starts the clock at all
-    val pulse = rememberSkinPulse(needed = remember(layout) { layout.moves }, preview = preview)
+    val pulse = rememberSkinPulse(needed = remember(layout) { layout.moves }, preview = preview, always = layout.alwaysMoves)
+    val live = rememberSkinLive(layout.flags, preview)
+    val events = rememberSkinEvents(layout.events, pulse, preview)
+    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    // a frosted box blurs the player's own backdrop, captured only when one asks and never in the small preview
+    val glass = if (layout.frosted && !preview) remember { GlassState() } else null
+    val audio = rememberSkinAudio(needed = layout.audio, preview = preview)
     var customiseOpen by remember { mutableStateOf(false) }
     val openMenu = remember { mutableStateOf({}) }
     val context = SkinContext(
@@ -147,6 +183,7 @@ internal fun ModulePlayerStyle(actions: StyleActions, modifier: Modifier, previe
         cover = LocalArtworkColor.current, accent = MaterialTheme.colorScheme.primary,
         values = ActiveSkin.values, pulse = pulse, actions = actions,
         openMenu = { openMenu.value() }, openCustomise = { customiseOpen = true },
+        live = live, events = events, landscape = landscape, glass = glass, audio = audio,
     )
     val background: (@Composable BoxScope.() -> Unit)? =
         if (layout.background == SkinBackground.Tones) null else { { SkinBackdrop(context) } }
@@ -155,38 +192,97 @@ internal fun ModulePlayerStyle(actions: StyleActions, modifier: Modifier, previe
         val insets = styleInsets(landscape)
         // over the playhead split there's no backdrop slot, so the layers go in here, still behind the blocks
         if (layout.background == SkinBackground.Tones && layout.layers.isNotEmpty()) SkinLayers(context)
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    start = layout.padding + insets.start,
-                    end = layout.padding + insets.end,
-                    top = insets.top + TopRoom,
-                    bottom = insets.bottom + 24.dp,
-                ),
-            horizontalAlignment = layout.align.horizontal,
-        ) {
-            ColumnBlocks(layout.blocks, context)
+        PlayerFont {
+            SkinBody(context, insets)
+            SkinHeader(context, insets)
         }
+        val button = layout.menuButton
+        val buttonTones = remember(tones, button, context.cover, context.accent) {
+            tones.copy(
+                chip = button.fill?.let(context::color) ?: tones.chip,
+                ink = button.color?.let(context::color) ?: tones.ink,
+            )
+        }
+        val side = if (button.side == MenuSide.Start) insets.start else insets.end
         StyleMenu(
             open = menuOpen, onOpenChange = setMenuOpen, tones = tones, actions = actions,
             atBottom = false,
-            end = 22.dp + insets.end, edge = insets.top + 20.dp, buttonSize = MenuButton,
+            end = 22.dp + side, edge = insets.top + 20.dp, buttonSize = MenuButton,
+            showButton = button.side != MenuSide.Hidden,
             extras = rememberSkinMenuExtras(context),
+            atStart = button.side == MenuSide.Start,
+            buttonTones = buttonTones,
         )
         if (customiseOpen) SkinCustomiseSheet(onDismiss = { customiseOpen = false })
+    }
+}
+
+// the look's font on everything the module draws, when its font stays on the player instead of the whole app
+@Composable
+private fun PlayerFont(content: @Composable () -> Unit) {
+    val family = ActiveSkin.playerFont
+    if (family == null) {
+        content()
+        return
+    }
+    androidx.compose.material3.ProvideTextStyle(LocalTextStyle.current.copy(fontFamily = family), content)
+}
+
+// the blocks top to bottom, scrolling when the module asks and they don't fit
+@Composable
+private fun SkinBody(context: SkinContext, insets: StyleInsets) {
+    val layout = context.layout
+    val scroll = if (layout.scroll && !context.preview) rememberScrollState() else null
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .then(if (scroll != null) Modifier.verticalScroll(scroll) else Modifier)
+            .padding(
+                start = layout.padding + insets.start,
+                end = layout.padding + insets.end,
+                top = insets.top + TopRoom,
+                bottom = insets.bottom + 24.dp,
+            ),
+        horizontalAlignment = layout.align.horizontal,
+    ) {
+        // a scrolling column has no bottom to grow into, so its grow spaces stay closed
+        ColumnBlocks(layout.blocks, context, grow = !layout.scroll)
+    }
+}
+
+// the header row sits level with the chevron and keeps clear of it, so words like [liked] can share the top line
+@Composable
+private fun SkinHeader(context: SkinContext, insets: StyleInsets) {
+    val layout = context.layout
+    if (layout.header.isEmpty()) return
+    val side = layout.menuButton.side
+    val clear = MenuButton + 22.dp + 10.dp
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                start = insets.start + if (side == MenuSide.Start) clear else layout.padding,
+                end = insets.end + if (side == MenuSide.End) clear else layout.padding,
+                top = insets.top + 20.dp,
+            )
+            .height(MenuButton),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RowBlocks(layout.header, context)
     }
 }
 
 // ---- layout ----------------------------------------------------------------------------------
 
 @Composable
-private fun ColumnScope.ColumnBlocks(blocks: List<SkinBlock>, context: SkinContext) {
+internal fun ColumnScope.ColumnBlocks(blocks: List<SkinBlock>, context: SkinContext, grow: Boolean = true) {
     blocks.forEach { block ->
         // a block whose setting says no takes no room at all, its spaces included
         if (!context.holds((block as? SkinBlock.Styled)?.condition)) return@forEach
         val plain = block.plain
         when {
+            plain is SkinBlock.Space && plain.grow && !grow -> Spacer(Modifier.height(plain.size))
             plain is SkinBlock.Space && plain.grow -> Spacer(Modifier.weight(1f))
             plain is SkinBlock.Space -> Spacer(Modifier.height(plain.size))
             else -> Block(block, context, Modifier, inRow = false)
@@ -195,7 +291,7 @@ private fun ColumnScope.ColumnBlocks(blocks: List<SkinBlock>, context: SkinConte
 }
 
 @Composable
-private fun RowScope.RowBlocks(blocks: List<SkinBlock>, context: SkinContext) {
+internal fun RowScope.RowBlocks(blocks: List<SkinBlock>, context: SkinContext) {
     blocks.forEach { block ->
         if (!context.holds((block as? SkinBlock.Styled)?.condition)) return@forEach
         val plain = block.plain
@@ -231,9 +327,11 @@ private fun StackBlocks(block: SkinBlock.Stack, context: SkinContext, modifier: 
 private fun Block(block: SkinBlock, context: SkinContext, modifier: Modifier, inRow: Boolean) {
     when (block) {
         is SkinBlock.Styled -> {
-            val enter = rememberEnterProgress(block.enter, context.preview)
-            Block(block.inner, context, modifier.skinStyled(block, context.pulse, enter), inRow)
+            val motion = rememberBlockMotion(block, context)
+            Block(block.inner, context, modifier.skinStyled(block, context, motion), inRow)
         }
+        is SkinBlock.Box -> SkinBox(block, context, modifier, inRow)
+        is SkinBlock.Vector -> SkinVector(block, context, modifier)
         is SkinBlock.Stack -> StackBlocks(block, context, modifier)
         is SkinBlock.Visualizer -> SkinVisualizer(block, context, modifier)
         is SkinBlock.Button -> SkinButton(block, context, modifier)
@@ -244,7 +342,7 @@ private fun Block(block: SkinBlock, context: SkinContext, modifier: Modifier, in
         is SkinBlock.Title -> SongText(block.text, context, modifier, inRow) { it.title }
         is SkinBlock.Artist -> SongText(block.text, context, modifier, inRow) { it.artist }
         is SkinBlock.Album -> SongText(block.text, context, modifier, inRow) { it.album }
-        is SkinBlock.Label -> TextLine(block.value, block.text, context, modifier.fillMaxWidth())
+        is SkinBlock.Label -> SkinLabel(block, context, modifier, inRow)
         is SkinBlock.Picture -> SkinPicture(block, context, modifier)
         is SkinBlock.Progress -> SkinProgress(block, context, modifier)
         is SkinBlock.Controls -> SkinControls(block, context, modifier)
@@ -313,9 +411,9 @@ private fun SkinCover(block: SkinBlock.Cover, context: SkinContext, modifier: Mo
 /** the song's title, artist or album, riding the row of songs the way the other styles' words do */
 @Composable
 private fun SongText(text: SkinText, context: SkinContext, modifier: Modifier, inRow: Boolean, pick: (StyleTrack) -> String) {
-    Box(modifier.then(if (inRow) Modifier else Modifier.fillMaxWidth())) {
+    Box(modifier.then(if (inRow || text.wrap) Modifier else Modifier.fillMaxWidth())) {
         StyleSongs(context.carousel, context.track, NoLyrics) { song, slotModifier ->
-            TextLine(pick(song.track), text, context, slotModifier.fillMaxWidth())
+            TextLine(pick(song.track), text, context, slotModifier.textWidth(text))
         }
     }
 }
@@ -330,9 +428,38 @@ internal fun TextLine(value: String, text: SkinText, context: SkinContext, modif
         maxLines = text.lines,
         overflow = TextOverflow.Ellipsis,
         textAlign = (text.align ?: context.layout.align).textAlign,
+        letterSpacing = if (text.spacing != 0f) text.spacing.em else TextUnit.Unspecified,
         modifier = modifier,
     )
 }
+
+/** words fill their line, or hug themselves when the block asks to wrap */
+internal fun Modifier.textWidth(text: SkinText): Modifier = if (text.wrap) this else fillMaxWidth()
+
+/** the module's own words, with the song and its settings filled in; words naming the song ride the row of songs like the title */
+@Composable
+private fun SkinLabel(block: SkinBlock.Label, context: SkinContext, modifier: Modifier, inRow: Boolean) {
+    val settled = if ("{$" in block.value) fillSettings(block.value, context.values) else block.value
+    // the stream's words are read here, so their once-a-second changes only redraw this one label
+    val text = context.audio?.fill(settled) ?: settled
+    if (!SongField.containsMatchIn(text)) {
+        TextLine(text, block.text, context, modifier.textWidth(block.text))
+        return
+    }
+    Box(modifier.then(if (inRow || block.text.wrap) Modifier else Modifier.fillMaxWidth())) {
+        StyleSongs(context.carousel, context.track, NoLyrics) { song, slotModifier ->
+            TextLine(fillSong(text, song.track), block.text, context, slotModifier.textWidth(block.text))
+        }
+    }
+}
+
+private fun fillSettings(text: String, values: Map<String, String>): String =
+    SettingField.replace(text) { values[it.groupValues[1]].orEmpty() }
+
+private fun fillSong(text: String, track: StyleTrack): String = text
+    .replace("{title}", track.title, ignoreCase = true)
+    .replace("{artist}", track.artist, ignoreCase = true)
+    .replace("{album}", track.album, ignoreCase = true)
 
 @Composable
 private fun SkinPicture(block: SkinBlock.Picture, context: SkinContext, modifier: Modifier) {
@@ -340,6 +467,7 @@ private fun SkinPicture(block: SkinBlock.Picture, context: SkinContext, modifier
         model = context.skin.resolve(block.image),
         contentDescription = null,
         contentScale = if (block.fit) ContentScale.Fit else ContentScale.Crop,
+        colorFilter = block.tint?.let { ColorFilter.tint(context.color(it)) },
         modifier = modifier
             .then(block.width?.let { Modifier.width(it) } ?: Modifier.fillMaxWidth())
             .height(block.height)
@@ -432,7 +560,9 @@ private fun SkinLyrics(block: SkinBlock.Lyrics, context: SkinContext, modifier: 
     Box(modifier.fillMaxWidth().height(block.height)) {
         // each song's words ride the row with it, and a song with no synced lyrics leaves the space empty
         StyleSongs(context.carousel, context.track, context.lyrics) { song, slotModifier ->
-            if (song.lines.isNotEmpty()) {
+            if (song.lines.isNotEmpty() && block.flow) {
+                SkinFlowLyrics(song.lines, block, context, Modifier.fillMaxSize().then(slotModifier))
+            } else if (song.lines.isNotEmpty()) {
                 ExpressiveLyrics(
                     lines = song.lines,
                     position = context.lyricsPosition,
@@ -473,25 +603,17 @@ private fun rememberRecordTurn(preview: Boolean, speed: Float): () -> Float {
     return remember { { angle.floatValue } }
 }
 
-private fun showsLyrics(block: SkinBlock): Boolean = when (block) {
-    is SkinBlock.Lyrics -> true
-    is SkinBlock.Styled -> showsLyrics(block.inner)
-    is SkinBlock.Row -> block.blocks.any(::showsLyrics)
-    is SkinBlock.Column -> block.blocks.any(::showsLyrics)
-    is SkinBlock.Stack -> block.blocks.any(::showsLyrics)
-    else -> false
-}
-
 /** the block under any styling, for deciding how it's laid out */
 private val SkinBlock.plain: SkinBlock get() = if (this is SkinBlock.Styled) inner.plain else this
 
 private val SkinBlock.stretches: Boolean
-    get() = this is SkinBlock.Title || this is SkinBlock.Artist || this is SkinBlock.Album || this is SkinBlock.Label ||
+    get() = (this is SkinBlock.Title && !text.wrap) || (this is SkinBlock.Artist && !text.wrap) || (this is SkinBlock.Album && !text.wrap) ||
+        (this is SkinBlock.Label && !text.wrap) || (this is SkinBlock.Time && !text.wrap) ||
         this is SkinBlock.Progress || this is SkinBlock.Lyrics || this is SkinBlock.Column || this is SkinBlock.Stack ||
-        this is SkinBlock.Visualizer || this is SkinBlock.Time || (this is SkinBlock.Shape && width == null) ||
-        (this is SkinBlock.Shader && width == null)
+        this is SkinBlock.Visualizer || (this is SkinBlock.Shape && width == null) ||
+        (this is SkinBlock.Shader && width == null) || (this is SkinBlock.Box && width == null)
 
-private val SkinAlign.horizontal: Alignment.Horizontal
+internal val SkinAlign.horizontal: Alignment.Horizontal
     get() = when (this) {
         SkinAlign.Start -> Alignment.Start
         SkinAlign.Center -> Alignment.CenterHorizontally
@@ -506,6 +628,9 @@ internal val SkinAlign.textAlign: TextAlign
     }
 
 private val NoLyrics = StyleLyrics(null, emptyList())
+// android's regex engine refuses a bare closing brace, so both are escaped or the player crashes on open
+private val SongField = Regex("""\{(title|artist|album)\}""", RegexOption.IGNORE_CASE)
+private val SettingField = Regex("""\{\$([A-Za-z0-9_.-]{1,60})\}""")
 // room at the top for the player's handle and the ••• button
 private val TopRoom = 64.dp
 private val MenuButton = 36.dp

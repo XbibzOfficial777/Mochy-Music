@@ -28,6 +28,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
+import com.mochyy.mochymusic.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -273,6 +275,9 @@ internal fun LyricsStylePreview(style: LyricsMotionStyle) {
     }
     val (highBloomPref) = rememberPreference(LyricsHighBloomKey, defaultValue = true)
     val highBloom = highBloomPref && com.mochyy.mochymusic.utils.DeviceHealth.allowHeavyVisuals
+    // with translation on, the first line shows one under it, so the card shows how a translated line sits
+    val (translate) = rememberPreference(com.mochyy.mochymusic.constants.TranslateLyricsKey, defaultValue = false)
+    val sampleTranslation = stringResource(R.string.customise_lyrics_preview_translation)
     val heights = remember { mutableStateListOf(0, 0, 0) }
     val scroll by animateFloatAsState(
         targetValue = heights.take(current).sum().toFloat(),
@@ -313,6 +318,7 @@ internal fun LyricsStylePreview(style: LyricsMotionStyle) {
                             highBloom = highBloom,
                             alignment = alignment,
                             motionStyle = style,
+                            translation = if (translate && index == 0) sampleTranslation else null,
                             modifier = Modifier.onSizeChanged { heights[index] = it.height },
                         )
                     }

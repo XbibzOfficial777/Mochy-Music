@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.content.FileProvider
-import androidx.core.net.toUri
 import com.mochyy.mochymusic.BuildConfig
 import com.mochyy.mochymusic.utils.UiNumberFormat
 import kotlinx.coroutines.Dispatchers
@@ -72,6 +71,8 @@ data class GithubRelease(
     val apkName: String?,
     val apkSizeBytes: Long,
     val publishedAt: String,
+    // marked as a prerelease on github, which is what makes it a nightly
+    val isNightly: Boolean = false,
 )
 
 sealed interface UpdateState {
@@ -81,36 +82,42 @@ sealed interface UpdateState {
     data class Failed(val message: String) : UpdateState
 }
 
+// a release is x.y.z, a nightly adds a fourth number counting up from the release it was built on (8.3.2.1, 8.3.2.2, then 8.3.3)
 data class FullVersion(
     val major: Int = 0,
     val minor: Int = 0,
     val patch: Int = 0,
-    val buildNumber: Int = 0
+    val buildNumber: Int = 0,
+    val nightly: Int = 0,
 ) : Comparable<FullVersion> {
     override fun compareTo(other: FullVersion): Int {
         if (major != other.major) return major.compareTo(other.major)
         if (minor != other.minor) return minor.compareTo(other.minor)
         if (patch != other.patch) return patch.compareTo(other.patch)
+        if (nightly != other.nightly) return nightly.compareTo(other.nightly)
         return buildNumber.compareTo(other.buildNumber)
     }
+
+    // what people read: 8.3.2, 8.3.2.4 for a nightly
+    val name: String get() = if (nightly > 0) "$major.$minor.$patch.$nightly" else "$major.$minor.$patch"
 }
 
+private val VersionRegex = Regex("""(\d+)\.(\d+)(?:\.(\d+))?(?:\.(\d+))?""")
+private val BuildNumberRegex = Regex("""(?:build#|\(#|#|\()(\d+)\)?""", RegexOption.IGNORE_CASE)
+
 fun parseFullVersion(text: String): FullVersion {
-    val semverRegex = Regex("""(\d+)\.(\d+)(?:\.(\d+))?""")
-    val buildNumRegex = Regex("""(?:build#|\(#|#|\()(\d+)\)?""", RegexOption.IGNORE_CASE)
-
-    val semverMatch = semverRegex.find(text)
-    val major = semverMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
-    val minor = semverMatch?.groupValues?.get(2)?.toIntOrNull() ?: 0
-    val patch = semverMatch?.groupValues?.getOrNull(3)?.toIntOrNull() ?: 0
-
-    val buildMatch = buildNumRegex.find(text)
-    // Fork release tags distinguish rebuilds of the same upstream version, e.g. xbibz.1 → .2.
+    val version = VersionRegex.find(text)?.groupValues
+    val buildMatch = BuildNumberRegex.find(text)
     val forkBuildMatch = Regex("""-xbibz\.(\d+)""", RegexOption.IGNORE_CASE).find(text)
     val buildNumber = buildMatch?.groupValues?.get(1)?.toIntOrNull()
         ?: forkBuildMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
-
-    return FullVersion(major, minor, patch, buildNumber)
+    return FullVersion(
+        major = version?.get(1)?.toIntOrNull() ?: 0,
+        minor = version?.get(2)?.toIntOrNull() ?: 0,
+        patch = version?.getOrNull(3)?.toIntOrNull() ?: 0,
+        buildNumber = buildNumber,
+        nightly = version?.getOrNull(4)?.toIntOrNull() ?: 0,
+    )
 }
 
 private const val CacheTtlMillis = 15L * 60L * 1000L
@@ -153,18 +160,27 @@ private suspend fun getReleases(force: Boolean): Result<List<ParsedRelease>> {
     return result
 }
 
-/** The newest release, whatever is installed. */
-suspend fun getLatestRelease(force: Boolean = false): Result<GithubRelease?> =
-    getReleases(force).map { list -> list.maxByOrNull { it.version }?.release }
+// release only sees releases; nightly sees the prereleases and the releases, and takes the newest of all
+private fun ParsedRelease.inChannel(channel: UpdateChannel) = channel == UpdateChannel.Nightly || !release.isNightly
+
+/** The newest release on [channel], whatever is installed. */
+suspend fun getLatestRelease(channel: UpdateChannel, force: Boolean = false): Result<GithubRelease?> =
+    getReleases(force).map { list -> list.filter { it.inChannel(channel) }.maxByOrNull { it.version }?.release }
 
 /**
- * The newest release from before the installed version (by its x.y.z, so an older build of the
- * same version doesn't count). What "Downgrade to" offers; null when there is none.
+ * What "Downgrade to" offers, null when there's none: on release, the newest release before the
+ * installed x.y.z (an older build of the same version doesn't count); on nightly, the nightly before
+ * this one. A nightly never steps down to a release, that can break the library.
  */
-suspend fun getPreviousRelease(force: Boolean = false): Result<GithubRelease?> {
+suspend fun getPreviousRelease(channel: UpdateChannel, force: Boolean = false): Result<GithubRelease?> {
     val installed = parseFullVersion(BuildConfig.VERSION_NAME).copy(buildNumber = 0)
     return getReleases(force).map { list ->
-        list.filter { it.version.copy(buildNumber = 0) < installed }.maxByOrNull { it.version }?.release
+        when {
+            channel == UpdateChannel.Release && installedIsNightly -> null
+            channel == UpdateChannel.Release -> list.filter { !it.release.isNightly && it.version.copy(buildNumber = 0) < installed }
+            !installedIsNightly -> null
+            else -> list.filter { it.release.isNightly && it.version.copy(buildNumber = 0) < installed }
+        }?.maxByOrNull { it.version }?.release
     }
 }
 
@@ -201,11 +217,7 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                 if (fullVer.major == 0 && fullVer.minor == 0 && fullVer.patch == 0) continue
                 if (fullVer.copy(buildNumber = 0) < FirstReleaseWithThisId) continue
 
-                val displayVersion = if (fullVer.buildNumber > 0) {
-                    "${fullVer.major}.${fullVer.minor}.${fullVer.patch} (${fullVer.buildNumber})"
-                } else {
-                    "${fullVer.major}.${fullVer.minor}.${fullVer.patch}"
-                }
+                val displayVersion = if (fullVer.buildNumber > 0) "${fullVer.name} (${fullVer.buildNumber})" else fullVer.name
 
                 val assets = release.optJSONArray("assets")
                 var selectedUrl: String? = null
@@ -271,6 +283,7 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                             apkName = apkName,
                             apkSizeBytes = apkSize,
                             publishedAt = release.optString("published_at").orEmpty(),
+                            isNightly = release.optBoolean("prerelease", false),
                         ),
                     ),
                 )
@@ -342,13 +355,15 @@ fun canInstallPackages(context: Context): Boolean =
         context.packageManager.canRequestPackageInstalls()
 
 fun requestInstallPermission(context: Context) {
-    runCatching {
-        context.startActivity(
-            Intent(
-                ActionManageUnknownAppSources,
-                ("package:" + context.packageName).toUri(),
-            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        )
+    // many tv boxes have no page for one app, so it falls back to the whole list, then security, then settings
+    val pages = listOf(
+        Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, android.net.Uri.parse("package:" + context.packageName)),
+        Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES),
+        Intent(android.provider.Settings.ACTION_SECURITY_SETTINGS),
+        Intent(android.provider.Settings.ACTION_SETTINGS),
+    )
+    pages.firstOrNull { page ->
+        runCatching { context.startActivity(page.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
     }
 }
 
@@ -371,9 +386,3 @@ fun formatBytes(bytes: Long): String = when {
     bytes >= 1_000_000 -> UiNumberFormat.decimal("%.1f MB", bytes / 1_000_000f)
     else -> UiNumberFormat.decimal("%.0f KB", bytes / 1000f)
 }
-
-// the platform inlines these constants into the call site, so reading them below their own API level
-// is safe as long as the screen itself is only opened behind the matching version check
-@android.annotation.SuppressLint("InlinedApi")
-private const val ActionManageUnknownAppSources =
-    android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES

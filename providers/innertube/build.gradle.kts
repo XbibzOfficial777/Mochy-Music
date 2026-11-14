@@ -7,7 +7,7 @@ plugins {
 
 extensions.configure<LibraryExtension> {
     namespace = "com.music.innertube"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 24

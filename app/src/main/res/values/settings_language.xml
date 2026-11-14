@@ -48,6 +48,7 @@
     <string name="playback_mix_other_apps_detail">Mochy won\'t pause when a video, game or another music app starts playing, and it won\'t pause them either. Phone calls still pause the music, and it picks back up when the call ends.</string>
     <string name="playback_resume_bluetooth">Resume on Bluetooth connection</string>
     <string name="playback_resume_bluetooth_desc">Continue a paused song when headphones or a car connect</string>
+    <string name="pause_music_when_muted_desc">Pause when the volume hits zero, pick back up when it\u0027s raised</string>
     <string name="playback_save_state">Save Player\'s last state</string>
     <string name="playback_save_state_desc">Off clears played tracks on close</string>
     <string name="playback_save_state_detail">Turning this off removes the songs you already played when you close the app</string>
@@ -176,15 +177,18 @@
     <string name="customise_swipe_down_anywhere_desc">Otherwise only from the top of the player and its cover</string>
     <string name="customise_swipe_up_follows">Open with your finger</string>
     <string name="customise_swipe_up_follows_desc">Swiping up the mini player carries the player with you, and it opens as fast as you swipe</string>
-    <!-- Retained Bibz strings for older settings and translations. -->
-    <string name="playback_hifi_desc">Mochy\'s own filter turns songs to your speaker\'s rate</string>
-    <string name="playback_hifi_detail">Most songs are 44.1 kHz and your phone plays at 48 kHz, so something has to convert them. With this on, Mochy does it with its own high-quality filter (flat to 20 kHz, 120 dB of rejection, in 32-bit float) instead of leaving it to the phone. It works on the speaker and the headphone jack. Bluetooth and USB are left alone: Bluetooth\'s rate can\'t be read reliably, and USB has passthrough. It uses a little more battery.</string>
-    <string name="playback_hires_desc">Keeps 24-bit songs at full detail as 32-bit float</string>
-    <string name="playback_hires_detail">Sends hi-res songs to the speaker as 32-bit float instead of cutting them down to 16-bit. It only kicks in while the equalizer, Audio FX, Crossmix, layered fades, haptics, skip silence and speed changes are all off, because those work in 16-bit. Turn any of them on and the song carries on in 16-bit with every effect.</string>
-    <string name="playback_output">Output</string>
-    <string name="playback_usb_connected">%1$s is plugged in</string>
-    <string name="playback_usb_passthrough_desc">Each song at its own rate, bit-perfect when nothing changes the sound</string>
-    <string name="playback_usb_passthrough_detail" formatted="false">Asks the DAC to run at the song\'s own sample rate instead of Android\'s 48 kHz, so nothing is resampled. When the equalizer and effects are off and the volume is at 100%, the song goes out bit-perfect. While it\'s on, your phone\'s volume buttons may set the DAC\'s own volume.</string>
-    <string name="playback_usb_prefer_desc">Plays through a USB DAC when one is plugged in</string>
-    <string name="playback_usb_prefer_detail">Sends the music to a plugged-in USB DAC even while Bluetooth or other headphones are connected. Unplug it and the music goes back to where it was.</string>
+    <string name="customise_landscape_player">Player on its side</string>
+    <string name="customise_landscape_player_desc">How the player looks when you turn your phone sideways</string>
+    <string name="customise_landscape_full_cover">Full cover</string>
+    <string name="customise_landscape_full_cover_desc">The cover fills the left side and melts into the controls. Off, it sits as a rounded square</string>
+    <string name="settings_romanize_as_main">Romanisation as the main line</string>
+    <string name="settings_romanize_as_main_desc">The romanised words are the line that sings, the original stays underneath</string>
+    <string name="customise_lyrics_romanisation">Romanisation</string>
+    <string name="customise_lyrics_romanisation_desc">Readings for Japanese, Korean, Chinese, Hindi and Cyrillic lyrics</string>
+    <string name="customise_lyrics_translation">Translation</string>
+    <string name="customise_lyrics_translation_desc">Translates every song\'s lyrics as it plays</string>
+    <string name="customise_lyrics_preview_translation">si je suis une pierre</string>
+    <string name="settings_floating_lyrics">Floating lyrics</string>
+    <string name="settings_floating_lyrics_desc">Keep the line being sung in a little bubble over other apps</string>
+    <string name="settings_floating_lyrics_detail">Tap the cover to open Mochy, or hold it for play and pause. Drag the bubble anywhere, or drop it on the cross to hide it until you come back to Mochy.</string>
 </resources>

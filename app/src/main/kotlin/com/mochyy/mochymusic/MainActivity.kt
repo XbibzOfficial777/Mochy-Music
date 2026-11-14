@@ -77,6 +77,7 @@ import androidx.compose.animation.core.spring
 import com.mochyy.mochymusic.ui.component.WideBarPillGap
 import com.mochyy.mochymusic.ui.utils.isWideLayout
 import com.mochyy.mochymusic.link.isTelevision
+import com.mochyy.mochymusic.ui.utils.stableStatusBars
 import com.mochyy.mochymusic.ui.utils.stableSystemBars
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.DisposableEffect
@@ -204,6 +205,7 @@ import com.mochyy.mochymusic.ui.menu.YouTubeSongMenu
 import com.mochyy.mochymusic.ui.player.BottomSheetPlayer
 import com.mochyy.mochymusic.ui.screens.Screens
 import com.mochyy.mochymusic.ui.screens.search.requestSearchFocus
+import com.mochyy.mochymusic.ui.screens.search.searchRoute
 import com.mochyy.mochymusic.ui.screens.navigationBuilder
 import com.mochyy.mochymusic.ui.screens.DarkMode
 import com.mochyy.mochymusic.ui.screens.NavigationTab
@@ -239,8 +241,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
-import java.net.URLDecoder
-import java.net.URLEncoder
 import javax.inject.Inject
 
 private const val BackgroundZoomOnExpand = true
@@ -292,6 +292,10 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var syncUtils: SyncUtils
 
+    // made only when first used, so a phone with nothing paired never builds it on the way in
+    @Inject
+    lateinit var phoneLink: dagger.Lazy<com.mochyy.mochymusic.link.phone.PhoneLinkHost>
+
     private lateinit var navController: NavHostController
     private var pendingIntent: Intent? = null
 
@@ -299,6 +303,9 @@ class MainActivity : ComponentActivity() {
 
     /** Bumped when launched from an update notification; the composition opens the version sheet. */
     private var openUpdateRequests by mutableIntStateOf(0)
+
+    // the device link's notification asks for its sheet through this
+    private var openDevicesRequests by mutableStateOf(0)
 
     /** A fresh launch from the launcher plays the launch intro (ui/launch/LaunchIntro.kt). */
     private var introRequested = false
@@ -329,6 +336,7 @@ class MainActivity : ComponentActivity() {
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
+            com.mochyy.mochymusic.link.LinkPlayer.release(playerConnection)
             playerConnection?.dispose()
             playerConnection = null
         }
@@ -340,13 +348,18 @@ class MainActivity : ComponentActivity() {
         playerConnection = PlayerConnection(this, binder, database, lifecycleScope).also {
             // the retry above can land after onStop, so it starts resting if the app is already hidden
             it.isUiVisible.value = lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
+            // another phone steering this one plays through it
+            com.mochyy.mochymusic.link.LinkPlayer.connection = it
         }
+        com.mochyy.mochymusic.link.LinkPlayer.release(previous)
         previous?.dispose()
     }
 
     override fun onStart() {
         super.onStart()
         playerConnection?.isUiVisible?.value = true
+        // paired phones are checked on, and a steered device asked what it plays, only while mochy is on screen
+        if (!isTelevision()) phoneLink.get().appShown()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -363,6 +376,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         playerConnection?.isUiVisible?.value = false
+        if (!isTelevision()) phoneLink.get().appHidden()
         unbindService(serviceConnection)
         super.onStop()
     }
@@ -379,6 +393,7 @@ class MainActivity : ComponentActivity() {
             unbindService(serviceConnection)
         }
         // the service outlives us, so take our listener off its player or a recreate leaves the old one firing
+        com.mochyy.mochymusic.link.LinkPlayer.release(playerConnection)
         playerConnection?.dispose()
         playerConnection = null
         // closed for good while the music plays on: the covers decoded for this screen have nothing left to show on
@@ -426,6 +441,10 @@ class MainActivity : ComponentActivity() {
 
         window.decorView.layoutDirection = View.LAYOUT_DIRECTION_LTR
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        // upright unless landscape is unlocked in Experimental; set before the first frame, so it never opens sideways and then turns
+        if (!isTelevision()) {
+            com.mochyy.mochymusic.ui.utils.WindowTurning.setUnlocked(this, dataStore[com.mochyy.mochymusic.constants.LandscapeUnlockedKey] == true)
+        }
         systemScaleObserver = com.mochyy.mochymusic.ui.utils.AppMotion.followSystemScale(this)
         moveOffOldLyricsShaderSwitch()
         followLookSettings()
@@ -486,7 +505,8 @@ class MainActivity : ComponentActivity() {
                 // Same cached lookup the version sheet and home prompt use (this app's own
                 // releases - the old checker here queried another project's repo). Launch-time
                 // only: nothing about updates runs in the background.
-                val release = com.mochyy.mochymusic.core.updater.getLatestRelease().getOrNull()
+                val channel = com.mochyy.mochymusic.core.updater.updateChannel(context)
+                val release = com.mochyy.mochymusic.core.updater.getLatestRelease(channel).getOrNull()
                 val isAvailable = release != null &&
                     com.mochyy.mochymusic.core.updater.isNewerThanInstalled(release.version)
                 saveUpdateAvailableState(context, isAvailable)
@@ -641,6 +661,11 @@ class MainActivity : ComponentActivity() {
                         Screens.MainScreens
                 }
                 val (slimNav) = rememberPreference(SlimNavBarKey, defaultValue = false)
+                // flipped in Experimental while the app is open: it starts (or stops) turning right away
+                val (landscapeUnlocked) = rememberPreference(com.mochyy.mochymusic.constants.LandscapeUnlockedKey, defaultValue = false)
+                LaunchedEffect(landscapeUnlocked) {
+                    if (!isTelevision()) com.mochyy.mochymusic.ui.utils.WindowTurning.setUnlocked(this@MainActivity, landscapeUnlocked)
+                }
 
                 val defaultOpenTab = remember {
                     dataStore[DefaultOpenTabKey].toEnum<NavigationTab>(defaultValue = NavigationTab.HOME)
@@ -670,14 +695,16 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
-                val (query, onQueryChange) = rememberSaveable(stateSaver = TextFieldValue.Saver) {
+                // the state itself, never read here: the sideways search pane writes it on every keystroke, and a read at this level recomposed the whole app per key
+                val queryState = rememberSaveable(stateSaver = TextFieldValue.Saver) {
                     mutableStateOf(TextFieldValue())
                 }
+                val onQueryChange: (TextFieldValue) -> Unit = remember(queryState) { { queryState.value = it } }
 
                 val onSearch: (String) -> Unit = remember {
                     { searchQuery ->
                         if (searchQuery.isNotEmpty()) {
-                            navController.navigate("search/${URLEncoder.encode(searchQuery, "UTF-8")}")
+                            navController.navigate(searchRoute(searchQuery))
 
                             if (dataStore[PauseSearchHistoryKey] != true) {
                                 lifecycleScope.launch(Dispatchers.IO) {
@@ -803,18 +830,8 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(navBackStackEntry) {
                     if (inSearchScreen) {
-                        val searchQuery = withContext(Dispatchers.IO) {
-                            val rawQuery = navBackStackEntry?.arguments?.getString("query")
-                            if (!rawQuery.isNullOrEmpty()) {
-                                try {
-                                    URLDecoder.decode(rawQuery, "UTF-8")
-                                } catch (e: IllegalArgumentException) {
-                                    rawQuery
-                                }
-                            } else {
-                                ""
-                            }
-                        }
+                        // navigation already decoded it, see searchRoute
+                        val searchQuery = navBackStackEntry?.arguments?.getString("query").orEmpty()
                         onQueryChange(
                             TextFieldValue(
                                 searchQuery,
@@ -916,9 +933,10 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val pauseListenHistory by rememberPreference(PauseListenHistoryKey, defaultValue = false)
-                val eventCount by remember(database) { database.eventCount() }.collectAsState(initial = 0)
-                val showHistoryButton = remember(pauseListenHistory, eventCount) {
-                    !(pauseListenHistory && eventCount == 0)
+                // only whether there's any history at all: the count itself grows with every song played, and collecting it here recomposed the whole app on each song change
+                val hasEvents by remember(database) { database.eventCount().map { it > 0 }.distinctUntilChanged() }.collectAsState(initial = true)
+                val showHistoryButton = remember(pauseListenHistory, hasEvents) {
+                    !(pauseListenHistory && !hasEvents)
                 }
 
                 val baseBg = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
@@ -966,6 +984,10 @@ class MainActivity : ComponentActivity() {
                             com.mochyy.mochymusic.ui.component.LocalZoomOutOverlayState.current,
                         ),
                     ) {
+                    com.mochyy.mochymusic.ui.screens.devices.DeviceIntegrationOpener(requests = openDevicesRequests)
+                    // a phone paired before android 17 can't reach its devices until it's allowed on the wi-fi again
+                    val linkPaired = remember { !isTelevision() && com.mochyy.mochymusic.link.phone.PhoneLinkHost.hasPairedDevices(this@MainActivity) }
+                    com.mochyy.mochymusic.link.AskForLocalNetwork(wanted = linkPaired, onGranted = { phoneLink.get().advertiseAgain() })
                     com.mochyy.mochymusic.ui.screens.update.UpdateNotificationOpener(
                         requests = openUpdateRequests,
                         onOpenDevSpace = { personIndex ->
@@ -1182,6 +1204,12 @@ class MainActivity : ComponentActivity() {
                                                 onSearchDoubleTap = onSearchDoubleTap,
                                                 modifier = barMotion.fillMaxWidth(),
                                             )
+                                            com.mochyy.mochymusic.ui.component.WideBarExtras(
+                                                bar = wideBar,
+                                                withPlayer = withPlayerNow,
+                                                shown = !playerBottomSheetState.isDismissed,
+                                                modifier = barMotion.fillMaxWidth(),
+                                            )
                                         } else {
                                             AppNavigationBar(
                                                 navigationItems = navigationItems,
@@ -1262,6 +1290,18 @@ class MainActivity : ComponentActivity() {
                                             selectedRoute = com.mochyy.mochymusic.ui.screens.settings.settingsPaneSelection(backStack),
                                         )
                                     }
+                                    // on its side the search field and its history stay at the left while the categories or results change beside it
+                                    if (com.mochyy.mochymusic.ui.utils.isLandscapeLayout() &&
+                                        com.mochyy.mochymusic.ui.screens.search.showsSearchPane(currentRoute)
+                                    ) {
+                                        com.mochyy.mochymusic.ui.screens.search.SearchSidePane(
+                                            navController = navController,
+                                            currentRoute = currentRoute,
+                                            query = queryState,
+                                            onQueryChange = onQueryChange,
+                                            pureBlack = pureBlack,
+                                        )
+                                    }
                                     NavHost(
                                         navController = navController,
                                         startDestination = when (tabOpenedFromShortcut ?: defaultOpenTab) {
@@ -1338,6 +1378,19 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+                    }
+
+                    // "controlling living room tv" sits over the app at the top left, and steps aside while the player is open
+                    val playerOpen by remember { derivedStateOf { playerBottomSheetState.progress > 0.2f } }
+                    if (!playerOpen) {
+                        Box(Modifier.fillMaxSize()) {
+                            com.mochyy.mochymusic.ui.screens.devices.ControllingPill(
+                                Modifier
+                                    .align(Alignment.TopStart)
+                                    .windowInsetsPadding(WindowInsets.stableStatusBars)
+                                    .padding(start = 12.dp, top = 4.dp),
+                            )
+                        }
                     }
 
                     // action feedback ("Added to Queue", "Undo"...) drops in over the sheets too
@@ -1544,10 +1597,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleDeepLinkIntent(intent: Intent, navController: NavHostController) {
-        // the tv link's notification opens its settings page
+        // the device link's notification opens its sheet
         if (intent.action == com.mochyy.mochymusic.link.phone.PhoneLinkService.ActionOpenTvLink) {
             intent.action = null
-            navController.navigate(com.mochyy.mochymusic.ui.screens.settings.tvlink.TvLinkRoute)
+            openDevicesRequests++
             return
         }
         if (importSharedAudio(intent)) return
@@ -1583,7 +1636,7 @@ class MainActivity : ComponentActivity() {
 
             "search" -> {
                 uri.getQueryParameter("q")?.let {
-                    navController.navigate("search/${URLEncoder.encode(it, "UTF-8")}")
+                    navController.navigate(searchRoute(it))
                 }
             }
 

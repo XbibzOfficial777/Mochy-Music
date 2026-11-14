@@ -162,7 +162,11 @@ internal fun TvShell(
             LocalBlurQuality provides blurQuality,
             LocalTvActions provides actions,
         ) {
-            PopupSheetHost(states = listOf(LocalMenuState.current, LocalBottomSheetPageState.current, LocalZoomOutOverlayState.current)) {
+            PopupSheetHost(
+                states = listOf(LocalMenuState.current, LocalBottomSheetPageState.current, LocalZoomOutOverlayState.current),
+                // the app group's restorer puts the remote back on the tile that opened the sheet
+                focusReturn = appFocus,
+            ) {
                 Box(
                     Modifier
                         .fillMaxSize()
@@ -275,6 +279,8 @@ private fun TvChromeLayer(
                 },
         )
         TvLogo(Modifier.align(Alignment.TopStart).padding(start = TvSpace.Start, top = TvSpace.ChromeTop + 4.dp))
+        // which phone is steering the tv, under the logo while it does
+        TvControllerPill(Modifier.align(Alignment.TopStart).padding(start = TvSpace.Start, top = TvSpace.ChromeTop + 40.dp))
         if (player != null) {
             TvNowPlayingPill(
                 player,

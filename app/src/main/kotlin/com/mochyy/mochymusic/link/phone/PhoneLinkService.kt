@@ -7,8 +7,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.annotation.SuppressLint
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationChannelCompat
@@ -22,15 +20,16 @@ import com.mochyy.mochymusic.link.isTelevision
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import javax.inject.Inject
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
-// keeps the phone reachable for its paired tvs while mochy is closed, with a quiet notification saying so
+// keeps the phone reachable for its paired devices while mochy is closed, with a quiet notification saying so
 @AndroidEntryPoint
 class PhoneLinkService : Service() {
     @Inject
     lateinit var host: PhoneLinkHost
 
-    // keeps the ongoing notification saying what's true now: which tv is open, and whether it's streaming from here
+    // keeps the ongoing notification saying what's true now: which device is around, and whether a tv streams from here
     private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main)
     private var watching = false
 
@@ -42,7 +41,7 @@ class PhoneLinkService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ActionStop || host.tvs.value.isEmpty()) {
+        if (intent?.action == ActionStop || host.devices.value.isEmpty()) {
             stopSelf()
             return START_NOT_STICKY
         }
@@ -68,26 +67,14 @@ class PhoneLinkService : Service() {
         if (watching) return
         watching = true
         scope.launch {
-            kotlinx.coroutines.flow.combine(host.tvs, host.live, host.lastStream, ticks()) { _, _, _, _ -> notification() }
-                .collect { post(it) }
+            // posted again only when its words change, so one swiped away on android 14+ stays away instead of coming back every 30 seconds
+            kotlinx.coroutines.flow.combine(host.devices, host.live, host.lastStream, ticks()) { _, _, _, _ -> status() }
+                .distinctUntilChanged()
+                .collect { NotificationManagerCompat.from(this@PhoneLinkService).runCatching { notify(NotificationId, notification(it)) } }
         }
     }
 
-    // Posting needs POST_NOTIFICATIONS on android 13 and the app's own switch below it. Both are
-    // checked right here before anything is posted; lint cannot follow the combined test through
-    // NotificationManagerCompat, so the check is spelled out and the warning is waived next to it.
-    @SuppressLint("MissingPermission")
-    private fun post(note: android.app.Notification) {
-        val manager = NotificationManagerCompat.from(this)
-        val allowed = manager.areNotificationsEnabled() &&
-            (
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-                    checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-                )
-        if (allowed) manager.runCatching { notify(NotificationId, note) }
-    }
-
-    // a tv that goes quiet drops back to "linked" without anything else changing, so the line is checked now and then
+    // a device that goes quiet drops back to "linked" without anything else changing, so the line is checked now and then
     private fun ticks() = kotlinx.coroutines.flow.flow {
         while (true) {
             emit(Unit)
@@ -95,7 +82,21 @@ class PhoneLinkService : Service() {
         }
     }
 
-    private fun notification(): android.app.Notification {
+    // says what's really going on: streaming to a tv, a device around and in step, or only linked and waiting
+    private fun status(): Pair<String, String> {
+        val now = System.currentTimeMillis()
+        val around = host.liveDevices(now)
+        val streaming = around.filter { device -> host.lastStream.value[device.id]?.let { now - it < StreamingForMs } == true }
+        val names = host.devices.value.joinToString { it.name }
+        return when {
+            streaming.isNotEmpty() -> getString(R.string.tv_link_status_streaming, streaming.joinToString { it.name }) to getString(R.string.tv_link_status_streaming_detail)
+            around.isNotEmpty() -> getString(R.string.tv_link_status_connected, around.joinToString { it.name }) to
+                getString(if (around.any { it.kind.isTv }) R.string.tv_link_status_connected_detail else R.string.devices_status_connected_detail)
+            else -> getString(R.string.devices_notification_title) to getString(R.string.devices_notification_text, names)
+        }
+    }
+
+    private fun notification(status: Pair<String, String> = status()): android.app.Notification {
         val manager = NotificationManagerCompat.from(this)
         manager.createNotificationChannel(
             NotificationChannelCompat.Builder(ChannelId, NotificationManagerCompat.IMPORTANCE_MIN)
@@ -103,16 +104,7 @@ class PhoneLinkService : Service() {
                 .setShowBadge(false)
                 .build(),
         )
-        val now = System.currentTimeMillis()
-        val open_ = host.liveTvs(now)
-        val streaming = open_.filter { tv -> host.lastStream.value[tv.id]?.let { now - it < StreamingForMs } == true }
-        val names = host.tvs.value.joinToString { it.name }
-        // says what's really going on: streaming to a tv, a tv open and in step, or only linked and waiting
-        val (title, text) = when {
-            streaming.isNotEmpty() -> getString(R.string.tv_link_status_streaming, streaming.joinToString { it.name }) to getString(R.string.tv_link_status_streaming_detail)
-            open_.isNotEmpty() -> getString(R.string.tv_link_status_connected, open_.joinToString { it.name }) to getString(R.string.tv_link_status_connected_detail)
-            else -> getString(R.string.tv_link_notification_title) to getString(R.string.tv_link_notification_text, names)
-        }
+        val (title, text) = status
         val open = android.app.PendingIntent.getActivity(
             this,
             0,
@@ -143,7 +135,7 @@ class PhoneLinkService : Service() {
         // android 12+ refuses this from the background, the link then only runs while mochy itself is up
         fun start(context: Context) {
             if (context.isTelevision()) return
-            if (!PhoneLinkHost.hasPairedTvs(context) || !PhoneLinkHost.staysReachable(context)) return
+            if (!PhoneLinkHost.hasPairedDevices(context) || !PhoneLinkHost.staysReachable(context)) return
             runCatching { ContextCompat.startForegroundService(context, Intent(context, PhoneLinkService::class.java)) }
                 .onFailure { Timber.tag("Link").i("background link not started: ${it.message}") }
         }
@@ -154,7 +146,7 @@ class PhoneLinkService : Service() {
     }
 }
 
-// a phone that restarts comes back on for its tv without opening mochy first
+// a phone that restarts comes back on for its devices without opening mochy first
 class PhoneLinkBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return

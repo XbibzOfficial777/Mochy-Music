@@ -484,7 +484,7 @@
     <string name="wrapped_intro_button">let\'s go!</string>
     <string name="wrapped_end_thanks">Thanks for listening with mochy!</string>
     <string name="wrapped_end_create_playlist">Create Your Wrapped Playlist</string>
-    <string name="wrapped_end_creating_playlist">Creating…</string>
+    <string name="wrapped_end_creating_playlist">Creating...</string>
     <string name="wrapped_end_playlist_saved">Playlist Saved</string>
     <string name="wrapped_logo_content_description">mochy Logo</string>
     <string name="wrapped_year">2025</string>
@@ -593,8 +593,7 @@
     <string name="like">Like</string>
     <string name="not_playing">No song playing</string>
     <string name="tap_to_play">Tap to open mochy</string>
-    <string name="widget_description">Liquid glass music widget: blurred cover, scrub the song, play and skip</string>
-    <string name="widget_time_zero">0:00</string>
+    <string name="widget_description">Music player widget with playback controls</string>
     <string name="queue_widget_description">Music player with queue preview</string>
     <string name="turntable_widget_description">Circular music widget with play and like controls</string>
     <string name="widget_music_player">Music Player</string>
@@ -711,7 +710,7 @@
 
     <!-- AI Lyrics Translation -->
     <string name="ai_lyrics_translation">AI Lyrics Translation</string>
-    <string name="ai_translating_lyrics">Translating lyrics…</string>
+    <string name="ai_translating_lyrics">Translating lyrics...</string>
     <string name="ai_lyrics_translated">Lyrics translated</string>
     <string name="ai_provider">Provider</string>
     <string name="ai_base_url">Base URL</string>
@@ -842,6 +841,8 @@
     <string name="discord_behaviour">Behaviour</string>
     <string name="discord_clear_on_pause">Clear status when paused</string>
     <string name="discord_clear_on_pause_desc">Takes the song off your profile as soon as you pause, and puts it back when you play again.</string>
+    <string name="discord_login_note">Opens Discord\'s own login page in your browser. Your password stays with Discord.</string>
+    <string name="discord_permissions_note">Discord\'s page also lists your friends and invites, because they come bundled with status sharing. Mochy only reads your name and picture, and shows what you\'re playing.</string>
     <string name="discord_button_text_variables">Variables: {song_name}, {artist_name}, {album_name}</string>
     <string name="discord_rpc_preview">Rich Presence Preview</string>
     <string name="discord_presence">Presence</string>
@@ -901,6 +902,31 @@
 
     <!-- Onboarding -->
     <string name="welcome_to">Welcome to</string>
+    <string name="welcome_lets_listen">Let\'s start listening!</string>
+    <string name="welcome_tap_anywhere">Tap anywhere to continue</string>
+    <!-- "welcome" in twenty languages drifting behind the welcome page, the same in every language on purpose -->
+    <string-array name="welcome_words" translatable="false">
+        <item>WELCOME</item>
+        <item>SELAMAT DATANG</item>
+        <item>ようこそ</item>
+        <item>欢迎</item>
+        <item>환영합니다</item>
+        <item>BIENVENIDO</item>
+        <item>BIENVENUE</item>
+        <item>WILLKOMMEN</item>
+        <item>BENVENUTO</item>
+        <item>BEM-VINDO</item>
+        <item>ДОБРО ПОЖАЛОВАТЬ</item>
+        <item>أهلاً وسهلاً</item>
+        <item>स्वागत है</item>
+        <item>ยินดีต้อนรับ</item>
+        <item>CHÀO MỪNG</item>
+        <item>HOŞ GELDİNİZ</item>
+        <item>WELKOM</item>
+        <item>SUGENG RAWUH</item>
+        <item>MABUHAY</item>
+        <item>ΚΑΛΩΣ ΗΡΘΑΤΕ</item>
+    </string-array>
     <string name="welcome_preparing_subtitle">Let\'s get everything ready for you.</string>
     <string name="get_started">Get Started</string>
 
@@ -986,13 +1012,9 @@
     <string name="most_played_genre">Most played %1$s</string>
     <string name="add_music">Add Music</string>
     <!-- the full video mode and youtube video quality -->
-    <!-- the two-way Music / Video switch in the player -->
-    <string name="player_mode_music">Music</string>
-    <string name="player_mode_video">Video</string>
     <string name="video_mode">Full video</string>
     <string name="video_mode_exit">Exit video mode</string>
     <string name="video_mode_close_player">Close player</string>
-    <string name="video_mode_rotate">Rotate player</string>
     <string name="video_mode_exit_full_screen">Exit full screen</string>
     <string name="video_mode_finding">Looking for the video…</string>
     <string name="video_mode_no_video">No video for this song. The lyrics still play here.</string>
@@ -1015,6 +1037,16 @@
     <string name="video_quality_4k">4K</string>
     <string name="video_quality_sharp_desc">If the video and your phone can, uses way more data</string>
     <string name="video_mode_song_info">Song info</string>
+    <string name="recap_tap_hint">tap here for your recap!!</string>
+    <string name="experimental_unlock_landscape">Unlock landscape</string>
+    <string name="experimental_unlock_landscape_desc">Let the app turn sideways into its wide layout</string>
+    <string name="experimental_unlock_landscape_detail">Off, the whole app stays upright however you hold your phone. On, it turns with your phone and lays pages out side by side. Still being worked on, so some screens may look off</string>
+    <string name="player_rotate">Rotate</string>
+    <string name="player_turn_upright">Turn upright</string>
+    <string name="experimental_stream_backend">Stream backend</string>
+    <string name="experimental_stream_backend_innertubex">InnerTubeX, then classic</string>
+    <string name="experimental_stream_backend_classic">Classic only</string>
+    <string name="experimental_stream_backend_detail">How YouTube songs find their stream. InnerTubeX tries first, and anything it can\'t play goes to the classic finder, so songs keep playing either way. Classic only skips InnerTubeX. Tap to switch</string>
     <string name="video_mode_whole_video">Show the whole video</string>
     <string name="video_mode_whole_video_desc">Off, the video is zoomed in to fill the screen</string>
     <plurals name="video_mode_seek_seconds">
@@ -1110,6 +1142,10 @@
     <string name="song_share_style_too_many">Too many words for this one</string>
     <string name="song_share_as_video">Share as video</string>
     <string name="song_share_as_video_hint">The song plays and the lyrics flow</string>
+    <string name="song_share_romanisation_hint">How the words are read, under each line</string>
+    <string name="song_share_romanisation_none">These lyrics read fine as they are</string>
+    <string name="song_share_romanisation_main_hint">The card sings the romanisation, the original goes under it</string>
+    <string name="song_share_translation_hint">Each line in your language, under it</string>
     <string name="song_share_caption">%1$s · %2$s</string>
     <!-- a meta app id from developers.facebook.com; while it's empty instagram and facebook get the finished video instead of a story with a sticker -->
     <string name="meta_app_id" translatable="false"></string>
@@ -1139,7 +1175,7 @@
 
     <!-- skips that cross over, the studio version of music videos, recent searches -->
     <string name="settings_blend_skips">Blend skips</string>
-    <string name="settings_blend_skips_desc">Loads the songs either side ahead, so skip and back crossfade straight into them</string>
+    <string name="settings_blend_skips_desc">Loads the songs either side ahead, so skips, swipes and songs you pick mix straight in, over your fade length and through your effect</string>
     <string name="settings_blend_ahead">Songs loaded ahead</string>
     <plurals name="settings_blend_ahead_value">
         <item quantity="one">%d song</item>
@@ -1147,6 +1183,43 @@
     </plurals>
     <string name="settings_blend_ahead_desc">More songs ahead keeps the fade smooth when you skip a few in a row. It uses a little more data.</string>
     <string name="settings_blend_ahead_saver">Data saver is on, so only the next song loads ahead.</string>
+
+    <!-- crossmix: the dj-style transition and how the listener can shape it -->
+    <string name="crossmix_desc">DJ-style: reads each song\'s tempo, beats, key, energy and where its voice is, then picks the transition that fits and locks the two on the beat, so two voices never sing over each other</string>
+    <string name="crossmix_style_title">Transition</string>
+    <string name="crossmix_style_desc">Let Mochy pick the one that fits each pair, or hear the same one every time</string>
+    <string name="crossmix_style_auto">Let Mochy choose</string>
+    <string name="crossmix_style_choose">Choose a transition</string>
+    <string name="crossmix_length_title">Length</string>
+    <string name="crossmix_length_desc">How long the two songs play together. Long blends need two songs that lock on the beat.</string>
+    <string name="crossmix_length_short">Short</string>
+    <string name="crossmix_length_medium">Medium</string>
+    <string name="crossmix_length_long">Long</string>
+    <string name="crossmix_tempo_title">Tempo match</string>
+    <string name="crossmix_tempo_desc">How far the slower song may be sped up so its beat lands on the other\'s. Off only locks songs already at one tempo.</string>
+    <string name="crossmix_tempo_off">Off</string>
+    <string name="crossmix_tempo_gentle">Gentle</string>
+    <string name="crossmix_tempo_full">Full</string>
+    <string name="crossmix_stunts_title">Stunts</string>
+    <string name="crossmix_stunts_desc">Backspins, tape stops, risers and drops when the energy jumps between songs</string>
+    <string name="crossmix_always_mix_title">Always mix</string>
+    <string name="crossmix_always_mix_desc">Both songs play together on every change, even when their beats don\'t line up. Off lets Crossmix drop the next song in at the very end, or just fade.</string>
+    <string name="crossmix_mixing_note">Mixxing…</string>
+    <string name="transition_title">Transition</string>
+    <string name="transition_music_heading">Music transitions</string>
+    <string name="transition_off">Off (I hate having fun)</string>
+    <string name="transition_off_desc">Each song ends before the next one starts</string>
+    <string name="transition_selected">Selected</string>
+    <string name="transition_auto">Auto Crossfade</string>
+    <string name="transition_auto_desc">A smooth %1$d-second blend from every song into the next</string>
+    <string name="transition_manual">Manual Crossfade</string>
+    <string name="transition_manual_desc">Pick how long each song blends into the next</string>
+    <string name="transition_manual_length">Length</string>
+    <string name="transition_seconds">%1$ds</string>
+    <string name="transition_crossmix">CrossMix</string>
+    <string name="transition_transport_heading">Pause, play, forward and backward transitions</string>
+    <string name="transition_fade_title">Enable fade</string>
+    <string name="transition_fade_desc">Eases the music out when you pause, skip or pick another song, and back in when you play</string>
     <string name="settings_persistent_shuffle">Keep shuffle on</string>
     <string name="settings_persistent_shuffle_desc">Shuffle stays on when you play another playlist or album, until you turn it off</string>
     <string name="auto_download_new_songs">Download new songs</string>
@@ -1173,33 +1246,7 @@
     <string name="recent_search_playlist">Playlist · %1$s</string>
     <string name="recent_search_artist">Artist</string>
     <string name="recent_search_remove">Remove from recent searches</string>
-    <string name="eq_tab_graph">Graph</string>
-    <string name="eq_tab_bands">Bands</string>
-    <string name="eq_tab_autoeq">AutoEQ</string>
-    <string name="audio_lab_title">Audio Lab</string>
-    <string name="eq_status_off">Off</string>
-    <string name="eq_status_on">On · %1$s</string>
-    <string name="eq_presets_section">Presets</string>
-    <string name="eq_output_section">Output</string>
-    <string name="eq_preamp">Preamp</string>
-    <string name="eq_auto_preamp">Auto preamp</string>
-    <string name="eq_auto_preamp_lowering">Lowering by %1$s dB, the limiter catches the rest</string>
-    <string name="eq_auto_preamp_ok">Nothing to lower, the limiter catches any peaks</string>
-    <string name="eq_auto_preamp_off">Off: louder, but big boosts get squashed on loud songs</string>
-    <string name="eq_delete_preset_title">Delete “%1$s”?</string>
-    <string name="donate_title">Thank you</string>
-    <string name="donate_subtitle">Support %1$s</string>
-    <string name="donate_kofi">Ko-fi · xbibzofficial</string>
-    <string name="donate_saweria">Saweria · xbibzofficial</string>
-    <string name="donate_qris">QRIS</string>
-    <string name="donate_qris_hint">Tap to show the payment poster</string>
-    <string name="donate_qris_close">Tap to hide</string>
-    <string name="donate_thanks">Any amount helps keep this fork alive.</string>
-    <string name="donate_dismiss">Close</string>
-    <string name="support_enjoying">Enjoying Mochy Music?</string>
-    <string name="support_title">Support this fork</string>
-    <string name="support_body">Mochy Music stays free. If you want to help %1$s, a small donation or a star on the repository is more than enough.</string>
-    <string name="support_donate">Donate</string>
-    <string name="support_star">Star the repo</string>
-    <string name="support_dismiss">Not now</string>
+    <string name="floating_lyrics_open">Open Mochy</string>
+    <string name="floating_lyrics_hide">Hide floating lyrics</string>
+    <string name="floating_lyrics_permission">Let Mochy show over other apps so the lyrics can float</string>
 </resources>

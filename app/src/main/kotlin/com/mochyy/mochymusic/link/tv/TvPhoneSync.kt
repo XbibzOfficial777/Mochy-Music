@@ -11,6 +11,8 @@ import androidx.media3.exoplayer.offline.DownloadService
 import com.mochyy.mochymusic.db.InternalDatabase
 import com.mochyy.mochymusic.db.MusicDatabase
 import com.mochyy.mochymusic.link.LinkRows
+import com.mochyy.mochymusic.link.LinkCredentials
+import com.mochyy.mochymusic.link.LinkIdentity
 import com.mochyy.mochymusic.link.LinkWire
 import com.mochyy.mochymusic.link.PhoneFile
 import com.mochyy.mochymusic.link.PhoneFiles
@@ -50,6 +52,8 @@ data class PhoneSyncState(
     val phoneName: String = "",
     val lastSyncAt: Long = 0L,
     val transferring: Int = 0,
+    // a refresh only for plays, which comes every few minutes while music plays, so the banner keeps quiet about it
+    val quiet: Boolean = false,
 ) {
     enum class Phase { NoPhone, Looking, Syncing, Synced, Away, Unlinked, Failed }
 }
@@ -66,6 +70,13 @@ class TvPhoneSync @Inject constructor(
     private val syncing = Mutex()
     private var loop: Job? = null
     private var lastRevision: Long? = null
+
+    // the phone's sum of likes, library songs and playlists at the last good sync
+    private var lastLibrary: String? = null
+
+    // a failed sync waits longer before each retry, since every try pulls the whole library over the wi-fi
+    @Volatile private var failedSyncs = 0
+    @Volatile private var retryAt = 0L
 
     private val _state = MutableStateFlow(PhoneSyncState())
     val state: StateFlow<PhoneSyncState> = _state.asStateFlow()
@@ -108,28 +119,43 @@ class TvPhoneSync @Inject constructor(
         val phone = profile.phone ?: return
         pause()
         scope.launch {
-            runCatching { LinkWire.postJson("${LinkWire.baseUrl(phone.host, phone.port)}/unlink", phone.key, "{}").close() }
+            runCatching { LinkWire.postJson("${LinkWire.baseUrl(phone.host, phone.port)}/unlink", credentials(phone), "{}").close() }
             TvProfiles.update(context, profile.id) { it.copy(phone = null) }
             PhoneFiles.clear()
             _state.value = PhoneSyncState()
         }
     }
 
-    // one heartbeat: say hello, and pull the library again when it changed and the last pull is old enough
+    // one heartbeat: say hello, and pull the library again when what the tv shows changed, or anything changed a while ago
     private suspend fun check(forceSync: Boolean) {
         val profile = TvProfiles.active() ?: return
         val phone = profile.phone ?: return
-        if (_state.value.phase != PhoneSyncState.Phase.Synced && _state.value.phase != PhoneSyncState.Phase.Syncing) {
+        val phase = _state.value.phase
+        // a failed sync keeps saying so while it waits to try again, instead of flicking back to "looking"
+        if (phase != PhoneSyncState.Phase.Synced && phase != PhoneSyncState.Phase.Syncing && phase != PhoneSyncState.Phase.Failed) {
             _state.update { it.copy(phase = PhoneSyncState.Phase.Looking) }
         }
         val hello = reach(profile.id, phone) ?: return
+        followPhoneProfile(profile.id, phone, hello)
+        val mirror = hello.optBoolean("mirror", true)
+        val stream = hello.optBoolean("stream", true)
+        // the phone switched streaming off for this tv: its songs stop showing as playable from it at once
+        if (!stream) PhoneFiles.update(emptyMap())
         val revision = hello.optLong("rev")
-        val stale = System.currentTimeMillis() - (TvProfiles.byId(profile.id)?.phone?.lastSyncAt ?: 0L) > AutoSyncGapMs
-        if (forceSync || (revision != lastRevision && stale)) {
-            sync(profile.id)
+        val library = hello.optString("lib")
+        val now = System.currentTimeMillis()
+        val sinceSync = now - (TvProfiles.byId(profile.id)?.phone?.lastSyncAt ?: 0L)
+        // a like or a playlist edit comes over within a heartbeat; plays alone wait for the longer gap
+        val libraryChanged = mirror && library.isNotEmpty() && library != lastLibrary && sinceSync > MinSyncGapMs
+        val stale = sinceSync > AutoSyncGapMs
+        val due = forceSync || libraryChanged || (revision != lastRevision && stale)
+        // only opening the app or pressing sync skips the wait after a failure, otherwise a broken sync ran every heartbeat
+        if (due && (forceSync || now >= retryAt)) {
+            if (sync(profile.id, mirror, stream, quiet = !forceSync && !libraryChanged)) lastLibrary = library
             lastRevision = revision
         } else if (_state.value.phase == PhoneSyncState.Phase.Looking || _state.value.phase == PhoneSyncState.Phase.Away) {
-            _state.update { it.copy(phase = PhoneSyncState.Phase.Synced) }
+            val settled = if (failedSyncs > 0) PhoneSyncState.Phase.Failed else PhoneSyncState.Phase.Synced
+            _state.update { it.copy(phase = settled) }
         }
     }
 
@@ -156,9 +182,9 @@ class TvPhoneSync @Inject constructor(
         val base = LinkWire.baseUrl(phone.host, phone.port)
         return try {
             // the tv says where its remote control listens, so the phone can play things here
-            LinkWire.get("$base/hello?tvPort=${TvControl.port}", phone.key).use { response ->
+            LinkWire.get("$base/hello?tvPort=${TvControl.port}", credentials(phone)).use { response ->
                 when (response.code) {
-                    200 -> JSONObject(response.body.string()).also { PhoneFiles.reachedAt(base, phone.key) }
+                    200 -> JSONObject(response.body.string()).also { PhoneFiles.reachedAt(base, credentials(phone)) }
                     401 -> {
                         // the phone unlinked this tv on its side; the library stays here as the profile's own
                         TvProfiles.active()?.let { profile -> TvProfiles.update(context, profile.id) { it.copy(phone = null) } }
@@ -175,42 +201,60 @@ class TvPhoneSync @Inject constructor(
         }
     }
 
-    // sends what happened on the tv, then takes the phone's whole library and its list of song files
-    private suspend fun sync(profileId: String) = syncing.withLock {
-        val phone = TvProfiles.byId(profileId)?.phone ?: return@withLock
+    // sends what happened on the tv, then takes the phone's whole library and its list of song files, as far as the phone allows each
+    private suspend fun sync(profileId: String, mirror: Boolean, stream: Boolean, quiet: Boolean): Boolean = syncing.withLock {
+        val phone = TvProfiles.byId(profileId)?.phone ?: return@withLock false
         val base = LinkWire.baseUrl(phone.host, phone.port)
-        _state.update { it.copy(phase = PhoneSyncState.Phase.Syncing) }
+        _state.update { it.copy(phase = PhoneSyncState.Phase.Syncing, quiet = quiet) }
         val result = runCatching {
-            pushChanges(profileId, base, phone.key)
-            val snapshot = pullLibrary(base, phone.key)
-            try {
-                LibraryMirror.apply(
-                    live = database.openHelper.writableDatabase,
-                    snapshot = snapshot,
-                    copiedToTv = readCopied(profileId),
-                    downloadedOnTv = downloadedOnTv(),
-                )
-            } finally {
-                snapshot.delete()
+            // with the phone's library off, the tv keeps its own and nothing goes either way
+            if (mirror) {
+                pushChanges(profileId, base, credentials(phone))
+                val snapshot = pullLibrary(base, credentials(phone))
+                try {
+                    LibraryMirror.apply(
+                        live = database.openHelper.writableDatabase,
+                        snapshot = snapshot,
+                        copiedToTv = readCopied(profileId),
+                        downloadedOnTv = downloadedOnTv(),
+                    )
+                } finally {
+                    snapshot.delete()
+                }
+                // written past room, so every open screen is told by hand
+                internalDatabase.invalidationTracker.refreshVersionsAsync()
+                saveBaseline(profileId)
             }
-            // written past room, so every open screen is told by hand
-            internalDatabase.invalidationTracker.refreshVersionsAsync()
-            saveBaseline(profileId)
-            pullFiles(profileId, base, phone.key)
-            if (TvProfiles.byId(profileId)?.avatarPath == null) fetchAvatar(profileId, phone)
+            // a slow file list mustn't undo a library that already landed, the last list stays until the next sync
+            if (stream) {
+                runCatching { pullFiles(profileId, base, credentials(phone)) }
+                    .onFailure { Timber.tag("Link").w(it, "couldn't get the song files from ${phone.name}") }
+            } else {
+                forgetFiles(profileId)
+            }
+            // a phone from before the stamp never says which picture it has, so its picture is fetched once, when the profile has none
+            TvProfiles.byId(profileId)?.let { if (it.avatarPath == null && it.phoneAvatar == null) fetchAvatar(profileId, phone, null) }
         }
         result.onSuccess {
             val now = System.currentTimeMillis()
+            failedSyncs = 0
+            retryAt = 0L
             TvProfiles.update(context, profileId) { profile -> profile.copy(phone = profile.phone?.copy(lastSyncAt = now)) }
             _state.update { it.copy(phase = PhoneSyncState.Phase.Synced, lastSyncAt = now) }
         }.onFailure {
+            failedSyncs++
+            retryAt = System.currentTimeMillis() + (FirstRetryMs shl (failedSyncs - 1).coerceAtMost(MaxRetryDoublings))
             Timber.tag("Link").w(it, "sync with ${phone.name} failed")
             _state.update { state -> state.copy(phase = if (it is IOException) PhoneSyncState.Phase.Away else PhoneSyncState.Phase.Failed) }
         }
+        result.isSuccess
     }
 
+    // this tv's id and the key it shares with the phone, for signing every call to it
+    private fun credentials(phone: LinkedPhone) = LinkCredentials(LinkIdentity.id(context), phone.key)
+
     // plays since the last sync, and likes or library changes made on the tv, so the phone's own copy has them too
-    private fun pushChanges(profileId: String, base: String, key: String) {
+    private fun pushChanges(profileId: String, base: String, auth: LinkCredentials) {
         val db = database.openHelper.readableDatabase
         val baseline = readBaseline(profileId)
         val plays = LinkRows.read(db, "SELECT * FROM event WHERE id > ?", arrayOf(baseline.lastEventId))
@@ -230,9 +274,11 @@ class TvPhoneSync @Inject constructor(
             .put("unliked", JSONArray(unliked))
             .put("added", JSONArray(added))
             .put("removed", JSONArray(removed))
-        LinkWire.postJson("$base/changes", key, body.toString()).use { response ->
+        LinkWire.postJson("$base/changes", auth, body.toString()).use { response ->
             if (!response.isSuccessful) throw IOException("phone turned the changes away (${response.code})")
         }
+        // the phone has them now; if the pull after this fails, the next sync mustn't send the same plays twice
+        saveBaseline(profileId)
     }
 
     // the song rows a change points at, with their artists and albums, so the phone can show them properly
@@ -256,9 +302,9 @@ class TvPhoneSync @Inject constructor(
         return rows
     }
 
-    private fun pullLibrary(base: String, key: String): File {
+    private fun pullLibrary(base: String, auth: LinkCredentials): File {
         val target = File(context.cacheDir, "link_library_${System.nanoTime()}.db")
-        LinkWire.get("$base/library", key).use { response ->
+        LinkWire.getSlow("$base/library", auth).use { response ->
             if (!response.isSuccessful) throw IOException("phone didn't send its library (${response.code})")
             GZIPInputStream(response.body.byteStream(), 64 * 1024).use { input ->
                 target.outputStream().use { input.copyTo(it, 64 * 1024) }
@@ -267,8 +313,9 @@ class TvPhoneSync @Inject constructor(
         return target
     }
 
-    private fun pullFiles(profileId: String, base: String, key: String) {
-        val array = LinkWire.get("$base/files", key).use { response ->
+    private fun pullFiles(profileId: String, base: String, auth: LinkCredentials) {
+        // a phone with lots of its own song files measures each one first, which can outlast the usual wait
+        val array = LinkWire.getSlow("$base/files", auth).use { response ->
             if (!response.isSuccessful) return
             JSONArray(response.body.string())
         }
@@ -276,22 +323,56 @@ class TvPhoneSync @Inject constructor(
         PhoneFiles.update(parseFiles(array))
     }
 
-    private fun fetchAvatar(profileId: String, phone: LinkedPhone) {
+    // streaming from the phone was switched off for this tv, so its list of song files goes
+    private fun forgetFiles(profileId: String) {
+        File(TvProfiles.folder(context, profileId), FilesName).delete()
+        PhoneFiles.update(emptyMap())
+    }
+
+    // the name and the picture set on the phone follow it here whenever either changes, read off every hello
+    private fun followPhoneProfile(profileId: String, phone: LinkedPhone, hello: JSONObject) {
+        val profile = TvProfiles.byId(profileId) ?: return
+        val name = hello.optString("user").trim()
+        if (name.isNotEmpty() && name != profile.name) TvProfiles.update(context, profileId) { it.copy(name = name) }
+        if (!hello.has("avatar")) return
+        val stamp = hello.optString("avatar")
+        when {
+            stamp.isEmpty() && profile.phoneAvatar != "" -> clearAvatar(profileId)
+            stamp.isNotEmpty() && stamp != profile.phoneAvatar -> fetchAvatar(profileId, phone, stamp)
+        }
+    }
+
+    private fun fetchAvatar(profileId: String, phone: LinkedPhone, stamp: String?) {
         runCatching {
-            LinkWire.get("${LinkWire.baseUrl(phone.host, phone.port)}/avatar", phone.key).use { response ->
+            LinkWire.get("${LinkWire.baseUrl(phone.host, phone.port)}/avatar", credentials(phone)).use { response ->
                 if (!response.isSuccessful) return
                 // a fresh name each time, so the image cache never hands back an old picture
                 val file = File(TvProfiles.folder(context, profileId), "avatar_${System.currentTimeMillis()}.jpg")
                 file.outputStream().use { response.body.byteStream().copyTo(it) }
-                TvProfiles.update(context, profileId) { it.copy(avatarPath = file.absolutePath) }
+                val before = TvProfiles.byId(profileId)?.avatarPath
+                TvProfiles.update(context, profileId) { it.copy(avatarPath = file.absolutePath, phoneAvatar = stamp) }
+                deleteOwnAvatar(profileId, before)
             }
         }
     }
 
-    // called right after pairing, while the phone is certainly awake
-    fun fetchAvatarAfterPairing(profileId: String) {
+    // the phone took its picture away, so the profile shows none again
+    private fun clearAvatar(profileId: String) {
+        val before = TvProfiles.byId(profileId)?.avatarPath
+        TvProfiles.update(context, profileId) { it.copy(avatarPath = null, phoneAvatar = "") }
+        deleteOwnAvatar(profileId, before)
+    }
+
+    // only a picture the tv fetched into the profile's own folder is deleted, never one picked on the tv itself
+    private fun deleteOwnAvatar(profileId: String, path: String?) {
+        val file = File(path ?: return)
+        if (file.parentFile == TvProfiles.folder(context, profileId)) file.delete()
+    }
+
+    // called right after pairing, while the phone is certainly awake; the stamp says which picture, so the next hello doesn't fetch it again
+    fun fetchAvatarAfterPairing(profileId: String, stamp: String?) {
         val phone = TvProfiles.byId(profileId)?.phone ?: return
-        scope.launch { fetchAvatar(profileId, phone) }
+        scope.launch { fetchAvatar(profileId, phone, stamp) }
     }
 
     // copies songs the phone has onto the tv: its downloads join the tv's downloads, its own files land in the profile's folder
@@ -400,6 +481,13 @@ class TvPhoneSync @Inject constructor(
 
         // a phone playing music changes its history every few minutes; the tv follows along, not after every song
         private const val AutoSyncGapMs = 5 * 60_000L
+
+        // even a like or a playlist edit waits this long after the last sync, so a burst of them is one pull
+        private const val MinSyncGapMs = 20_000L
+
+        // the first retry after a failed sync, doubled each time it fails again, up to about ten minutes
+        private const val FirstRetryMs = 40_000L
+        private const val MaxRetryDoublings = 4
 
         private const val BaselineName = "baseline.json"
         private const val FilesName = "phone_files.json"

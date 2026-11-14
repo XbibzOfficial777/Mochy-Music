@@ -3,6 +3,7 @@
 package com.mochyy.mochymusic.constants
 
 import android.os.Build
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -127,6 +128,7 @@ val EnablePaxsenixKey = booleanPreferencesKey("enablePaxsenix")
 val EnableNetEaseKey = booleanPreferencesKey("enableNetEase")
 val EnableQQMusicKey = booleanPreferencesKey("enableQQMusic")
 val EnableDeezerKey = booleanPreferencesKey("enableDeezer")
+val EnableLrcRedKey = booleanPreferencesKey("enableLrcRed")
 val HideExplicitKey = booleanPreferencesKey("hideExplicit")
 val HideVideoSongsKey = booleanPreferencesKey("hideVideoSongs")
 // no switch for it in settings, so every reader defaults it to on and shorts stay out
@@ -177,6 +179,14 @@ val DataSaverMobileOnlyKey = booleanPreferencesKey("dataSaverMobileOnly")
 val RamOptimizeKey = booleanPreferencesKey("ramOptimize")
 val ThermalOptimizeKey = booleanPreferencesKey("thermalOptimize")
 val IpVersionKey = stringPreferencesKey("ipVersion")
+
+// who finds a youtube song's stream: innertubex first with mochy's own client walk behind it, or only the walk
+val StreamBackendKey = stringPreferencesKey("streamBackend")
+
+enum class StreamBackend {
+    INNERTUBEX,
+    CLASSIC,
+}
 
 enum class AudioQuality {
     /** Best available from whichever backend is active. */
@@ -280,12 +290,42 @@ enum class CrossmixMode {
     CROSSMIX,
 }
 
-// crossmix is still being tuned, so it's greyed out and plays as auto crossfade; flip this to bring it back
-const val CrossmixAvailable = false
+// crossmix unless someone picked otherwise: the old default was a plain 5 s crossfade that never mixed anything
+val DefaultTransitionMode = CrossmixMode.CROSSMIX
 
-/** the mode that actually plays, a saved crossmix falls back to auto crossfade while crossmix is in progress */
-fun CrossmixMode.playable(): CrossmixMode =
-    if (this == CrossmixMode.CROSSMIX && !CrossmixAvailable) CrossmixMode.AUTO_CROSSFADE else this
+// the transition that really plays: the saved pick, then the old crossfade switch for those who set it before modes existed, then crossmix
+fun transitionModeOf(prefs: Preferences): CrossmixMode =
+    prefs[CrossmixModeKey]?.let { saved -> runCatching { CrossmixMode.valueOf(saved) }.getOrNull() }
+        ?: if (prefs[CrossfadeEnabledKey] == true) CrossmixMode.MANUAL_CROSSFADE else DefaultTransitionMode
+
+// set once the old plain-crossfade default has been moved over to crossmix, so it never happens twice
+val CrossmixDefaultMovedKey = booleanPreferencesKey("crossmixDefaultMoved")
+
+// how crossmix mixes: how long the two songs overlap, how far tempos may be stretched to meet, one style or the planner's pick, and whether the stunts are in the pool
+val CrossmixLengthKey = stringPreferencesKey("crossmixLength")
+val CrossmixTempoMatchKey = stringPreferencesKey("crossmixTempoMatch")
+/** a CrossmixStyle name, or CrossmixStyleAuto for the planner's own pick */
+val CrossmixStyleKey = stringPreferencesKey("crossmixStyle")
+const val CrossmixStyleAuto = "AUTO"
+val CrossmixStuntsKey = booleanPreferencesKey("crossmixStunts")
+// every hand-over a real blend of both songs, never a drop right at the end and never a plain fade
+val CrossmixAlwaysMixKey = booleanPreferencesKey("crossmixAlwaysMix")
+/** how long play() takes to be heard on this phone, learnt from each mix's first beat-lock reading */
+val CrossmixStartLatencyKey = floatPreferencesKey("crossmixStartLatencyMs")
+
+/** how long a crossmix overlap may run: scales the planner's overlap caps */
+enum class CrossmixLength(val scale: Float) {
+    SHORT(0.6f),
+    MEDIUM(1f),
+    LONG(1.5f),
+}
+
+/** how far the slower song may be sped up to meet the other; off still locks two songs already at one tempo */
+enum class CrossmixTempoMatch(val maxSpeedUp: Float) {
+    OFF(0.006f),
+    GENTLE(0.04f),
+    FULL(0.10f),
+}
 
 // pause, play and skip fades: on by default, 2 s long, no layered effect until one is picked
 val TransportFadeEnabledKey = booleanPreferencesKey("transportFadeEnabled")
@@ -477,8 +517,6 @@ val VideoModeReturnStyleKey = stringPreferencesKey("videoModeReturnStyle")
 
 // the full video mode shows the whole picture with room round it, instead of zooming it to fill the screen
 val VideoModeWholeVideoKey = booleanPreferencesKey("videoModeWholeVideo")
-// the full video mode stood upright by its rotate button, instead of turning itself sideways on a phone held upright
-val VideoModeUprightKey = booleanPreferencesKey("videoModeUpright")
 
 val LocalSongAutoMetadataKey = booleanPreferencesKey("local_song_auto_metadata")
 
@@ -711,6 +749,12 @@ enum class PlayerStyle(val displayName: String, val selectorName: String) {
     // the two flagships the full editor works on: cover, middle part, controls and bottom bar
     val hasFullEditor: Boolean get() = this == FLAGSHIP || this == CLASSIC
 
+    // the styles whose menu has a rotate button, each with a landscape layout of its own to turn into
+    val turnable: Boolean get() = this == TURNTABLE || this == POSTER || this == TIMELINE || this == LYRICS || this == MODULE || isBedside
+
+    // laid out sideways until someone turns it upright, the way a phone stands on a nightstand
+    val startsSideways: Boolean get() = this == BEDSIDE_TILES
+
     // the looks that read well across a room and stay smooth on a tv's gpu; the rest stay on phones
     val availableOnTv: Boolean get() = this == FLAGSHIP || this == POSTER || this == VIDEO || this == TIMELINE || isBedside
 
@@ -743,6 +787,10 @@ val PlayerStyleKey = stringPreferencesKey("playerStyle")
 
 // the tv's "flagship square": the flagship with its whole cover as a rounded square
 val TvFlagshipSquareKey = booleanPreferencesKey("tvFlagshipSquare")
+// a phone on its side: the flagship's cover fills the left and melts into the controls, instead of a rounded square beside them
+val LandscapeFullCoverKey = booleanPreferencesKey("landscapeFullCover")
+// Experimental: the app may turn sideways into its wide layout; off (the default) it stays upright
+val LandscapeUnlockedKey = booleanPreferencesKey("landscapeUnlocked")
 
 // the ipod player's body colours, ipod.js's three plus a pitch black one with a dark screen
 enum class IpodTheme { SILVER, BLACK, U2, TRUE_DARK }
@@ -784,6 +832,9 @@ val BedsideLockScreenKey = booleanPreferencesKey("bedsideLockScreen")
 
 // "not now" on the bedside's lock screen prompt, so it asks once and then leaves it to the sheet
 val BedsideLockPromptDismissedKey = booleanPreferencesKey("bedsideLockPromptDismissed")
+
+// whether a style's rotate button turned it sideways; the same key as before, so a style someone had turned comes back turned
+fun playerStyleRotatedKey(style: PlayerStyle) = booleanPreferencesKey("playerStyleRotated_${style.name}")
 
 // the page each bedside tile was left on, so it opens where it was
 val BedsideMusicTilePageKey = intPreferencesKey("bedsideMusicTilePage")
@@ -884,6 +935,13 @@ val PlayerBackgroundStyleKey = stringPreferencesKey("playerBackgroundStyle")
 val MiniPlayerBackgroundStyleKey = stringPreferencesKey("miniPlayerBackgroundStyle")
 val ShowLyricsKey = booleanPreferencesKey("showLyrics")
 val SwipeLyricsKey = booleanPreferencesKey("swipeLyrics")
+// the line being sung shown as the title and cover on android auto's player while a car is connected, on unless turned off
+val CarLyricsKey = booleanPreferencesKey("carLyrics")
+// the line being sung floating over other apps in a little pill, off until turned on and allowed to draw over them
+val FloatingLyricsKey = booleanPreferencesKey("floatingLyrics")
+// where the floating lyrics pill was left on screen, in px from the top left; missing until it's first moved
+val FloatingLyricsXKey = intPreferencesKey("floatingLyricsX")
+val FloatingLyricsYKey = intPreferencesKey("floatingLyricsY")
 val EnableLyricsThumbnailPlayPauseKey = booleanPreferencesKey("enableLyricsThumbnailPlayPause")
 val LyricsTextPositionKey = stringPreferencesKey("lyricsTextPosition")
 val LyricsClickKey = booleanPreferencesKey("lyricsClick")

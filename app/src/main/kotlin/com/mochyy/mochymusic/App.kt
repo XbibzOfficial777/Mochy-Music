@@ -37,6 +37,7 @@ import com.mochyy.mochymusic.utils.reportException
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectIndexed
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -126,11 +127,27 @@ class App : Application(), SingletonImageLoader.Factory {
         )
 
         PreferencesCache.start(this, applicationScope)
+        // tokens saved before the vault existed are sealed on the first start after the update
+        applicationScope.launch(kotlinx.coroutines.Dispatchers.IO) { (dataStore as? com.mochyy.mochymusic.utils.SecretPreferences)?.sealLeftovers() }
         com.mochyy.mochymusic.utils.NotRecommended.init(this)
 
         applicationScope.launch(Dispatchers.IO) {
             try {
                 musicDatabase.query { purgeTimestampArtists() }
+            } catch (e: Exception) {
+                reportException(e)
+            }
+        }
+
+        applicationScope.launch(Dispatchers.IO) {
+            // the plain 5 s crossfade used to be the default and onboarding's pick, and it never mixed a thing: anyone left on it moves to crossmix once
+            try {
+                if (dataStore.data.first()[CrossmixDefaultMovedKey] != true) {
+                    dataStore.edit { prefs ->
+                        if (prefs[CrossmixModeKey] == CrossmixMode.AUTO_CROSSFADE.name) prefs[CrossmixModeKey] = CrossmixMode.CROSSMIX.name
+                        prefs[CrossmixDefaultMovedKey] = true
+                    }
+                }
             } catch (e: Exception) {
                 reportException(e)
             }
@@ -176,12 +193,14 @@ class App : Application(), SingletonImageLoader.Factory {
                 com.mochyy.mochymusic.ui.launch.LaunchGate.awaitIntro()
                 kotlinx.coroutines.delay(PoTokenAfterIntroMillis)
                 com.mochyy.mochymusic.utils.YTPlayerUtils.preWarmPoToken()
+                // the player script compiles now, so the first song doesn't wait for it
+                com.mochyy.mochymusic.utils.YTPlayerUtils.preWarmInnerTubeX()
             }
         }
 
         applicationScope.launch(Dispatchers.IO) {
-            // a paired tv can reach this phone again as soon as mochy is up, after the intro has had the main thread
-            if (isTelevision() || !com.mochyy.mochymusic.link.phone.PhoneLinkHost.hasPairedTvs(this@App)) return@launch
+            // a paired device can reach this phone again as soon as mochy is up, after the intro has had the main thread
+            if (isTelevision() || !com.mochyy.mochymusic.link.phone.PhoneLinkHost.hasPairedDevices(this@App)) return@launch
             com.mochyy.mochymusic.ui.launch.LaunchGate.awaitIntro()
             phoneLink.get().refresh()
             com.mochyy.mochymusic.link.phone.PhoneLinkService.start(this@App)
@@ -228,6 +247,8 @@ class App : Application(), SingletonImageLoader.Factory {
 
         YouTube.useLoginForBrowse = settings[UseLoginForBrowse] ?: true
         YouTube.ipVersion = settings[IpVersionKey]?.toEnum(defaultValue = IpVersion.AUTO) ?: IpVersion.AUTO
+        com.mochyy.mochymusic.utils.YTPlayerUtils.backend =
+            settings[StreamBackendKey]?.toEnum(defaultValue = StreamBackend.INNERTUBEX) ?: StreamBackend.INNERTUBEX
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -335,6 +356,17 @@ class App : Application(), SingletonImageLoader.Factory {
                     YouTube.ipVersion = ipVersion?.toEnum(defaultValue = IpVersion.AUTO) ?: IpVersion.AUTO
                 }
         }
+
+        applicationScope.launch(Dispatchers.IO) {
+            dataStore.data
+                .map { it[StreamBackendKey]?.toEnum(defaultValue = StreamBackend.INNERTUBEX) ?: StreamBackend.INNERTUBEX }
+                .distinctUntilChanged()
+                .collectIndexed { index, backend ->
+                    com.mochyy.mochymusic.utils.YTPlayerUtils.backend = backend
+                    // a switch mid-session warms it straight away; at launch that waits for the intro, further up
+                    if (index > 0) com.mochyy.mochymusic.utils.YTPlayerUtils.preWarmInnerTubeX()
+                }
+        }
     }
 
     // the screen went to the background: covers decoded for it were the most the app held while music played on, so most of them go; the latest stay for coming back
@@ -356,6 +388,7 @@ class App : Application(), SingletonImageLoader.Factory {
         return ImageLoader.Builder(this).apply {
             components {
                 add(SvgDecoder.Factory())
+                add(com.mochyy.mochymusic.utils.ImageRetry)
             }
             // covers ease in as they arrive; coil skips the fade for ones already in memory, so scrolling back never flickers
             crossfade(300)

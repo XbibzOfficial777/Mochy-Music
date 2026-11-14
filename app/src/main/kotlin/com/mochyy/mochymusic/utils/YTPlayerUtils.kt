@@ -17,13 +17,17 @@ import com.music.innertube.models.YouTubeClient.Companion.IOS
 import com.music.innertube.models.YouTubeClient.Companion.IPADOS
 import com.music.innertube.models.YouTubeClient.Companion.MOBILE
 import com.music.innertube.models.YouTubeClient.Companion.TVHTML5
+import com.music.innertube.models.YouTubeClient.Companion.TVHTML5_DOWNGRADED
+import com.music.innertube.models.YouTubeClient.Companion.TVHTML5_SAMSUNG
 import com.music.innertube.models.YouTubeClient.Companion.TVHTML5_SIMPLY_EMBEDDED_PLAYER
 import com.music.innertube.models.YouTubeClient.Companion.VISIONOS
 import com.music.innertube.models.YouTubeClient.Companion.WEB
 import com.music.innertube.models.YouTubeClient.Companion.WEB_CREATOR
+import com.music.innertube.models.YouTubeClient.Companion.WEB_EMBEDDED_PLAYER
 import com.music.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.music.innertube.models.response.PlayerResponse
 import com.mochyy.mochymusic.constants.AudioQuality
+import com.mochyy.mochymusic.constants.StreamBackend
 import com.mochyy.mochymusic.utils.cipher.CipherDeobfuscator
 import com.mochyy.mochymusic.utils.YTPlayerUtils.MAIN_CLIENT
 import com.mochyy.mochymusic.utils.YTPlayerUtils.STREAM_FALLBACK_CLIENTS
@@ -82,6 +86,19 @@ object YTPlayerUtils {
 
     private val poTokenGenerator = PoTokenGenerator()
 
+    // who finds a song's stream: innertubex with the client walk below as its backup, or the walk alone; App keeps it in step with the setting
+    @Volatile
+    var backend: StreamBackend = StreamBackend.INNERTUBEX
+
+    private val innerTubeX = InnerTubeXStreams(httpClient) { videoId, sessionId -> poTokenGenerator.poTokenFor(videoId, sessionId) }
+
+    // compiles youtube's player script before the first song needs it; nothing to do on the classic backend
+    suspend fun preWarmInnerTubeX() {
+        if (backend != StreamBackend.INNERTUBEX) return
+        runCatching { innerTubeX.prewarm() }
+            .onFailure { Timber.tag(TAG).w(it, "InnerTubeX couldn't warm up, the first song will do it") }
+    }
+
     /** True once the BotGuard engine holds a usable session token. Surfaced in diagnostics. */
     val hasPoToken: Boolean
         get() = poTokenGenerator.hasSessionToken
@@ -110,11 +127,27 @@ object YTPlayerUtils {
      * with a working PoToken, and minting one blocks the first play for as long as BotGuard
      * takes. VISIONOS sidesteps both problems, so PoToken minting now only happens if playback
      * actually falls through to a web client (see the lazy mint in the loop below).
-     *
-     * Requires `visitorData`: without it VISIONOS answers `UNPLAYABLE`. App.kt fetches one on
-     * startup when absent, so this holds for guests too.
      */
+    // it mints its own visitor id like the real app, a burned one gets "confirm you're not a bot", so that gets one fresh id and one more ask
     private val MAIN_CLIENT: YouTubeClient = VISIONOS
+
+    // the account's clients that still hand out plain links for songs youtube only plays signed in (age-restricted, premium-only), in yt-dlp's order for signed-in users
+    private val ACCOUNT_CLIENTS: Array<YouTubeClient> = arrayOf(TVHTML5_SAMSUNG, WEB_EMBEDDED_PLAYER, TVHTML5_DOWNGRADED)
+
+    // visionos is left alone until then after its bot check came twice: it's the network youtube doubts, and asking for every song keeps it doubting
+    @Volatile
+    private var visionOsRestingUntil = 0L
+    private const val BOT_CHECK_REST_MS = 30 * 60_000L
+
+    private fun PlayerResponse.isBotCheck(): Boolean =
+        playabilityStatus.status == "LOGIN_REQUIRED" && playabilityStatus.reason?.contains("bot", ignoreCase = true) == true
+
+    // the clients whose links carry an n that the player js has to solve: without it googlevideo throttles or refuses them
+    private fun YouTubeClient.solvesN(): Boolean = useWebPoTokens || this in ACCOUNT_CLIENTS
+
+    // "this video is only available to music premium members", the same words newpipe looks for
+    private fun PlayerResponse.isPremiumOnly(): Boolean =
+        playabilityStatus.status != "OK" && playabilityStatus.reason?.contains("Premium", ignoreCase = true) == true
 
     /**
      * Playability statuses that mean "this client may not serve the stream, but another one
@@ -212,10 +245,12 @@ object YTPlayerUtils {
             }
         }
 
-        // a rate limit is the whole network, not the session: rotating asks YouTube again and
-        // retrying walks every client again, which only keeps the limit in place
+        // a rate limit or bot check is the network and a premium-only song is the song, so a fresh guest session and a second walk would only play nothing again
+        val firstFailure = (firstAttempt.exceptionOrNull() as? UploadRefusedException)?.failure ?: firstAttempt.exceptionOrNull()
         if (firstAttempt.isFailure && YouTube.cookie == null &&
-            firstAttempt.exceptionOrNull() !is YouTubeRateLimitedException
+            firstFailure !is YouTubeRateLimitedException &&
+            firstFailure !is YouTubeBotCheckException &&
+            firstFailure !is YouTubePremiumOnlyException
         ) {
             Timber.tag(TAG).w("Playback failed for guest. Rotating session and retrying...")
             PlaybackLogManager.log(PlaybackLogLevel.BOT, "Playback failed for guest", "Triggering bot detection mitigation (rotating guest session)")
@@ -283,6 +318,34 @@ object YTPlayerUtils {
     private fun Result<PlaybackData>.unwrapRefusal(): Result<PlaybackData> =
         (exceptionOrNull() as? UploadRefusedException)?.let { Result.failure(it.failure) } ?: this
 
+    // innertubex's answer, or null so the walk takes over; a library that won't even load counts as a miss, not a crash
+    private suspend fun innerTubeXFirst(
+        videoId: String,
+        playlistId: String?,
+        audioQuality: AudioQuality,
+        connectivityManager: ConnectivityManager,
+    ): PlaybackData? {
+        val found = try {
+            innerTubeX.resolve(videoId, playlistId, audioQuality, connectivityManager)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.tag(logTag).w(e, "InnerTubeX couldn't play $videoId, trying the client walk")
+            PlaybackLogManager.log(PlaybackLogLevel.WARNING, "InnerTubeX missed, using the client walk", "$videoId: ${e.shortReason()}")
+            return null
+        } catch (e: LinkageError) {
+            Timber.tag(logTag).e(e, "InnerTubeX failed to load, trying the client walk")
+            PlaybackLogManager.log(PlaybackLogLevel.ERROR, "InnerTubeX failed to load", e.javaClass.simpleName)
+            return null
+        }
+        if (found == null) {
+            PlaybackLogManager.log(PlaybackLogLevel.WARNING, "InnerTubeX found nothing, using the client walk", videoId)
+            return null
+        }
+        PlaybackLogManager.log(PlaybackLogLevel.INFO, "InnerTubeX found the stream", "$videoId via ${found.streamClient}")
+        return found
+    }
+
     private suspend fun resolvePlaybackData(
         videoId: String,
         playlistId: String? = null,
@@ -299,13 +362,16 @@ object YTPlayerUtils {
         val isLoggedIn = YouTube.cookie != null
         Timber.tag(logTag).d("Session authentication status: ${if (isLoggedIn) "Logged in" else "Not logged in"}")
 
-        // VISIONOS answers UNPLAYABLE without a visitorData, and App.kt only fetches one
-        // asynchronously at startup - so a track played early would silently fall through to a
-        // client that truncates at ~786 KB. Make sure we have one before asking for a stream.
+        // the web clients need the web player's visitor id, and the app only fetches one in the background at startup
         if (!isLoggedIn && YouTube.visitorData.isNullOrEmpty()) {
             Timber.tag(logTag).d("No visitorData yet - fetching one before resolving playback")
             YouTube.refreshVisitorData()
                 .onFailure { Timber.tag(logTag).w(it, "Could not fetch visitorData: ${it.message}") }
+        }
+
+        // innertubex goes first; whatever it can't find goes on to the walk below exactly as before
+        if (backend == StreamBackend.INNERTUBEX) {
+            innerTubeXFirst(videoId, playlistId, audioQuality, connectivityManager)?.let { return@runCatching it }
         }
 
         // NewPipe's signature-timestamp lookup is a blocking network round trip, and it is only
@@ -333,16 +399,44 @@ object YTPlayerUtils {
             }
         }
 
-        Timber.tag(logTag).d("Attempting to get player response using MAIN_CLIENT: ${MAIN_CLIENT.clientName}")
-        PlaybackLogManager.log(PlaybackLogLevel.DEBUG, "Trying ${MAIN_CLIENT.clientName} (Main)")
         val mainSigTimestamp = if (MAIN_CLIENT.useSignatureTimestamp) signatureTimestamp.timestamp else null
-        var mainPlayerResponse = YouTube.player(videoId, playlistId, MAIN_CLIENT, mainSigTimestamp, poToken?.playerRequestPoToken)
-            .getOrElse { e ->
-                if (e.isRateLimit()) throw YouTubeRateLimitedException()
-                // Ktor's message carries the whole request url and response body
-                if (e is ResponseException) throw Exception("YouTube refused the request (${e.shortReason()})", e)
-                throw e
+        suspend fun askMainClient(): PlayerResponse =
+            YouTube.player(videoId, playlistId, MAIN_CLIENT, mainSigTimestamp, poToken?.playerRequestPoToken)
+                .getOrElse { e ->
+                    if (e.isRateLimit()) throw YouTubeRateLimitedException()
+                    // Ktor's message carries the whole request url and response body
+                    if (e is ResponseException) throw Exception("YouTube refused the request (${e.shortReason()})", e)
+                    throw e
+                }
+
+        // null while visionos rests after a bot check: the other clients are asked straight away
+        var mainPlayerResponse: PlayerResponse? = null
+        if (System.currentTimeMillis() < visionOsRestingUntil) {
+            Timber.tag(logTag).d("${MAIN_CLIENT.clientName} is resting after a bot check, going straight to the other clients")
+            PlaybackLogManager.log(PlaybackLogLevel.BOT, "Skipping ${MAIN_CLIENT.clientName}", "resting after a bot check")
+        } else {
+            Timber.tag(logTag).d("Attempting to get player response using MAIN_CLIENT: ${MAIN_CLIENT.clientName}")
+            PlaybackLogManager.log(PlaybackLogLevel.DEBUG, "Trying ${MAIN_CLIENT.clientName} (Main)")
+            var answer = askMainClient()
+            // the bot check burns the visitor id, not the client: a fresh one usually clears it, and when it doesn't the network is flagged for a while
+            if (answer.isBotCheck()) {
+                PlaybackLogManager.log(PlaybackLogLevel.BOT, "Bot check from ${MAIN_CLIENT.clientName}", "minting a fresh visitor id and asking once more")
+                YouTube.refreshVisitorData(MAIN_CLIENT)
+                    .onFailure { Timber.tag(logTag).w(it, "Could not mint a fresh visitor id: ${it.message}") }
+                answer = askMainClient()
+                if (answer.isBotCheck()) {
+                    visionOsRestingUntil = System.currentTimeMillis() + BOT_CHECK_REST_MS
+                    PlaybackLogManager.log(PlaybackLogLevel.BOT, "Bot check again", "leaving ${MAIN_CLIENT.clientName} alone for ${BOT_CHECK_REST_MS / 60_000} minutes")
+                }
             }
+            mainPlayerResponse = answer
+        }
+        // a bot check is about the network, not the song, so it isn't treated as an age gate below: that would drop the signature timestamp the account's ciphered links need
+        val mainBotChecked = mainPlayerResponse?.isBotCheck() == true
+        // the network is flagged: when nothing else serves either, that's the reason to give
+        val botChecked = mainPlayerResponse == null || mainBotChecked
+        // some client called the song premium-only; set below as the answers come in
+        var premiumOnly = mainPlayerResponse?.isPremiumOnly() == true
 
         var metadataResponse: PlayerResponse? = null
         if (isLoggedIn) {
@@ -370,18 +464,18 @@ object YTPlayerUtils {
         }
 
         if (isUploadedTrack || playlistId?.contains("MLPT") == true) {
-            println("[PLAYBACK_DEBUG] Main player response status: ${mainPlayerResponse.playabilityStatus.status}")
-            println("[PLAYBACK_DEBUG] Playability reason: ${mainPlayerResponse.playabilityStatus.reason}")
-            println("[PLAYBACK_DEBUG] Video details: title=${mainPlayerResponse.videoDetails?.title}, videoId=${mainPlayerResponse.videoDetails?.videoId}")
-            println("[PLAYBACK_DEBUG] Streaming data null? ${mainPlayerResponse.streamingData == null}")
-            println("[PLAYBACK_DEBUG] Adaptive formats count: ${mainPlayerResponse.streamingData?.adaptiveFormats?.size ?: 0}")
+            println("[PLAYBACK_DEBUG] Main player response status: ${mainPlayerResponse?.playabilityStatus?.status}")
+            println("[PLAYBACK_DEBUG] Playability reason: ${mainPlayerResponse?.playabilityStatus?.reason}")
+            println("[PLAYBACK_DEBUG] Video details: title=${mainPlayerResponse?.videoDetails?.title}, videoId=${mainPlayerResponse?.videoDetails?.videoId}")
+            println("[PLAYBACK_DEBUG] Streaming data null? ${mainPlayerResponse?.streamingData == null}")
+            println("[PLAYBACK_DEBUG] Adaptive formats count: ${mainPlayerResponse?.streamingData?.adaptiveFormats?.size ?: 0}")
         }
 
         var usedAgeRestrictedClient: YouTubeClient? = null
         val wasOriginallyAgeRestricted: Boolean
 
-        val mainStatus = mainPlayerResponse.playabilityStatus.status
-        val isAgeRestrictedFromResponse = mainStatus in RESTRICTED_STATUSES
+        val mainStatus = mainPlayerResponse?.playabilityStatus?.status
+        val isAgeRestrictedFromResponse = mainStatus in RESTRICTED_STATUSES && !mainBotChecked
         wasOriginallyAgeRestricted = isAgeRestrictedFromResponse
 
         if (isAgeRestrictedFromResponse && isLoggedIn) {
@@ -396,10 +490,10 @@ object YTPlayerUtils {
             }
         }
 
-        val audioConfig = metadataResponse?.playerConfig?.audioConfig ?: mainPlayerResponse.playerConfig?.audioConfig
-        val videoDetails = metadataResponse?.videoDetails ?: mainPlayerResponse.videoDetails
+        val audioConfig = metadataResponse?.playerConfig?.audioConfig ?: mainPlayerResponse?.playerConfig?.audioConfig
+        val videoDetails = metadataResponse?.videoDetails ?: mainPlayerResponse?.videoDetails
         // signed in, only the signed-in lookup's links count a play on the account; visionos ones would land in an anonymous history
-        val playbackTracking = if (isLoggedIn) metadataResponse?.playbackTracking else mainPlayerResponse.playbackTracking
+        val playbackTracking = if (isLoggedIn) metadataResponse?.playbackTracking else mainPlayerResponse?.playbackTracking
         var format: PlayerResponse.StreamingData.Format? = null
         var streamUrl: String? = null
         var streamExpiresInSeconds: Int? = null
@@ -407,23 +501,27 @@ object YTPlayerUtils {
         var streamPlayerResponse: PlayerResponse? = null
         var retryMainPlayerResponse: PlayerResponse? = if (usedAgeRestrictedClient != null) mainPlayerResponse else null
 
-        val currentStatus = mainPlayerResponse.playabilityStatus.status
-        var isAgeRestricted = currentStatus in RESTRICTED_STATUSES
+        val currentStatus = mainPlayerResponse?.playabilityStatus?.status
+        var isAgeRestricted = currentStatus in RESTRICTED_STATUSES && !mainBotChecked
 
         if (isAgeRestricted) {
             Timber.tag(logTag).d("Content is still age-restricted (status: $currentStatus), will try fallback clients")
             Timber.tag(TAG).i("Age-restricted content detected: videoId=$videoId, status=$currentStatus")
         }
 
-        val isPrivateTrack = mainPlayerResponse.videoDetails?.musicVideoType == "MUSIC_VIDEO_TYPE_PRIVATELY_OWNED_TRACK"
+        val isPrivateTrack = mainPlayerResponse?.videoDetails?.musicVideoType == "MUSIC_VIDEO_TYPE_PRIVATELY_OWNED_TRACK"
 
-        val startIndex = when {
-            isPrivateTrack -> 1
-            isAgeRestricted -> 0
-            else -> -1
+        // the main client's answer is reused at index -1, so it isn't asked again as a fallback, and signed in the
+        // account's clients come first when it couldn't serve: they're what plays age-restricted and premium-only songs
+        val mainServed = currentStatus == "OK"
+        val fallbackClients: List<YouTubeClient> = buildList {
+            if (isLoggedIn && !mainServed) addAll(ACCOUNT_CLIENTS)
+            STREAM_FALLBACK_CLIENTS.filterTo(this) { it != MAIN_CLIENT }
         }
 
-        for (clientIndex in (startIndex until STREAM_FALLBACK_CLIENTS.size)) {
+        val startIndex = if (mainPlayerResponse == null || isPrivateTrack || isAgeRestricted) 0 else -1
+
+        for (clientIndex in (startIndex until fallbackClients.size)) {
 
             format = null
             streamUrl = null
@@ -437,9 +535,9 @@ object YTPlayerUtils {
                 Timber.tag(logTag).d("Trying stream from MAIN_CLIENT: ${client.clientName}")
             } else {
 
-                client = STREAM_FALLBACK_CLIENTS[clientIndex]
-                Timber.tag(logTag).d("Trying fallback client ${clientIndex + 1}/${STREAM_FALLBACK_CLIENTS.size}: ${client.clientName}")
-                PlaybackLogManager.log(PlaybackLogLevel.DEBUG, "Trying fallback [${clientIndex + 1}/${STREAM_FALLBACK_CLIENTS.size}]", client.clientName)
+                client = fallbackClients[clientIndex]
+                Timber.tag(logTag).d("Trying fallback client ${clientIndex + 1}/${fallbackClients.size}: ${client.clientName}")
+                PlaybackLogManager.log(PlaybackLogLevel.DEBUG, "Trying fallback [${clientIndex + 1}/${fallbackClients.size}]", client.clientName)
 
                 if (client.loginRequired && !isLoggedIn && YouTube.cookie == null) {
 
@@ -477,8 +575,8 @@ object YTPlayerUtils {
 
             if (streamPlayerResponse?.playabilityStatus?.status == "OK") {
                 anyClientServed = true
-                Timber.tag(logTag).d("Player response status OK for client: ${if (clientIndex == -1) MAIN_CLIENT.clientName else STREAM_FALLBACK_CLIENTS[clientIndex].clientName}")
-                PlaybackLogManager.log(PlaybackLogLevel.INFO, "Player response OK", if (clientIndex == -1) MAIN_CLIENT.clientName else STREAM_FALLBACK_CLIENTS[clientIndex].clientName)
+                Timber.tag(logTag).d("Player response status OK for client: ${if (clientIndex == -1) MAIN_CLIENT.clientName else fallbackClients[clientIndex].clientName}")
+                PlaybackLogManager.log(PlaybackLogLevel.INFO, "Player response OK", if (clientIndex == -1) MAIN_CLIENT.clientName else fallbackClients[clientIndex].clientName)
 
                 val hasDirectUrls = streamPlayerResponse.streamingData?.adaptiveFormats
                     ?.any { !it.url.isNullOrEmpty() } == true
@@ -490,7 +588,7 @@ object YTPlayerUtils {
                 val responseToUse = streamPlayerResponse
 
                 val clientLabel =
-                    if (clientIndex == -1) MAIN_CLIENT.clientName else STREAM_FALLBACK_CLIENTS[clientIndex].clientName
+                    if (clientIndex == -1) MAIN_CLIENT.clientName else fallbackClients[clientIndex].clientName
 
                 val formatCandidates = selectAudioFormatCandidates(
                     responseToUse,
@@ -526,12 +624,12 @@ object YTPlayerUtils {
                 val currentClient = if (clientIndex == -1) {
                     usedAgeRestrictedClient ?: MAIN_CLIENT
                 } else {
-                    STREAM_FALLBACK_CLIENTS[clientIndex]
+                    fallbackClients[clientIndex]
                 }
 
                 val isPrivatelyOwnedTrack = streamPlayerResponse.videoDetails?.musicVideoType == "MUSIC_VIDEO_TYPE_PRIVATELY_OWNED_TRACK"
 
-                if (currentClient.useWebPoTokens) {
+                if (currentClient.solvesN()) {
                     try {
                         Timber.tag(logTag).d("Applying n-transform to stream URL for ${currentClient.clientName}")
                         val transformed = EjsNTransformSolver.transformNParamInUrl(streamUrl)
@@ -590,7 +688,7 @@ object YTPlayerUtils {
                 } else {
                     Timber.tag(logTag).d("Stream validation failed for client: ${currentClient.clientName}")
 
-                    if (currentClient.useWebPoTokens) {
+                    if (currentClient.solvesN()) {
                         var nTransformWorked = false
 
                         try {
@@ -622,6 +720,7 @@ object YTPlayerUtils {
                 if (streamPlayerResponse != null) {
                     failures += "${client.clientName}: $status" +
                         streamPlayerResponse.playabilityStatus.reason?.let { " ($it)" }.orEmpty()
+                    if (streamPlayerResponse.isPremiumOnly()) premiumOnly = true
                 }
 
                 Timber.tag(logTag).d("Player response status not OK: ${streamPlayerResponse?.playabilityStatus?.status}, reason: ${streamPlayerResponse?.playabilityStatus?.reason}")
@@ -638,14 +737,16 @@ object YTPlayerUtils {
             }
             val summary = failureSummary(failures)
             val last = streamPlayerResponse
-            val failure = if (last != null && last.playabilityStatus.status != "OK") {
-                PlaybackException(summary, null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
-            } else {
-                Exception(summary)
+            val failure = when {
+                !anyClientServed && premiumOnly -> YouTubePremiumOnlyException(summary)
+                !anyClientServed && botChecked -> YouTubeBotCheckException(summary)
+                last != null && last.playabilityStatus.status != "OK" ->
+                    PlaybackException(summary, null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
+                else -> Exception(summary)
             }
-            // a user's own upload is never swapped for someone else's copy
-            if (!anyClientServed && !isUploadedTrack && !isPrivateTrack) {
-                throw UploadRefusedException(failure, mainPlayerResponse.videoDetails)
+            // a user's own upload is never swapped for someone else's copy, and a bot check would turn the stand-ins away too
+            if (!anyClientServed && !isUploadedTrack && !isPrivateTrack && failure !is YouTubeBotCheckException) {
+                throw UploadRefusedException(failure, mainPlayerResponse?.videoDetails)
             }
             throw failure
         }
@@ -1162,3 +1263,11 @@ object YTPlayerUtils {
  */
 class YouTubeRateLimitedException :
     Exception("YouTube is limiting requests from this network. Try again in a few minutes.")
+
+// youtube answered the main client "sign in to confirm you're not a bot" twice, with a fresh visitor id in between, and no other client served: it's this network youtube doubts
+class YouTubeBotCheckException(detail: String) :
+    Exception("YouTube wants a bot check from this network ($detail)")
+
+// youtube only plays this upload for music premium members, and no client of ours (the account's included) got a stream
+class YouTubePremiumOnlyException(detail: String) :
+    Exception("This song is only for YouTube Music Premium members ($detail)")

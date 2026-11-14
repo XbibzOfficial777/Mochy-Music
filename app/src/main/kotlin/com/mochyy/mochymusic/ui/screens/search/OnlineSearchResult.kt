@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.WindowInsets
+import com.mochyy.mochymusic.ui.utils.stableStatusBars
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -102,7 +104,6 @@ import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.viewmodels.OnlineSearchViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.net.URLEncoder
 import com.mochyy.mochymusic.ui.component.navigateToTab
 import com.mochyy.mochymusic.ui.component.RemoteFocus
 
@@ -173,8 +174,8 @@ fun OnlineSearchResult(
             val text = raw.trim()
             if (text.isNotEmpty() && text != viewModel.query) {
                 focusManager.clearFocus()
-                navController.navigate("search/${URLEncoder.encode(text, "UTF-8")}") {
-                    popUpTo("search/${URLEncoder.encode(viewModel.query, "UTF-8")}") {
+                navController.navigate(searchRoute(text)) {
+                    popUpTo(searchRoute(viewModel.query)) {
                         inclusive = true
                     }
                 }
@@ -223,6 +224,9 @@ fun OnlineSearchResult(
     }
 
     val bottomInset = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding()
+    // on its side the field is in the pane at the left (SearchSidePane): only the kinds of result sit over the list
+    val landscape = com.mochyy.mochymusic.ui.utils.isLandscapeLayout()
+    val statusTop = WindowInsets.stableStatusBars.asPaddingValues().calculateTopPadding()
 
     val top = remember(summary, viewModel.query) {
         summary?.let { pickTopResult(it.summaries.flatMap { section -> section.items }, viewModel.query) }
@@ -243,7 +247,7 @@ fun OnlineSearchResult(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
-                    top = searchTopBarHeight(withTitle = true, extra = 46.dp),
+                    top = if (landscape) statusTop + SearchTopClearance + 34.dp + 18.dp else searchTopBarHeight(withTitle = true, extra = 46.dp),
                     bottom = bottomInset + 24.dp,
                 ),
             ) {
@@ -276,10 +280,11 @@ fun OnlineSearchResult(
                                 SearchSectionHeader(title = "Top Results", ruleAbove = false)
                             }
                             item(key = "top_card") {
+                                val active = mediaMetadata?.id == top.id
                                 TopResultCard(
                                     item = top,
-                                    isActive = mediaMetadata?.id == top.id,
-                                    isPlaying = isPlaying,
+                                    isActive = active,
+                                    isPlaying = active && isPlaying,
                                     onClick = { onItemClick(top) },
                                     onLongClick = { onItemLongClick(top) },
                                 )
@@ -368,7 +373,26 @@ fun OnlineSearchResult(
             }
         }
 
-        SearchGlassTopBar(
+        if (landscape) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            0f to SearchColors.page(pureBlack),
+                            0.7f to SearchColors.page(pureBlack).copy(alpha = 0.9f),
+                            1f to Color.Transparent,
+                        )
+                    )
+                    .padding(top = statusTop + SearchTopClearance - 4.dp, bottom = 14.dp),
+            ) {
+                SearchCategoryRow(
+                    categories = SearchCategories.map { it.first },
+                    selectedIndex = selectedIndex,
+                    onSelect = { index -> viewModel.filter.value = SearchCategories[index].second },
+                )
+            }
+        } else SearchGlassTopBar(
             glassState = glassState,
             progressProvider = progressProvider,
             pureBlack = pureBlack,

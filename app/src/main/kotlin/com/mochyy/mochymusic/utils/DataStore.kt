@@ -26,10 +26,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlin.properties.ReadOnlyProperty
 
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+private val Context.settingsFile: DataStore<Preferences> by preferencesDataStore(
     name = "settings",
     produceMigrations = { listOf(BibzPreferencesMigration) },
 )
+
+@Volatile private var sealedSettings: SecretPreferences? = null
+
+// the settings store everyone reads and writes, with the secrets in it sealed on disk by the vault
+val Context.dataStore: DataStore<Preferences>
+    get() = sealedSettings ?: synchronized(SecretPreferences) {
+        sealedSettings ?: SecretPreferences(applicationContext.settingsFile).also { sealedSettings = it }
+    }
 
 object PreferencesCache {
 

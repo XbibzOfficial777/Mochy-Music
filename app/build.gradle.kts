@@ -20,19 +20,17 @@ plugins {
 
 extensions.configure<ApplicationExtension> {
     namespace = "com.mochyy.mochymusic"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = "27.0.12077973"
 
     defaultConfig {
         applicationId = "com.mochyy.mochymusic"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         // Fork updates must remain installable over earlier Bibz releases.
-        versionCode = 91
-        versionName = "8.3.3-xbibz.17-pre.2"
-        // The upstream Mochy Music release this fork is built on, kept beside the fork version so
-        // the about sheet can name both without anyone having to remember. Bump it with the merge.
-        buildConfigField("String", "UPSTREAM_VERSION", "\"8.3.2\"")
+        versionCode = 92
+        versionName = "8.4.1-xbibz.18"
+        buildConfigField("String", "UPSTREAM_VERSION", "\"8.4.1\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -433,6 +431,9 @@ dependencies {
 
     implementation(libs.media3)
     implementation(libs.media3.session)
+    implementation(libs.car.app)
+    implementation(libs.car.app.projected)
+    implementation(libs.androidx.media)
     implementation(libs.media3.hls)
     implementation(libs.media3.dash)
     implementation(libs.media3.ui)
@@ -487,6 +488,8 @@ dependencies {
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.json)
+    // finds song streams first, with mochy's own client walk as the backup (YTPlayerUtils)
+    implementation(libs.innertubex)
 
     // Protobuf for message serialization (lite version for Android)
     implementation(libs.protobuf.javalite)

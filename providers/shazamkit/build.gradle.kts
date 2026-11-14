@@ -7,7 +7,7 @@ plugins {
 
 extensions.configure<LibraryExtension> {
     namespace = "com.music.shazamkit"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 24

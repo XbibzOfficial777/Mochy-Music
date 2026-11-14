@@ -3,10 +3,18 @@
 package com.mochyy.mochymusic.ui.screens.audiolab
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -22,20 +30,20 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -48,34 +56,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.MutableFloatState
-import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -90,18 +87,9 @@ import com.mochyy.mochymusic.ui.component.AppSwitch
 import com.mochyy.mochymusic.ui.component.DefaultPlayerSeekBarSlider
 import com.mochyy.mochymusic.ui.component.LocalNavAnimatedContentScope
 import com.mochyy.mochymusic.ui.component.damageBoundary
-import com.mochyy.mochymusic.ui.component.drawChromeOutline
-import com.mochyy.mochymusic.ui.component.liquidTabIndicator
-import com.mochyy.mochymusic.ui.component.liquidTabSlide
-import com.mochyy.mochymusic.ui.component.rememberLiquidTabState
-import com.mochyy.mochymusic.ui.utils.AppMotion
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import kotlinx.coroutines.flow.first
 import com.mochyy.mochymusic.ui.component.RemoteFocus
-import kotlin.math.abs
-import kotlin.math.ceil
-import kotlin.math.floor
-import kotlin.math.roundToInt
 
 object LabColors {
     val Card = Color(0xFF1C1C1E)
@@ -131,8 +119,6 @@ fun LabCard(
     padding: Dp = 14.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    // Solid fill only. Frosting these cards with the settings page's glassRoot samples that
-    // RenderNode while it is still being recorded — that is an instant crash on open.
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -380,76 +366,7 @@ private fun Modifier.combinedClickableCompat(
     Modifier.combinedClickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick, onLongClick = onLongClick)
 )
 
-/**
- * Finger-follow for a row of pages (Graph / Bands / AutoEQ). Mix is continuous so the glass
- * chip and the pages stay on the same spring ([AppMotion.Slide]).
- */
-class LabSlide internal constructor(
-    private val mixState: MutableFloatState,
-    private val widthState: MutableIntState,
-    private val draggingState: MutableState<Boolean>,
-    private val lastIndex: () -> Int,
-    private val onSelect: () -> (Int) -> Unit,
-) {
-    val mix: Float get() = mixState.floatValue
-    val dragging: Boolean get() = draggingState.value
-    var widthPx: Int
-        get() = widthState.intValue
-        set(value) { widthState.intValue = value.coerceAtLeast(1) }
-
-    fun dragPages(delta: Float) {
-        draggingState.value = true
-        mixState.floatValue = (mixState.floatValue + delta).coerceIn(0f, lastIndex().toFloat())
-    }
-
-    fun dragPx(delta: Float) {
-        draggingState.value = true
-        mixState.floatValue = (mixState.floatValue - delta / widthPx).coerceIn(0f, lastIndex().toFloat())
-    }
-
-    fun end() {
-        val to = mixState.floatValue.roundToInt().coerceIn(0, lastIndex())
-        draggingState.value = false
-        onSelect()(to)
-    }
-}
-
-@Composable
-fun rememberLabSlide(
-    selectedIndex: Int,
-    lastIndex: Int,
-    onSelect: (Int) -> Unit,
-): LabSlide {
-    val mixState = remember { mutableFloatStateOf(selectedIndex.toFloat()) }
-    val widthState = remember { mutableIntStateOf(1) }
-    val draggingState = remember { mutableStateOf(false) }
-    val lastIndexState = rememberUpdatedState(lastIndex)
-    val onSelectState = rememberUpdatedState(onSelect)
-    val slide = remember {
-        LabSlide(mixState, widthState, draggingState, { lastIndexState.value }, { onSelectState.value })
-    }
-    LaunchedEffect(selectedIndex, draggingState.value) {
-        if (draggingState.value) return@LaunchedEffect
-        val dest = selectedIndex.toFloat()
-        if (abs(mixState.floatValue - dest) < 0.001f) return@LaunchedEffect
-        if (!AppMotion.enabled) {
-            mixState.floatValue = dest
-            return@LaunchedEffect
-        }
-        // Same droplet spring as the dashboard / Music-Video pill, so a tap is not a stiff slide.
-        animate(
-            initialValue = mixState.floatValue,
-            targetValue = dest,
-            animationSpec = spring(dampingRatio = 0.7f, stiffness = 340f),
-        ) { v, _ -> mixState.floatValue = v }
-    }
-    return slide
-}
-
-/**
- * Same liquid drop as Music/Video and the dashboard tabs (stretch, lift, spring).
- * Solid track only — never nest frost under glassRoot (that force-closed Equalizer on .12).
- */
+/** a track with a white pill that slides to the picked option */
 @Composable
 fun LabSegmented(
     options: List<String>,
@@ -457,132 +374,41 @@ fun LabSegmented(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     height: Dp = 48.dp,
-    position: Float? = null,
-    onDragPages: ((Float) -> Unit)? = null,
-    onDragEnd: (() -> Unit)? = null,
 ) {
-    val shape = RoundedCornerShape(height / 2)
-    val liquid = rememberLiquidTabState(selectedIndex)
-    val last = options.lastIndex.coerceAtLeast(0)
-    val tabCount = options.size.coerceAtLeast(1)
-
-    SideEffect { liquid.sliding = position != null }
-    LaunchedEffect(position, last) {
-        val mix = position
-        if (mix != null) {
-            liquid.position.snapTo(mix.coerceIn(0f, last.toFloat()))
-        }
-    }
-
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
-            .graphicsLayer {
-                val scale = liquid.barScale
-                scaleX = scale
-                scaleY = scale
-            }
-            .clip(shape)
+            .clip(RoundedCornerShape(height / 2))
             .background(LabColors.Card)
-            .drawWithContent {
-                drawContent()
-                val box = this.size
-                drawChromeOutline(Offset.Zero, box, box.height / 2f)
-            },
+            .border(1.dp, LabColors.StageLine, RoundedCornerShape(height / 2))
+            .padding(4.dp),
     ) {
-        val dragModifier = if (onDragPages != null) {
-            Modifier.pointerInput(tabCount) {
-                val travelPx = (size.width.toFloat() / tabCount).coerceAtLeast(1f)
-                detectHorizontalDragGestures(
-                    onDragStart = { },
-                    onHorizontalDrag = { _, amount -> onDragPages(amount / travelPx) },
-                    onDragCancel = { onDragEnd?.invoke() },
-                    onDragEnd = { onDragEnd?.invoke() },
-                )
-            }
-        } else {
-            Modifier.liquidTabSlide(
-                state = liquid,
-                tabCount = tabCount,
-                selectedIndex = selectedIndex,
-                onSlideTo = onSelect,
-            )
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .liquidTabIndicator(liquid, tabCount)
-                .then(dragModifier),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        val segment = maxWidth / options.size
+        val offset by animateDpAsState(segment * selectedIndex, spring(dampingRatio = 0.82f, stiffness = 520f), label = "segment")
+        Box(
+            Modifier
+                .offset(x = offset)
+                .width(segment)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(height / 2))
+                .background(Color.White)
+        )
+        Row(Modifier.fillMaxWidth().fillMaxHeight()) {
             options.forEachIndexed { index, label ->
-                val fill = liquid.litOf(index)
+                val color by animateColorAsState(if (index == selectedIndex) Color.Black else Color.White, tween(160), label = "segText")
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .clickable(
-                            interactionSource = remember(index) { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { onSelect(index) },
-                        ),
+                        .clip(RoundedCornerShape(height / 2))
+                        .clickable(remember { MutableInteractionSource() }, null) { onSelect(index) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        label,
-                        fontFamily = InterFontFamily,
-                        fontWeight = if (fill > 0.5f) FontWeight.SemiBold else FontWeight.Medium,
-                        fontSize = 15.sp,
-                        color = lerp(Color.White.copy(alpha = 0.55f), Color.White, fill),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Text(label, fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = color,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-        }
-    }
-}
-
-/** pages that travel with [slide] — wrap-content so they can sit in a scrolling column */
-@Composable
-fun LabPager(
-    pageCount: Int,
-    slide: LabSlide,
-    modifier: Modifier = Modifier,
-    content: @Composable (Int) -> Unit,
-) {
-    val last = (pageCount - 1).coerceAtLeast(0)
-    val mix = slide.mix
-    val from = floor(mix).toInt().coerceIn(0, last)
-    val to = ceil(mix).toInt().coerceIn(0, last)
-    Box(
-        modifier
-            .fillMaxWidth()
-            .clipToBounds()
-            .onSizeChanged { slide.widthPx = it.width }
-            .pointerInput(last) {
-                detectHorizontalDragGestures(
-                    onDragStart = { },
-                    onHorizontalDrag = { change, amount ->
-                        change.consume()
-                        slide.dragPx(amount)
-                    },
-                    onDragCancel = { slide.end() },
-                    onDragEnd = { slide.end() },
-                )
-            },
-    ) {
-        for (page in from..to) {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer {
-                        translationX = (page - mix) * slide.widthPx
-                        val dist = abs(page - mix).coerceIn(0f, 1f)
-                        alpha = 1f - 0.08f * dist
-                    },
-            ) { content(page) }
         }
     }
 }
@@ -689,3 +515,131 @@ fun rememberOnScreen(): MutableState<Boolean> = remember { mutableStateOf(true) 
 
 @Composable
 fun dpToPx(dp: Dp): Float = with(LocalDensity.current) { dp.toPx() }
+
+/** a discord style select: the choice on the left and a chevron on the right, and opening it unrolls the list right under it as one box with the picked row lit and checked; the first option is the "none" one and reads muted */
+@Composable
+fun LabSelect(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    mutedIndex: Int = 0,
+    maxListHeight: Dp = 264.dp,
+) {
+    var open by rememberSaveable { mutableStateOf(false) }
+    val chevron by animateFloatAsState(if (open) 180f else 0f, spring(dampingRatio = 0.8f, stiffness = 420f), label = "chevron")
+    val edge by animateColorAsState(if (open) LabSelectEdgeOpen else LabSelectEdge, tween(180), label = "selectEdge")
+    val listScroll = rememberScrollState()
+    val rowHeight = with(LocalDensity.current) { LabSelectRowHeight.roundToPx() }
+    val bringIntoView = remember { BringIntoViewRequester() }
+
+    // back closes the list before it leaves the page
+    BackHandler(enabled = open) { open = false }
+    LaunchedEffect(open) {
+        if (!open) return@LaunchedEffect
+        // open with the picked row in sight, then make room for the list once it has unrolled
+        listScroll.scrollTo(((selectedIndex - 2) * rowHeight).coerceAtLeast(0))
+        kotlinx.coroutines.delay(LabSelectUnrollMs.toLong())
+        bringIntoView.bringIntoView()
+    }
+
+    Column(
+        modifier
+            .fillMaxWidth()
+            .bringIntoViewRequester(bringIntoView)
+            .clip(LabSelectShape)
+            .background(LabSelectColor)
+            .border(1.dp, edge, LabSelectShape),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+                .clickable { open = !open }
+                .padding(start = 16.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = options.getOrNull(selectedIndex).orEmpty(),
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                color = if (selectedIndex == mutedIndex) LabColors.Secondary else LabColors.Primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                painter = painterResource(com.mochyy.mochymusic.R.drawable.expand_more),
+                contentDescription = contentDescription,
+                tint = if (open) Color.White else LabColors.Secondary,
+                modifier = Modifier.size(22.dp).graphicsLayer { rotationZ = chevron },
+            )
+        }
+        AnimatedVisibility(
+            visible = open,
+            enter = expandVertically(tween(LabSelectUnrollMs, easing = FastOutSlowInEasing), expandFrom = Alignment.Top) + fadeIn(tween(160, 40)),
+            exit = shrinkVertically(tween(200, easing = FastOutSlowInEasing), shrinkTowards = Alignment.Top) + fadeOut(tween(120)),
+        ) {
+            Column {
+                Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(1.dp).background(LabSelectEdge))
+                Column(
+                    Modifier
+                        .heightIn(max = maxListHeight)
+                        .verticalScroll(listScroll)
+                        .padding(6.dp),
+                ) {
+                    options.forEachIndexed { index, label ->
+                        LabSelectRow(
+                            label = label,
+                            picked = index == selectedIndex,
+                            onClick = {
+                                onSelect(index)
+                                open = false
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// one option in the open list: the picked one sits on a lighter row with a filled check at its end
+@Composable
+private fun LabSelectRow(label: String, picked: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(LabSelectRowHeight)
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (picked) LabColors.Row else Color.Transparent)
+            .selectable(selected = picked, role = Role.RadioButton, onClick = onClick)
+            .padding(start = 10.dp, end = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            fontFamily = InterFontFamily,
+            fontWeight = if (picked) FontWeight.SemiBold else FontWeight.Medium,
+            fontSize = 15.sp,
+            color = if (picked) LabColors.Primary else LabColors.Secondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (picked) {
+            Box(Modifier.size(20.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
+                Icon(painterResource(com.mochyy.mochymusic.R.drawable.check), contentDescription = null, tint = Color.Black, modifier = Modifier.size(14.dp))
+            }
+        }
+    }
+}
+
+private const val LabSelectUnrollMs = 240
+private val LabSelectRowHeight = 44.dp
+private val LabSelectShape = RoundedCornerShape(16.dp)
+private val LabSelectColor = Color(0xFF141416)
+private val LabSelectEdge = Color(0xFF2A2A2F)
+private val LabSelectEdgeOpen = Color(0xFF3C3C42)

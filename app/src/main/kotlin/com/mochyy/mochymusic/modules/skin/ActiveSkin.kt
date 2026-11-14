@@ -57,6 +57,10 @@ object ActiveSkin {
     var shaderProblem: Pair<String, String>? by mutableStateOf(null)
         private set
 
+    /** the look's font for its own player, whether or not it also covers the rest of the app */
+    var playerFont: FontFamily? by mutableStateOf(null)
+        private set
+
     /** the player's shaders by file name, the ones that compiled; empty below android 13 */
     var shaders: Map<String, SkinProgram> by mutableStateOf(emptyMap())
         private set
@@ -89,7 +93,9 @@ object ActiveSkin {
             withContext(Dispatchers.Main) {
                 if (requested != asked) return@withContext
                 current = skin
-                LookFont.family = loaded.fonts
+                // a font stays on the module's player unless the module asks for the whole app
+                LookFont.family = loaded.fonts?.takeIf { skin?.font?.wholeApp == true }
+                playerFont = loaded.fonts
                 glass = if (skin != null && loaded.wanted != null && loaded.compiled.shader != null) {
                     ActiveGlass(skin.moduleId, loaded.compiled.shader, loaded.wanted.blurDp, loaded.wanted.marginDp, loaded.wanted.uniforms)
                 } else null
@@ -169,7 +175,7 @@ object ActiveSkin {
 
     private const val MaxShaderBytes = 64 * 1024
     // "uniform float time;" or "layout(color) uniform half4 played;", the name is what a frame may set
-    private val DeclaredUniform = Regex("""\buniform\s+\w+\s+(\w+)\s*[;\[]""")
+    internal val DeclaredUniform = Regex("""\buniform\s+\w+\s+(\w+)\s*[;\[]""")
 }
 
 /** the look as it's applied: a module with its own player or glass switches to it, and a fixed accent turns the cover-coloured theme off */

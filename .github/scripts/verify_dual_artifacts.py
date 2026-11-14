@@ -43,7 +43,7 @@ def main() -> None:
             raise ValueError(f"Invalid {package} metadata")
         if data.get("signerSha256", "").lower() != trusted_certificate:
             raise ValueError(f"{package} signing certificate is not the trusted Bibz release key")
-        if data.get("minSdk") != 24 or data.get("targetSdk") != 36 or data.get("debuggable") is not False:
+        if data.get("minSdk") != 24 or data.get("targetSdk") != 37 or data.get("debuggable") is not False:
             raise ValueError(f"Invalid SDK or debuggable metadata for {package}")
         version = data.get("versionName", "")
         if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z._+-]*", version):

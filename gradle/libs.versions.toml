@@ -9,11 +9,13 @@ adaptive = "1.3.0-alpha09"
 appcompat = "1.7.1"
 coreRemoteviews = "1.1.0"
 media3 = "1.7.1"
+# 1.8 is the first with the media category, so android auto draws mochy's own tabs and player instead of its plain browse lists
+car-app = "1.8.0-rc01"
 mediarouter = "1.8.1"
 castFramework = "22.2.0"
 room = "2.8.4"
-hilt = "2.59.1"
-ktor = "3.4.0"
+hilt = "2.60.1"
+ktor = "3.6.0"
 ksp = "2.3.5"
 jsoup = "1.22.1"
 coil = "3.3.0"
@@ -35,6 +37,7 @@ timber = "5.0.1"
 materialKolor = "4.1.1"
 kuromojiIpadic = "0.9.0"
 newpipeextractor = "v0.25.2"
+innertubex = "v0.11.6"
 tinypinyin = "2.0.3"
 protobuf = "4.33.5"
 protobufPlugin = "0.10.1"
@@ -91,6 +94,10 @@ palette = { module = "androidx.palette:palette-ktx", version.ref = "palette" }
 media3 = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }
 media3-okhttp = { module = "androidx.media3:media3-datasource-okhttp", version.ref = "media3" }
 media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
+car-app = { module = "androidx.car.app:app", version.ref = "car-app" }
+car-app-projected = { module = "androidx.car.app:app-projected", version.ref = "car-app" }
+# android auto takes our session token in this library's type, and the car library only pulls it in at runtime
+androidx-media = { module = "androidx.media:media", version = "1.7.0" }
 media3-hls = { module = "androidx.media3:media3-exoplayer-hls", version.ref = "media3" }
 media3-dash = { module = "androidx.media3:media3-exoplayer-dash", version.ref = "media3" }
 media3-cast = { module = "androidx.media3:media3-cast", version.ref = "media3" }
@@ -133,6 +140,7 @@ junit = { module = "junit:junit", version.ref = "junit" }
 timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
 
 newpipeextractor = { module = "com.github.TeamNewPipe:NewPipeExtractor", version.ref = "newpipeextractor" }
+innertubex = { module = "com.github.MetrolistGroup.innertubex:innertubex", version.ref = "innertubex" }
 
 kuromoji-ipadic = { module = "com.atilika.kuromoji:kuromoji-ipadic", version.ref = "kuromojiIpadic" }
 tinypinyin = { module = "com.github.promeG:tinypinyin", version.ref = "tinypinyin" }
