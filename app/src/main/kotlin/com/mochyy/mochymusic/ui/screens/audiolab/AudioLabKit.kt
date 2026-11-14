@@ -6,14 +6,14 @@ import kotlin.math.roundToInt
 import kotlin.math.floor
 import kotlin.math.ceil
 import kotlin.math.abs
-import com.mochyy.mochymusic.ui.component.AppMotion
+import com.mochyy.mochymusic.ui.utils.AppMotion
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableFloatState
-import androidx.compose.foundation.layout.clipToBounds
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.AnimatedVisibility
