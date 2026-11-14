@@ -2,6 +2,20 @@
 
 package com.mochyy.mochymusic.ui.screens.audiolab
 
+import kotlin.math.roundToInt
+import kotlin.math.floor
+import kotlin.math.ceil
+import kotlin.math.abs
+import com.mochyy.mochymusic.ui.component.AppMotion
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.MutableIntState
+import androidx.compose.runtime.MutableFloatState
+import androidx.compose.foundation.layout.clipToBounds
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.AnimatedVisibility
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -643,3 +657,114 @@ private val LabSelectShape = RoundedCornerShape(16.dp)
 private val LabSelectColor = Color(0xFF141416)
 private val LabSelectEdge = Color(0xFF2A2A2F)
 private val LabSelectEdgeOpen = Color(0xFF3C3C42)
+
+/**
+ * Finger-follow for a row of pages (Graph / Bands / AutoEQ). Mix is continuous so the glass
+ * chip and the pages stay on the same spring ([AppMotion.Slide]).
+ */
+class LabSlide internal constructor(
+    private val mixState: MutableFloatState,
+    private val widthState: MutableIntState,
+    private val draggingState: MutableState<Boolean>,
+    private val lastIndex: () -> Int,
+    private val onSelect: () -> (Int) -> Unit,
+) {
+    val mix: Float get() = mixState.floatValue
+    val dragging: Boolean get() = draggingState.value
+    var widthPx: Int
+        get() = widthState.intValue
+        set(value) { widthState.intValue = value.coerceAtLeast(1) }
+
+    fun dragPages(delta: Float) {
+        draggingState.value = true
+        mixState.floatValue = (mixState.floatValue + delta).coerceIn(0f, lastIndex().toFloat())
+    }
+
+    fun dragPx(delta: Float) {
+        draggingState.value = true
+        mixState.floatValue = (mixState.floatValue - delta / widthPx).coerceIn(0f, lastIndex().toFloat())
+    }
+
+    fun end() {
+        val to = mixState.floatValue.roundToInt().coerceIn(0, lastIndex())
+        draggingState.value = false
+        onSelect()(to)
+    }
+}
+
+@Composable
+fun rememberLabSlide(
+    selectedIndex: Int,
+    lastIndex: Int,
+    onSelect: (Int) -> Unit,
+): LabSlide {
+    val mixState = remember { mutableFloatStateOf(selectedIndex.toFloat()) }
+    val widthState = remember { mutableIntStateOf(1) }
+    val draggingState = remember { mutableStateOf(false) }
+    val lastIndexState = rememberUpdatedState(lastIndex)
+    val onSelectState = rememberUpdatedState(onSelect)
+    val slide = remember {
+        LabSlide(mixState, widthState, draggingState, { lastIndexState.value }, { onSelectState.value })
+    }
+    LaunchedEffect(selectedIndex, draggingState.value) {
+        if (draggingState.value) return@LaunchedEffect
+        val dest = selectedIndex.toFloat()
+        if (abs(mixState.floatValue - dest) < 0.001f) return@LaunchedEffect
+        if (!AppMotion.enabled) {
+            mixState.floatValue = dest
+            return@LaunchedEffect
+        }
+        // Same droplet spring as the dashboard / Music-Video pill, so a tap is not a stiff slide.
+        animate(
+            initialValue = mixState.floatValue,
+            targetValue = dest,
+            animationSpec = spring(dampingRatio = 0.7f, stiffness = 340f),
+        ) { v, _ -> mixState.floatValue = v }
+    }
+    return slide
+}
+
+/** pages that travel with [slide] — wrap-content so they can sit in a scrolling column */
+@Composable
+fun LabPager(
+    pageCount: Int,
+    slide: LabSlide,
+    modifier: Modifier = Modifier,
+    content: @Composable (Int) -> Unit,
+) {
+    val last = (pageCount - 1).coerceAtLeast(0)
+    val mix = slide.mix
+    val from = floor(mix).toInt().coerceIn(0, last)
+    val to = ceil(mix).toInt().coerceIn(0, last)
+    Box(
+        modifier
+            .fillMaxWidth()
+            .clipToBounds()
+            .onSizeChanged { slide.widthPx = it.width }
+            .pointerInput(last) {
+                detectHorizontalDragGestures(
+                    onDragStart = { },
+                    onHorizontalDrag = { change, amount ->
+                        change.consume()
+                        slide.dragPx(amount)
+                    },
+                    onDragCancel = { slide.end() },
+                    onDragEnd = { slide.end() },
+                )
+            },
+    ) {
+        for (page in from..to) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        translationX = (page - mix) * slide.widthPx
+                        val dist = abs(page - mix).coerceIn(0f, 1f)
+                        alpha = 1f - 0.08f * dist
+                    },
+            ) { content(page) }
+        }
+    }
+}
+
+/** the 32dp light circle with a dark glyph that mochy's settings rows lead with */

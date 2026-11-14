@@ -1281,4 +1281,6 @@
     <string name="support_star">Star the repo</string>
     <string name="support_title">Support this fork</string>
     <string name="widget_time_zero">0:00</string>
+    <string name="player_mode_music">Music</string>
+    <string name="player_mode_video">Video</string>
 </resources>

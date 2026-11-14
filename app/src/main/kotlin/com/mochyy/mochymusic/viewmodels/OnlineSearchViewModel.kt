@@ -25,6 +25,8 @@ import com.mochyy.mochymusic.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -40,10 +42,15 @@ constructor(
     val filter = MutableStateFlow<YouTube.SearchFilter?>(null)
     var summaryPage by mutableStateOf<SearchSummaryPage?>(null)
     val viewStateMap = mutableStateMapOf<String, ItemsPage?>()
+    val errors = mutableStateMapOf<String, Boolean>()
+    private val retryRequest = MutableStateFlow(0)
+    fun retry() { retryRequest.value += 1 }
+    private fun errorKey(filter: YouTube.SearchFilter?) = filter?.value ?: "summary"
 
     init {
         viewModelScope.launch {
-            filter.collect { filter ->
+            combine(filter, retryRequest) { f, _ -> f }.collectLatest { filter ->
+                errors.remove(errorKey(filter))
                 if (filter == null) {
                     if (summaryPage == null) {
                         YouTube
@@ -57,6 +64,7 @@ constructor(
                                         hideExplicit,
                                     ).filterVideoSongs(hideVideoSongs).filterYoutubeShorts(hideYoutubeShorts).withoutRepeats()
                             }.onFailure {
+                                errors[errorKey(filter)] = true
                                 reportException(it)
                             }
                     }
@@ -80,6 +88,7 @@ constructor(
                                         result.continuation,
                                     )
                             }.onFailure {
+                                errors[errorKey(filter)] = true
                                 reportException(it)
                             }
                     }
