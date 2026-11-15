@@ -28,8 +28,8 @@ extensions.configure<ApplicationExtension> {
         minSdk = 24
         targetSdk = 37
         // New package: installs beside older Bibz (com.mochyy.mochymusic), does not replace .16/.18.
-        versionCode = 93
-        versionName = "8.4.1-xbibz.19"
+        versionCode = 94
+        versionName = "8.4.1-xbibz.20"
         buildConfigField("String", "UPSTREAM_VERSION", "\"8.4.1\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

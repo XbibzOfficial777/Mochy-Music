@@ -1,8 +1,16 @@
 {
-  "versionName": "8.4.1-xbibz.19",
-  "versionCode": 93,
-  "description": "Mochy Xbibz **8.4.1-xbibz.19**: paket baru `mochi.bibz.app`, saklar tanda Mochy di halaman Bagikan, rilis resmi.",
+  "versionName": "8.4.1-xbibz.20",
+  "versionCode": 94,
+  "description": "Mochy Xbibz **8.4.1-xbibz.20**: perbaikan daftar lirik Bagikan dan crash tombol Select.",
   "changelog": [
+    {
+      "title": "8.4.1-xbibz.20",
+      "items": [
+        "Bagikan lirik: baris lirik tampil lagi di halaman pilih baris.",
+        "Tombol Select tidak lagi force-close.",
+        "Paket tetap **mochi.bibz.app**. Rilis resmi. Tag .16–.19 tidak ditimpa."
+      ]
+    },
     {
       "title": "8.4.1-xbibz.19",
       "items": [
