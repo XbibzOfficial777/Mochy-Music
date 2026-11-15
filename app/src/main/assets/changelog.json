@@ -1,8 +1,16 @@
 {
-  "versionName": "8.4.1-xbibz.18",
-  "versionCode": 92,
-  "description": "Mochy Xbibz **8.4.1-xbibz.18**: sinkron ke Mochy resmi 8.4.1 (Android Auto, lirik, share, sandbox, crossmix) tanpa kehilangan fitur fork.",
+  "versionName": "8.4.1-xbibz.19",
+  "versionCode": 93,
+  "description": "Mochy Xbibz **8.4.1-xbibz.19**: paket baru `mochi.bibz.app`, saklar tanda Mochy di halaman Bagikan, rilis resmi.",
   "changelog": [
+    {
+      "title": "8.4.1-xbibz.19",
+      "items": [
+        "Nama paket aplikasi diganti ke **mochi.bibz.app**. Ini aplikasi baru di samping Mochy/Bibz lama (`com.mochyy.mochymusic`); tidak menimpa .16/.18.",
+        "Halaman Bagikan → Pilih gaya: saklar **Tanda Mochy** di barisan toggle (tampilkan/sembunyikan watermark). Sheet bisa digulir supaya tidak terpotong.",
+        "Kode versi **93**. Rilis resmi, bukan pra-rilis. Tag .16 / .17-pre / .18 tidak ditimpa."
+      ]
+    },
     {
       "title": "8.4.1-xbibz.18",
       "items": [

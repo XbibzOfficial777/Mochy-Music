@@ -24,12 +24,12 @@ extensions.configure<ApplicationExtension> {
     ndkVersion = "27.0.12077973"
 
     defaultConfig {
-        applicationId = "com.mochyy.mochymusic"
+        applicationId = "mochi.bibz.app"
         minSdk = 24
         targetSdk = 37
-        // Fork updates must remain installable over earlier Bibz releases.
-        versionCode = 92
-        versionName = "8.4.1-xbibz.18"
+        // New package: installs beside older Bibz (com.mochyy.mochymusic), does not replace .16/.18.
+        versionCode = 93
+        versionName = "8.4.1-xbibz.19"
         buildConfigField("String", "UPSTREAM_VERSION", "\"8.4.1\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

@@ -39,7 +39,7 @@ def main() -> None:
             raise ValueError(f"Expected one {package} APK, found {matching}")
         apk = matching[0]
         data = json.loads((directory / f"metadata-{package}.json").read_text())
-        if data.get("abi") != package or data.get("applicationId") != "com.mochyy.mochymusic":
+        if data.get("abi") != package or data.get("applicationId") != "mochi.bibz.app":
             raise ValueError(f"Invalid {package} metadata")
         if data.get("signerSha256", "").lower() != trusted_certificate:
             raise ValueError(f"{package} signing certificate is not the trusted Bibz release key")

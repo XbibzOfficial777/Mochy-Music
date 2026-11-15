@@ -26,7 +26,7 @@ internal fun isXbibzRelease(
     architecture: String,
     castAvailable: Boolean,
     version: String,
-): Boolean = applicationId == "com.mochyy.mochymusic" &&
+): Boolean = applicationId == "mochi.bibz.app" &&
     architecture in setOf("arm64", "armeabi", "universal") && castAvailable &&
     isXbibzVersion(version)
 

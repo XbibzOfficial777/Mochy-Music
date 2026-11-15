@@ -12,19 +12,19 @@ class XbibzReleasePolicyTest {
         assertTrue(isXbibzVersion("8.3.2-XBIBZ.7"))
         assertFalse(isXbibzVersion("8.3.2 build#1226"))
         // Only published GMS release builds may offer the signed fork assets.
-        assertFalse(isXbibzRelease("com.mochyy.mochymusic", "universal", false, "8.3.2-xbibz.7"))
-        assertFalse(isXbibzRelease("com.mochyy.mochymusic.debug", "universal", true, "8.3.2-xbibz.7"))
+        assertFalse(isXbibzRelease("mochi.bibz.app", "universal", false, "8.3.2-xbibz.7"))
+        assertFalse(isXbibzRelease("mochi.bibz.app.debug", "universal", true, "8.3.2-xbibz.7"))
     }
 
     @Test
     fun allThreeGmsReleasesUseTheForkChannel() {
         for (abi in listOf("arm64", "armeabi", "universal")) {
-            assertTrue(isXbibzRelease("com.mochyy.mochymusic", abi, true, "8.2.3-xbibz.5"))
+            assertTrue(isXbibzRelease("mochi.bibz.app", abi, true, "8.2.3-xbibz.5"))
         }
-        assertFalse(isXbibzRelease("com.mochyy.mochymusic.debug", "armeabi", true, "8.2.3-xbibz.5"))
-        assertFalse(isXbibzRelease("com.mochyy.mochymusic", "x86", true, "8.2.3-xbibz.6"))
-        assertFalse(isXbibzRelease("com.mochyy.mochymusic", "armeabi", false, "8.2.3-xbibz.5"))
-        assertFalse(isXbibzRelease("com.mochyy.mochymusic", "armeabi", true, "8.2.3"))
+        assertFalse(isXbibzRelease("mochi.bibz.app.debug", "armeabi", true, "8.2.3-xbibz.5"))
+        assertFalse(isXbibzRelease("mochi.bibz.app", "x86", true, "8.2.3-xbibz.6"))
+        assertFalse(isXbibzRelease("mochi.bibz.app", "armeabi", false, "8.2.3-xbibz.5"))
+        assertFalse(isXbibzRelease("mochi.bibz.app", "armeabi", true, "8.2.3"))
     }
 
     @Test

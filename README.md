@@ -166,7 +166,7 @@ Handy options (see `./build.sh --help` for all of them):
 | `./build.sh -fd --release` | F-Droid flavor, without the self-update permission |
 | `./build.sh -k` | stops stuck Gradle builds |
 
-Use **debug** while you are playing around, it builds much much faster. A debug build installs next to the real app (`com.mochyy.mochymusic.debug`), so it will not touch your normal install, but it is also a bit slower to run.
+Use **debug** while you are playing around, it builds much much faster. A debug build installs next to the real app (`mochi.bibz.app.debug`), so it will not touch your normal install, but it is also a bit slower to run.
 
 ### Optional keys
 Mochy builds fine without these, only the matching feature is switched off. Put them in `local.properties` (it is never committed):

@@ -107,7 +107,7 @@ jobs:
           python3 .github/scripts/verify_release_native.py "$apk" "$ABI"
           build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           "$build_tools/aapt" dump badging "$apk" > /tmp/apk-badging.txt
-          grep -q "package: name='com.mochyy.mochymusic'" /tmp/apk-badging.txt
+          grep -q "package: name='mochi.bibz.app'" /tmp/apk-badging.txt
           grep -Fx "sdkVersion:'24'" /tmp/apk-badging.txt
           grep -Fx "targetSdkVersion:'37'" /tmp/apk-badging.txt
           ABI="$ABI" python3 - <<'PYABI'
@@ -159,7 +159,7 @@ jobs:
           abi = os.environ['ABI']
           data = {
               'abi': abi,
-              'applicationId': 'com.mochyy.mochymusic',
+              'applicationId': 'mochi.bibz.app',
               'versionName': os.environ['VERSION'],
               'versionCode': int(os.environ['CODE']),
               'minSdk': 24,
