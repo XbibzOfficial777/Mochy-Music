@@ -172,6 +172,14 @@ private fun ReadingSwitches(session: SongShareSession) {
         session.readingChoice = next
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 20.dp)) {
+        val (showMark, onShowMark) = rememberPreference(ShareShowMochyWatermarkKey, defaultValue = true)
+        ShareSwitchRow(
+            title = stringResource(R.string.song_share_watermark),
+            hint = stringResource(R.string.song_share_watermark_hint),
+            checked = showMark,
+            enabled = true,
+            onCheckedChange = onShowMark,
+        )
         ShareSwitchRow(
             title = stringResource(R.string.customise_lyrics_romanisation),
             hint = stringResource(if (canRomanize) R.string.song_share_romanisation_hint else R.string.song_share_romanisation_none),
@@ -192,14 +200,6 @@ private fun ReadingSwitches(session: SongShareSession) {
             checked = choice.translate,
             enabled = true,
             onCheckedChange = { change(choice.copy(translate = it)) },
-        )
-        val (showMark, onShowMark) = rememberPreference(ShareShowMochyWatermarkKey, defaultValue = true)
-        ShareSwitchRow(
-            title = stringResource(R.string.song_share_watermark),
-            hint = stringResource(R.string.song_share_watermark_hint),
-            checked = showMark,
-            enabled = true,
-            onCheckedChange = onShowMark,
         )
     }
 }

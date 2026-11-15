@@ -970,6 +970,10 @@
     <string name="song_share_app_missing">Belum terpasang</string>
     <string name="song_share_chooser_title">Bagikan lagu</string>
     <string name="song_share_edit_background">Ubah latar</string>
+    <string name="song_share_romanisation_hint">Cara kata dibaca, di bawah setiap baris</string>
+    <string name="song_share_romanisation_none">Lirik ini sudah bisa dibaca apa adanya</string>
+    <string name="song_share_romanisation_main_hint">Kartu menampilkan romanisasi, aslinya di bawahnya</string>
+    <string name="song_share_translation_hint">Setiap baris dalam bahasamu, di bawahnya</string>
     <string name="song_share_watermark">Tanda Mochy</string>
     <string name="song_share_watermark_hint">Tampilkan tanda Mochy di gambar</string>
     <string name="song_share_editor_hint_words">Ketuk kata untuk mengubah gayanya, panah untuk memindahkan lagu, geser atau cubit untuk memindahkan latar</string>

@@ -117,4 +117,7 @@
     <string name="playback_usb_passthrough_detail" formatted="false">Meminta DAC menggunakan laju sampel asli lagu, bukan 48 kHz dari Android, sehingga tidak dilakukan resampling. Jika equalizer dan efek dimatikan serta volume 100%, lagu dikirim secara bit-perfect. Saat fitur ini aktif, tombol volume ponsel dapat mengatur volume DAC.</string>
     <string name="playback_usb_prefer_desc">Putar melalui DAC USB saat perangkat terhubung</string>
     <string name="playback_usb_prefer_detail">Kirim musik ke DAC USB yang terhubung meskipun Bluetooth atau headphone lain tersambung. Saat DAC dicabut, keluaran musik kembali ke perangkat sebelumnya.</string>
+    <string name="customise_lyrics_romanisation">Romanisasi</string>
+    <string name="settings_romanize_as_main">Romanisasi sebagai baris utama</string>
+    <string name="customise_lyrics_translation">Terjemahan</string>
 </resources>
