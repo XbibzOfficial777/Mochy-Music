@@ -65,6 +65,7 @@ internal fun SharePictureFit(modifier: Modifier, corner: Dp = 26.dp, fill: Boole
     BoxWithConstraints(modifier.then(if (fill) Modifier.clipToBounds() else Modifier), contentAlignment = Alignment.Center) {
         // fill crops the picture to the box, for the small tiles; otherwise it fits whole
         val k = if (fill) max(maxWidth / ShareWidth, maxHeight / ShareHeight) else min(maxWidth / ShareWidth, maxHeight / ShareHeight)
+        if (!k.isFinite() || k <= 0f) return@BoxWithConstraints
         val density = LocalDensity.current
         // a moving picture repaints only its own box, not the whole sheet with it
         Box(Modifier.requiredSize(ShareWidth * k, ShareHeight * k).clip(RoundedCornerShape(corner)).damageBoundary()) {

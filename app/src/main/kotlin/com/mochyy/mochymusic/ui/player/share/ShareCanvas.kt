@@ -196,7 +196,7 @@ internal fun CinematicLayout(
         modifier = Modifier.fillMaxSize(),
     ) { (headerPart, wordsPart, markPart), constraints ->
         val side = CinematicSide.roundToPx()
-        val loose = Constraints(maxWidth = constraints.maxWidth - 2 * side)
+        val loose = Constraints(maxWidth = (constraints.maxWidth - 2 * side).coerceAtLeast(0))
         val header = headerPart.first().measure(loose)
         val words = wordsPart.first().measure(loose)
         val mark = markPart.first().measure(loose)

@@ -145,32 +145,33 @@ internal fun PopupSheetState.showStylePage(session: SongShareSession) {
     val popup = this
     show(buttonBar = { GoBackButton(popup::dismiss) }) {
         val pick = session.pick ?: return@show
-        val maxBody = rememberWindowSize().height * 0.70f
-        Column(Modifier.fillMaxWidth().heightIn(max = maxBody)) {
-            ShareTitle(stringResource(R.string.song_share_style_title), stringResource(R.string.song_share_style_subtitle))
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .weight(1f, fill = false)
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 20.dp)) {
-                    ShareStyle.entries.forEach { style ->
-                        val fits = pick.fits(style)
-                        ChoiceTile(
-                            title = stringResource(if (style == ShareStyle.Card) R.string.song_share_style_card else R.string.song_share_style_cinematic),
-                            subtitle = if (fits) stringResource(R.string.song_share_style_fits, style.maxWords) else stringResource(R.string.song_share_style_too_many),
-                            enabled = fits,
-                            selected = pick.style == style,
-                            onClick = {
-                                pick.style = style
-                                popup.showEditor(session)
-                            },
-                        ) { TilePicture(session, SongShareKind.Lyrics, style) }
-                    }
-                }
-                ReadingSwitches(session)
+        ShareTitle(stringResource(R.string.song_share_style_title), stringResource(R.string.song_share_style_subtitle))
+        // the style tiles use BoxWithConstraints; a verticalScroll around them asks for
+        // intrinsics and force-closes on Select. keep the tiles out of any scroll.
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 12.dp)) {
+            ShareStyle.entries.forEach { style ->
+                val fits = pick.fits(style)
+                ChoiceTile(
+                    title = stringResource(if (style == ShareStyle.Card) R.string.song_share_style_card else R.string.song_share_style_cinematic),
+                    subtitle = if (fits) stringResource(R.string.song_share_style_fits, style.maxWords) else stringResource(R.string.song_share_style_too_many),
+                    enabled = fits,
+                    selected = pick.style == style,
+                    onClick = {
+                        pick.style = style
+                        popup.showEditor(session)
+                    },
+                ) { TilePicture(session, SongShareKind.Lyrics, style) }
             }
+        }
+        // switches only — no subcompose, so a capped scroll is safe and keeps the toggles in reach
+        val switchMax = rememberWindowSize().height * 0.32f
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(max = switchMax.coerceAtLeast(120.dp))
+                .verticalScroll(rememberScrollState()),
+        ) {
+            ReadingSwitches(session)
         }
     }
 }
