@@ -30,7 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -71,7 +71,7 @@ private fun ColumnScope.DeviceSheetContent(link: DevicesLink, deviceId: String, 
     }
     val around = remember(live) { link.host.liveDevice(deviceId) }
     var unlinking by remember { mutableStateOf(false) }
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
 
     Column(
@@ -139,9 +139,9 @@ private fun ColumnScope.DeviceSheetContent(link: DevicesLink, deviceId: String, 
                     scope.launch {
                         val asked = link.host.tell(tv, "/control", JSONObject().put("action", "sync"))
                         if (asked != null) {
-                            TopToaster.show(context.getString(R.string.devices_sync_asked, device.name), iconRes = R.drawable.sync)
+                            TopToaster.show(resources.getString(R.string.devices_sync_asked, device.name), iconRes = R.drawable.sync)
                         } else {
-                            TopToaster.error(context.getString(R.string.tv_menu_unreachable, device.name))
+                            TopToaster.error(resources.getString(R.string.tv_menu_unreachable, device.name))
                         }
                     }
                 }

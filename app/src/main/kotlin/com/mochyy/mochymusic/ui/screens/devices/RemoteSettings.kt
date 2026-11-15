@@ -26,7 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -42,7 +42,7 @@ import kotlin.math.roundToInt
 // the steered device's settings as it described them: a phone gets everything, a tv only what a tv has
 @Composable
 internal fun RemoteSettingsSection(link: DevicesLink, target: RemoteTarget) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     var settings by remember(target.id) { mutableStateOf<List<RemoteSetting>?>(null) }
     var tries by remember(target.id) { mutableIntStateOf(0) }
@@ -62,7 +62,7 @@ internal fun RemoteSettingsSection(link: DevicesLink, target: RemoteTarget) {
             if (fresh != null) {
                 settings = fresh
             } else {
-                TopToaster.error(context.getString(R.string.remote_setting_failed, target.name))
+                TopToaster.error(resources.getString(R.string.remote_setting_failed, target.name))
                 tries++
             }
         }

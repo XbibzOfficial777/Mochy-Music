@@ -128,7 +128,7 @@ fun SearchSidePane(
         keyboard?.show()
     }
 
-    Box(modifier = modifier.width(searchPaneWidth(androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp)).fillMaxHeight()) {
+    Box(modifier = modifier.width(searchPaneWidth(com.mochyy.mochymusic.ui.utils.rememberWindowSize().width)).fillMaxHeight()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()

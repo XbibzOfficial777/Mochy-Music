@@ -39,7 +39,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
@@ -101,7 +101,7 @@ internal fun WelcomeGirl(
         val scale = constraints.maxWidth / GirlArt.FrameWidth
         // decoded in 5% steps and never above the art's own size, so a tiny resize doesn't decode again
         val bitmapScale = (ceil(scale * 20f) / 20f).coerceIn(0.05f, 1f)
-        val resources = LocalContext.current.resources
+        val resources = LocalResources.current
         val bits by produceState<GirlBitmaps?>(null, bitmapScale) { value = loadGirl(resources, bitmapScale) }
         val appear = remember { Animatable(0f) }
         LaunchedEffect(bits != null) {

@@ -10,7 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.mochyy.mochymusic.LocalPlayerConnection
@@ -33,7 +33,7 @@ internal fun DeviceMenuRows(onDismiss: () -> Unit) {
     val player = LocalPlayerConnection.current ?: return
     val menu = LocalMenuState.current
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val resources = LocalResources.current
     // only devices that may be steered from here, the switch on each device's own sheet
     val around = remember(live, devices) {
         link.host.liveDevices().mapNotNull { device -> devices.firstOrNull { it.id == device.id && it.remoteControl }?.let { device to it } }
@@ -60,7 +60,7 @@ internal fun DeviceMenuRows(onDismiss: () -> Unit) {
                 val song = player.mediaMetadata.value ?: return@MenuRow
                 scope.launch {
                     val sent = link.host.tell(device, "/next", JSONObject().put("songs", LinkSongs.listToJson(listOf(song))))
-                    TopToaster.show(context.getString(if (sent != null) R.string.tv_menu_next_sent else R.string.tv_menu_unreachable, device.name))
+                    TopToaster.show(resources.getString(if (sent != null) R.string.tv_menu_next_sent else R.string.tv_menu_unreachable, device.name))
                 }
                 onDismiss()
             },

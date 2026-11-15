@@ -59,7 +59,7 @@ object LyricsFileReader {
                 out.write(buffer, 0, read)
             }
         }
-        return out.toString(Charsets.UTF_8.name()).removePrefix("﻿")
+        return out.toString(Charsets.UTF_8.name()).removePrefix("\uFEFF")
     }
 
     private fun fileName(context: Context, uri: Uri): String =

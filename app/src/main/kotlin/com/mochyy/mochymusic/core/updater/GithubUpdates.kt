@@ -354,6 +354,7 @@ fun canInstallPackages(context: Context): Boolean =
     android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O ||
         context.packageManager.canRequestPackageInstalls()
 
+@android.annotation.SuppressLint("InlinedApi")
 fun requestInstallPermission(context: Context) {
     // many tv boxes have no page for one app, so it falls back to the whole list, then security, then settings
     val pages = listOf(

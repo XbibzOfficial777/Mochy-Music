@@ -158,7 +158,7 @@ import com.mochyy.mochymusic.utils.rememberEnumPreference
 import com.mochyy.mochymusic.viewmodels.HomeCategory
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.drop as flowDrop
 import com.mochyy.mochymusic.ui.component.LikedSongsThumbnail
 import com.mochyy.mochymusic.ui.component.LocalBottomSheetPageState
 import com.mochyy.mochymusic.ui.component.LocalMenuState
@@ -826,7 +826,7 @@ fun HomeScreen(
         val sheet = playerBottomSheetState ?: return@LaunchedEffect
         snapshotFlow { sheet.isExpanded }
             .distinctUntilChanged()
-            .drop(1)
+            .flowDrop(1)
             .collect { expanded -> if (!expanded) viewModel.onListeningBreak() }
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onListeningBreak() }

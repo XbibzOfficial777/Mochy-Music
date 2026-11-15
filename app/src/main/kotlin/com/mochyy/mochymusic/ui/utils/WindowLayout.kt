@@ -8,21 +8,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 
 // a phone on its side is always wider than this, a phone held upright never is, and every tablet is
 private const val WideMinWidthDp = 600
 
 // the regular layout stays for a phone held upright; on its side or on a tablet the app gets the wide one
 @Composable
-@ReadOnlyComposable
-fun isWideLayout(): Boolean = LocalConfiguration.current.screenWidthDp >= WideMinWidthDp
+fun isWideLayout(): Boolean {
+    val widthPx = LocalWindowInfo.current.containerSize.width
+    val density = LocalDensity.current.density
+    return widthPx / density >= WideMinWidthDp
+}
 
 // the window is wider than it is tall, so the player can put its cover beside the controls
 @Composable
-@ReadOnlyComposable
 fun isLandscapeWindow(): Boolean {
-    val configuration = LocalConfiguration.current
-    return configuration.screenWidthDp > configuration.screenHeightDp
+    val size = LocalWindowInfo.current.containerSize
+    return size.width > size.height
 }
 
 // a tv, watched from across the room: a square cover stretched over the whole screen there is one huge blurry crop
@@ -33,7 +37,6 @@ fun isTvLayout(): Boolean =
 
 // a phone or tablet on its side: pages split into a left pane and a right one, sheets float as cards; the tv keeps its own
 @Composable
-@ReadOnlyComposable
 fun isLandscapeLayout(): Boolean = isWideLayout() && isLandscapeWindow() && !isTvLayout()
 
 // which way the window may turn: upright unless landscape is unlocked in Experimental, with any holds on top, the newest winning

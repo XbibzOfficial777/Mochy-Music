@@ -4,7 +4,7 @@ import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.AudioPassMode
@@ -29,7 +29,7 @@ fun rememberPassthroughStat(service: MusicService, device: AudioOutputs.Device?)
     val blockers by service.passBlockers.collectAsState()
     // off and nothing to pass to, there's nothing worth a line
     if (!on && device?.kind != AudioOutputs.Kind.USB) return null
-    val resources = LocalContext.current.resources
+    val resources = LocalResources.current
     val value = when {
         !on -> stringResource(R.string.audiopass_stat_off)
         !mode.exclusive -> stringResource(R.string.audiopass_stat_song_rate)

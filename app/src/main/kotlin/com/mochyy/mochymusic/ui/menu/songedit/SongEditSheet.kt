@@ -18,6 +18,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -177,6 +178,7 @@ private class SongEditFlow(
 @Composable
 private fun SaveButton(state: SongEditState, tuning: SongTuning, onLock: (Boolean) -> Unit, onSaved: () -> Unit) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val database = LocalDatabase.current
     val scope = rememberCoroutineScope()
     val lyricsViewModel: LyricsMenuViewModel = hiltViewModel()
@@ -200,7 +202,7 @@ private fun SaveButton(state: SongEditState, tuning: SongTuning, onLock: (Boolea
                     if (state.pickedLyrics == null) state.lyricsSource?.let { lyricsViewModel.useSource(state.metadata, it) }
                     onSaved()
                 } else {
-                    TopToaster.show(text = context.getString(R.string.song_edit_failed), iconRes = R.drawable.edit)
+                    TopToaster.show(text = resources.getString(R.string.song_edit_failed), iconRes = R.drawable.edit)
                     state.busy = false
                 }
             }

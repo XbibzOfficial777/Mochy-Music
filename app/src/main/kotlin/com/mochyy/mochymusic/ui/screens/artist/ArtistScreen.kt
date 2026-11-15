@@ -222,7 +222,7 @@ fun ArtistScreen(
     val revealSeen = rememberRevealSeenState()
     // on its side the banner is the whole screen, the name block sitting at its foot just over the bottom bar
     val landscape = com.mochyy.mochymusic.ui.utils.isLandscapeLayout()
-    val bannerHeight = if (landscape) androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp else playlistCoverHeight()
+    val bannerHeight = if (landscape) com.mochyy.mochymusic.ui.utils.rememberWindowSize().height else playlistCoverHeight()
     val headerFoot = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding() + 6.dp
     val bannerHeightPx = with(LocalDensity.current) { bannerHeight.toPx() }
     val scrollProgress = remember(lazyListState, bannerHeightPx) {

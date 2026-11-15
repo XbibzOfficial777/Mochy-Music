@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -77,6 +78,7 @@ fun PopupSheetState.showFindModulesSheet(viewModel: ModulesViewModel, onAdded: (
 @Composable
 private fun FindModulesContent(viewModel: ModulesViewModel, onAdded: (String) -> Unit) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
     var link by rememberSaveable { mutableStateOf("") }
@@ -145,7 +147,7 @@ private fun FindModulesContent(viewModel: ModulesViewModel, onAdded: (String) ->
                         checking = false
                         ready = null
                         problemFromFile = true
-                        problem = context.getString(R.string.modules_code_broken)
+                        problem = resources.getString(R.string.modules_code_broken)
                     }
                 },
                 onCancel = { ready = null },

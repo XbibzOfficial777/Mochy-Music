@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -82,6 +83,7 @@ fun PopupSheetState.showAddDevice(link: DevicesLink) {
 @Composable
 private fun ColumnScope.AddDeviceContent(link: DevicesLink, sheets: PopupSheetState) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val code by link.pairing.code.collectAsState()
     val devices by link.host.devices.collectAsState()
     // devices only show up here while their own pairing screen is open, so the list is live
@@ -97,10 +99,10 @@ private fun ColumnScope.AddDeviceContent(link: DevicesLink, sheets: PopupSheetSt
         onDispose { link.pairing.close() }
     }
     LaunchedEffect(Unit) {
-        link.pairing.paired.collect { TopToaster.show(context.getString(R.string.devices_paired_with, it.name), iconRes = R.drawable.cast_connected) }
+        link.pairing.paired.collect { TopToaster.show(resources.getString(R.string.devices_paired_with, it.name), iconRes = R.drawable.cast_connected) }
     }
     LaunchedEffect(attempt.state) {
-        (attempt.state as? PairUi.Done)?.let { TopToaster.show(context.getString(R.string.devices_paired_with, it.name), iconRes = R.drawable.cast_connected) }
+        (attempt.state as? PairUi.Done)?.let { TopToaster.show(resources.getString(R.string.devices_paired_with, it.name), iconRes = R.drawable.cast_connected) }
     }
 
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {

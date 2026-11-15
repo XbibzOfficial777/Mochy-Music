@@ -66,7 +66,7 @@ import com.mochyy.mochymusic.ui.utils.rememberWindowSize
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.map as flowMap
 import com.mochyy.mochymusic.ui.player.flagship.AnimatedPlayGlyph
 import com.mochyy.mochymusic.ui.player.flagship.AnimatedSkipGlyph
 import com.mochyy.mochymusic.ui.player.flagship.SkipCycleState
@@ -203,8 +203,8 @@ fun rememberLivePosition(animated: Boolean = true): LivePosition {
     LaunchedEffect(connection, animated, showing) {
         val ui = connection?.uiState ?: return@LaunchedEffect
         combine(
-            ui.transportState.map { it.isPlaying }.distinctUntilChanged(),
-            ui.progressState.map { it.position }.distinctUntilChanged(),
+            ui.transportState.flowMap { it.isPlaying }.distinctUntilChanged(),
+            ui.progressState.flowMap { it.position }.distinctUntilChanged(),
             snapshotFlow { showing() },
         ) { playing, _, shown -> playing to shown }
             .collectLatest { (playing, shown) ->
@@ -238,7 +238,7 @@ fun rememberDurationMs(): Long {
     val connection = LocalPlayerConnection.current ?: return 1L
     // the length alone: the whole progress state changes 15 times a second, and recomposed the style with it
     val duration by remember(connection) {
-        connection.uiState.progressState.map { it.duration }.distinctUntilChanged()
+        connection.uiState.progressState.flowMap { it.duration }.distinctUntilChanged()
     }.collectAsState(initial = remember(connection) { connection.uiState.progressState.value.duration })
     return duration.takeIf { it > 0L } ?: 1L
 }

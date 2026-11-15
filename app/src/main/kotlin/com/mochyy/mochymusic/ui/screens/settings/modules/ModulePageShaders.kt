@@ -53,6 +53,7 @@ private object PageShaderCache {
     private val compiled = ConcurrentHashMap<String, SkinProgram>()
 
     // a shader the file hasn't changed since compiling comes straight back, so reopening a page costs nothing
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     suspend fun load(file: File): PageProgram = withContext(Dispatchers.Default) {
         if (!file.isFile) return@withContext PageProgram.Broken("${file.name} isn't in the module")
         if (file.length() > MaxShaderBytes) return@withContext PageProgram.Broken("${file.name} is bigger than ${MaxShaderBytes / 1024} KB")

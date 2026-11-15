@@ -94,7 +94,8 @@ fun LibraryAlbumListItem(
     album: Album,
     isActive: Boolean = false,
     isPlaying: Boolean = false
-) = AlbumListItem(
+) {
+    AlbumListItem(
     album = album,
     isActive = isActive,
     isPlaying = isPlaying,
@@ -121,7 +122,8 @@ fun LibraryAlbumListItem(
         .clickable {
             navController.navigate("album/${album.id}")
         }
-)
+    )
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

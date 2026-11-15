@@ -34,7 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -65,7 +65,7 @@ private const val SearchSettleMs = 350L
 // "set artist": a search, then a row of round photos; the picked ones come first with a ring, a tap adds or takes one away
 @Composable
 internal fun SongArtistPicker(state: SongEditState, sidePadding: Dp) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     var query by remember { mutableStateOf("") }
     val results = remember { mutableStateListOf<EditedArtist>() }
 
@@ -112,7 +112,7 @@ internal fun SongArtistPicker(state: SongEditState, sidePadding: Dp) {
                     if (state.artists.size > 1) {
                         state.artists.remove(artist)
                     } else {
-                        TopToaster.show(text = context.getString(R.string.song_edit_artist_pick_one), iconRes = R.drawable.person)
+                        TopToaster.show(text = resources.getString(R.string.song_edit_artist_pick_one), iconRes = R.drawable.person)
                     }
                 }
             }

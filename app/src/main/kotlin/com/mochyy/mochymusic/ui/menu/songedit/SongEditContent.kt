@@ -55,7 +55,7 @@ import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
 import com.mochyy.mochymusic.ui.screens.audiolab.LabSelect
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.viewmodels.LyricsMenuViewModel
-import java.util.Locale
+import androidx.compose.ui.text.intl.Locale
 import kotlin.math.roundToInt
 
 // the popup sheet pads its content by this much, the cover row and the artist row reach past it to the edges
@@ -196,7 +196,7 @@ private fun LyricsSourceSelect(state: SongEditState) {
 // "set lyric offset": the pill on the right shows it and puts it back to zero, the line under it slides from two minutes early to three late
 @Composable
 private fun OffsetSection(state: SongEditState) {
-    val seconds = String.format(Locale.getDefault(), "%+.1f", state.lyricsOffsetMs / 1000f)
+    val seconds = String.format(Locale.current.platformLocale, "%+.1f", state.lyricsOffsetMs / 1000f)
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         SheetLabel(stringResource(R.string.song_edit_offset), modifier = Modifier.weight(1f))
         ValuePill(
@@ -219,7 +219,7 @@ private fun OffsetSection(state: SongEditState) {
 // "set playback speed": saved with the song, so it plays this fast every time; the pill puts it back to normal
 @Composable
 private fun SpeedSection(state: SongEditState) {
-    val value = String.format(Locale.getDefault(), "%.2f", state.speed)
+    val value = String.format(Locale.current.platformLocale, "%.2f", state.speed)
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         SheetLabel(stringResource(R.string.song_edit_speed), modifier = Modifier.weight(1f))
         ValuePill(

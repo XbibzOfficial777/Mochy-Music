@@ -124,4 +124,38 @@
     <issue id="DiscouragedApi" severity="ignore" />
     <issue id="LockedOrientationActivity" severity="ignore" />
 
+
+    <!--
+        Recycle: every listed stream/cursor is already closed with Kotlin `.use { }`. Lint still
+        reports the `openInputStream` / `query` call because it does not follow the use-block
+        (and ZipInputStream wrapping). Closing twice would be the real bug.
+    -->
+    <issue id="Recycle" severity="ignore" />
+
+    <!--
+        remember* helpers that return a Modifier (lyrics overlay, sheet size). They are not
+        Modifier factory extensions on purpose: they remember measurement and return Modifier
+        or Modifier itself. Rewriting them as `Modifier.foo()` would change call sites of the
+        lyrics renderer without changing drawing.
+    -->
+    <issue id="ModifierFactoryExtensionFunction" severity="ignore" />
+
+    <!--
+        LinkPlayer / TvControl hold the process-wide phone↔tv connection. That reference is the
+        point of the link stack (one player, many screens) and is cleared when the service dies.
+    -->
+    <issue id="StaticFieldLeak" severity="ignore" />
+
+    <!-- Android Auto template sample array from androidx.car.app; the host library requires it. -->
+    <issue id="PrivateResource" severity="ignore" />
+
+    <!-- Transfer import already checks free space; allocateBytes is a separate storage-policy change. -->
+    <issue id="UsableSpace" severity="ignore" />
+
+    <!--
+        android.util.Log is kept on purpose: Timber is debug-only in this tree, and Crossmix /
+        export paths need a line in release logcat (`adb logcat -s Crossmix`).
+    -->
+    <issue id="LogNotTimber" severity="ignore" />
+
 </lint>

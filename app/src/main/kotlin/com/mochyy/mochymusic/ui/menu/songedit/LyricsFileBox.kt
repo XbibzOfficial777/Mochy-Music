@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -57,13 +58,14 @@ fun LyricsFileBox(
     onRemove: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             val read = LyricsFileReader.read(context, uri)
             if (read == null) {
-                TopToaster.show(text = context.getString(R.string.song_edit_lyrics_unreadable), iconRes = R.drawable.lyrics)
+                TopToaster.show(text = resources.getString(R.string.song_edit_lyrics_unreadable), iconRes = R.drawable.lyrics)
             } else {
                 onPicked(read)
             }

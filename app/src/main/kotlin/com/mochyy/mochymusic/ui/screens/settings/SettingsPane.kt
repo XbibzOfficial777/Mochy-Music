@@ -95,7 +95,7 @@ fun NavController.openSettingsPage(route: String) {
 // the list at the left of a wide screen, a hairline between it and the page beside it
 @Composable
 fun SettingsListPane(navController: NavController, selectedRoute: String?, modifier: Modifier = Modifier) {
-    val windowWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+    val windowWidth = com.mochyy.mochymusic.ui.utils.rememberWindowSize().width
     Box(modifier = modifier.width(settingsListWidth(windowWidth)).fillMaxHeight()) {
         MochySettingsScreen(navController = navController, pane = SettingsPane(selectedRoute))
         Box(

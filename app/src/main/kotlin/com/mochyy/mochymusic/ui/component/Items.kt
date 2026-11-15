@@ -608,7 +608,8 @@ fun AlbumListItem(
     isPlaying: Boolean = false,
     backgroundColor: Color = Color.Unspecified,
     trailingContent: @Composable RowScope.() -> Unit = {},
-) = ListItem(
+) {
+    ListItem(
     title = album.album.title,
     subtitle = joinByBullet(
         album.artists.joinToString { it.name },
@@ -628,7 +629,8 @@ fun AlbumListItem(
     trailingContent = trailingContent,
     modifier = modifier,
     backgroundColor = backgroundColor
-)
+    )
+}
 
 @Composable
 fun AlbumGridItem(
