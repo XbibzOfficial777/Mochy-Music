@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.constants.ShareShowMochyWatermarkKey
 import com.mochyy.mochymusic.ui.component.PopupSheetState
 import com.mochyy.mochymusic.ui.component.SheetPillButton
 import com.mochyy.mochymusic.ui.component.pressBounce
@@ -60,6 +61,7 @@ import com.mochyy.mochymusic.ui.screens.audiolab.LabCard
 import com.mochyy.mochymusic.ui.screens.audiolab.LabSlider
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.ui.utils.rememberWindowSize
+import com.mochyy.mochymusic.utils.rememberPreference
 import kotlin.math.roundToInt
 import com.mochyy.mochymusic.ui.component.RemoteFocus
 
@@ -105,7 +107,18 @@ private fun ColumnScope.EditorContent(session: SongShareSession, popup: PopupShe
                 null
             },
         )
-        EditBackgroundPill(Modifier.align(Alignment.TopEnd)) { popup.showBackgroundType(session) }
+        Column(
+            modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.End,
+        ) {
+            EditorPill(stringResource(R.string.song_share_edit_background)) { popup.showBackgroundType(session) }
+            val (showMark, onShowMark) = rememberPreference(ShareShowMochyWatermarkKey, defaultValue = true)
+            EditorPill(
+                text = stringResource(R.string.song_share_watermark),
+                on = showMark,
+            ) { onShowMark(!showMark) }
+        }
     }
     if (timeline) {
         Spacer(Modifier.height(16.dp))
@@ -139,20 +152,19 @@ private fun SongTimeline(session: SongShareSession, live: Boolean) {
 }
 
 @Composable
-private fun EditBackgroundPill(modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun EditorPill(text: String, on: Boolean = true, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     Text(
-        stringResource(R.string.song_share_edit_background),
+        text,
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 12.sp,
         letterSpacing = (-0.2).sp,
-        color = Color.White,
-        modifier = modifier
-            .padding(12.dp)
+        color = Color.White.copy(alpha = if (on) 1f else 0.62f),
+        modifier = Modifier
             .pressBounce(interaction)
             .clip(CircleShape)
-            .background(Color.Black.copy(alpha = 0.38f))
+            .background(Color.Black.copy(alpha = if (on) 0.38f else 0.22f))
             .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
     )
