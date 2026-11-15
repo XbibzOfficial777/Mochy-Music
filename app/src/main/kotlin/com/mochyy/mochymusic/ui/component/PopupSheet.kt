@@ -45,8 +45,6 @@ import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -766,8 +764,9 @@ private fun SheetBody(
             .then(if (fillHeight) Modifier.fillMaxHeight() else Modifier.heightIn(min = minHeight)),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        // weight(fill = false): measured after the button bar. Content below the handle fills
-        // what's left and scrolls, so extra rows (e.g. share watermark) are not clipped.
+        // weight(fill = false): measured after the button bar, so long content is laid out in
+        // what's left. Do not wrap this in verticalScroll: sheets with LazyColumn (lyrics picker)
+        // crash or draw empty if nested in a scrollable.
         Column(
             Modifier
                 .fillMaxWidth()
@@ -808,10 +807,8 @@ private fun SheetBody(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
                     .then(contentModifier)
-                    .then(if (frame.fullBleed) Modifier else Modifier.padding(horizontal = 20.dp))
-                    .verticalScroll(rememberScrollState()),
+                    .then(if (frame.fullBleed) Modifier else Modifier.padding(horizontal = 20.dp)),
                 content = frame.content,
             )
         }

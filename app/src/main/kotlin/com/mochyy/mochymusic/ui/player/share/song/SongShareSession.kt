@@ -257,6 +257,7 @@ internal class SongShareSession(val song: MediaMetadata) {
         val now = AnimationUtils.currentAnimationTimeMillis()
         preview?.positionMs(now)?.let { return it }
         if (freeRunStart == Long.MIN_VALUE) freeRunStart = now
-        return windowStartMs + (now - freeRunStart).mod(windowLengthMs)
+        val length = windowLengthMs.coerceAtLeast(1L)
+        return windowStartMs + (now - freeRunStart).mod(length)
     }
 }

@@ -16,6 +16,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -63,6 +66,7 @@ import com.mochyy.mochymusic.ui.player.share.song.export.copySongLink
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.ui.utils.resize
 import com.mochyy.mochymusic.utils.rememberPreference
+import com.mochyy.mochymusic.ui.utils.rememberWindowSize
 import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 // from a menu: the song on a card, its lyrics, or just the link
@@ -141,23 +145,33 @@ internal fun PopupSheetState.showStylePage(session: SongShareSession) {
     val popup = this
     show(buttonBar = { GoBackButton(popup::dismiss) }) {
         val pick = session.pick ?: return@show
-        ShareTitle(stringResource(R.string.song_share_style_title), stringResource(R.string.song_share_style_subtitle))
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 20.dp)) {
-            ShareStyle.entries.forEach { style ->
-                val fits = pick.fits(style)
-                ChoiceTile(
-                    title = stringResource(if (style == ShareStyle.Card) R.string.song_share_style_card else R.string.song_share_style_cinematic),
-                    subtitle = if (fits) stringResource(R.string.song_share_style_fits, style.maxWords) else stringResource(R.string.song_share_style_too_many),
-                    enabled = fits,
-                    selected = pick.style == style,
-                    onClick = {
-                        pick.style = style
-                        popup.showEditor(session)
-                    },
-                ) { TilePicture(session, SongShareKind.Lyrics, style) }
+        val maxBody = rememberWindowSize().height * 0.70f
+        Column(Modifier.fillMaxWidth().heightIn(max = maxBody)) {
+            ShareTitle(stringResource(R.string.song_share_style_title), stringResource(R.string.song_share_style_subtitle))
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 20.dp)) {
+                    ShareStyle.entries.forEach { style ->
+                        val fits = pick.fits(style)
+                        ChoiceTile(
+                            title = stringResource(if (style == ShareStyle.Card) R.string.song_share_style_card else R.string.song_share_style_cinematic),
+                            subtitle = if (fits) stringResource(R.string.song_share_style_fits, style.maxWords) else stringResource(R.string.song_share_style_too_many),
+                            enabled = fits,
+                            selected = pick.style == style,
+                            onClick = {
+                                pick.style = style
+                                popup.showEditor(session)
+                            },
+                        ) { TilePicture(session, SongShareKind.Lyrics, style) }
+                    }
+                }
+                ReadingSwitches(session)
             }
         }
-        ReadingSwitches(session)
     }
 }
 
