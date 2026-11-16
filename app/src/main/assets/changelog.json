@@ -1,8 +1,16 @@
 {
-  "versionName": "8.4.1-xbibz.20",
-  "versionCode": 94,
-  "description": "Mochy Xbibz **8.4.1-xbibz.20**: perbaikan daftar lirik Bagikan dan crash tombol Select.",
+  "versionName": "8.4.1-xbibz.21",
+  "versionCode": 95,
+  "description": "Mochy Xbibz **8.4.1-xbibz.21**: tombol Select di Bagikan lirik tidak force-close.",
   "changelog": [
+    {
+      "title": "8.4.1-xbibz.21",
+      "items": [
+        "Tombol **Select** di Bagikan lirik tidak force-close (halaman Pilih gaya).",
+        "Daftar baris lirik tetap tampil. Saklar Tanda Mochy tetap di barisan toggle.",
+        "Paket **mochi.bibz.app**. Rilis resmi. Tag .16–.20 tidak ditimpa."
+      ]
+    },
     {
       "title": "8.4.1-xbibz.20",
       "items": [
