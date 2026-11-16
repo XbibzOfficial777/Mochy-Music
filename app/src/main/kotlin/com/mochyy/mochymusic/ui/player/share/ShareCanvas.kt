@@ -94,7 +94,11 @@ private fun shareText(size: Float, weight: FontWeight = FontWeight.Bold, color: 
 @Composable
 internal fun MochyMark(color: Color, size: Float = 14f) {
     val (show) = rememberPreference(ShareShowMochyWatermarkKey, defaultValue = true)
-    if (!show) return
+    // always emit a node: CinematicLayout measures markPart.first(), and an empty slot force-closes
+    if (!show) {
+        Spacer(Modifier.size(0.dp))
+        return
+    }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             painter = painterResource(R.drawable.ic_mochy_mark),
@@ -197,11 +201,11 @@ internal fun CinematicLayout(
     ) { (headerPart, wordsPart, markPart), constraints ->
         val side = CinematicSide.roundToPx()
         val loose = Constraints(maxWidth = (constraints.maxWidth - 2 * side).coerceAtLeast(0))
-        val header = headerPart.first().measure(loose)
-        val words = wordsPart.first().measure(loose)
-        val mark = markPart.first().measure(loose)
+        val header = headerPart.firstOrNull()?.measure(loose) ?: return@Layout layout(0, 0) {}
+        val words = wordsPart.firstOrNull()?.measure(loose) ?: return@Layout layout(0, 0) {}
+        val mark = markPart.firstOrNull()?.measure(loose)
         layout(constraints.maxWidth, constraints.maxHeight) {
-            val markTop = constraints.maxHeight - CinematicMarkBottom.roundToPx() - mark.height
+            val markTop = constraints.maxHeight - CinematicMarkBottom.roundToPx() - (mark?.height ?: 0)
             val gap = CinematicHeaderGap.roundToPx()
             val areaTop = CinematicTop.roundToPx()
             val areaBottom = markTop - CinematicMarkGap.roundToPx()
@@ -218,7 +222,7 @@ internal fun CinematicLayout(
                 scaleY = 1f - 0.08f * dip
                 transformOrigin = TransformOrigin(0f, 0.5f)
             }
-            mark.place(side, markTop)
+            mark?.place(side, markTop)
         }
     }
 }
