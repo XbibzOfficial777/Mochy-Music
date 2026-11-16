@@ -1,8 +1,16 @@
 {
-  "versionName": "8.4.1-xbibz.21",
-  "versionCode": 95,
-  "description": "Mochy Xbibz **8.4.1-xbibz.21**: tombol Select di Bagikan lirik tidak force-close.",
+  "versionName": "8.4.1-xbibz.22",
+  "versionCode": 96,
+  "description": "Mochy Xbibz **8.4.1-xbibz.22**: saklar Tanda Mochy tidak force-close.",
   "changelog": [
+    {
+      "title": "8.4.1-xbibz.22",
+      "items": [
+        "Saklar **Tanda Mochy** (tampilkan/sembunyikan watermark) tidak force-close.",
+        "Select dan daftar baris Bagikan tetap seperti .21.",
+        "Paket **mochi.bibz.app**. Rilis resmi. Tag .16–.21 tidak ditimpa."
+      ]
+    },
     {
       "title": "8.4.1-xbibz.21",
       "items": [
