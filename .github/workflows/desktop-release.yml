@@ -130,9 +130,6 @@ jobs:
         env:
           CI: 'true'
           DEBUG: pw:browser
-        env:
-          CI: 'true'
-          DEBUG: pw:browser
       - name: Build installers
         working-directory: desktop
         run: npm run dist -- --${{ matrix.electron-arch }}
