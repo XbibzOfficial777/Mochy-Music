@@ -130,8 +130,8 @@ private fun ThemeModuleFixture() {
         Text("Stored theme: ${theme.name}", color = Color.White)
         Text("Pure black: $black", color = Color.White)
         BibzThemeSection()
-        Button(onClick = { scope.launch { looks.apply("ci-theme-fixture", look) } }) { Text("Apply look module") }
-        Button(onClick = { scope.launch { looks.restore("ci-theme-fixture", look) } }) { Text("Restore look module") }
+        Button(onClick = { scope.launch { looks.sync(listOf(look)) } }) { Text("Apply look module") }
+        Button(onClick = { scope.launch { looks.sync(emptyList()) } }) { Text("Restore look module") }
     }
 }
 

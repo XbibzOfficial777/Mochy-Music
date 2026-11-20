@@ -935,7 +935,7 @@ private object ZigzagShape : Shape {
 }
 
 @Composable
-private fun ReceiptPage(
+internal fun ReceiptPage(
     s: StoryState,
     data: RecapStoryData,
 ) {
