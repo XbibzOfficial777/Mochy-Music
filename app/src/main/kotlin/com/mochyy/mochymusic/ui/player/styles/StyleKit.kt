@@ -598,12 +598,13 @@ fun BoxScope.StyleMenu(
         } + listOf(
             MenuItem(otherMenuLabel, R.drawable.more_horiz) { onOpenChange(false); actions.onOtherMenu() },
         )
-        val turnItem = actions.turn?.let { turn -> MenuItem(turnLabel, R.drawable.screen_rotation) { onOpenChange(false); turn.toggle() } }
+        val turn = actions.turn
+        val turnItem = turn?.let { MenuItem(turnLabel, R.drawable.screen_rotation) { onOpenChange(false); it.toggle() } }
         val editItem = MenuItem(editPlayerLabel, R.drawable.tune) { onOpenChange(false); actions.onEditPlayer() }
         // turned sideways the screen is short, so the way back upright sits right by the button instead of at the far end of the list
         val rows = when {
-            turnItem == null -> menu + editItem
-            actions.turn?.isTurned?.invoke() == true -> if (atBottom) menu + editItem + turnItem else listOf(turnItem) + menu + editItem
+            turn == null || turnItem == null -> menu + editItem
+            turn.isTurned() -> if (atBottom) menu + editItem + turnItem else listOf(turnItem) + menu + editItem
             else -> menu + turnItem + editItem
         }
         val itemGap = 10.dp

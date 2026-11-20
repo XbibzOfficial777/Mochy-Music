@@ -238,7 +238,7 @@ object SpotifyCanvasProvider {
     """.trimIndent()
 
     private fun call(req: Request): String? = runCatching {
-        http.newCall(req).execute().use { r -> if (r.isSuccessful) r.body?.string() else null }
+        http.newCall(req).execute().use { r -> if (r.isSuccessful) r.body.string() else null }
     }.getOrNull()
 
     private fun get(url: String, headers: Map<String, String>): String? =
@@ -259,7 +259,7 @@ object SpotifyCanvasProvider {
         val req = Request.Builder().url(PlayerOrigin).header("User-Agent", UA).build()
         runCatching {
             http.newCall(req).execute().use { r ->
-                val html = r.body?.string().orEmpty()
+                val html = r.body.string()
                 deviceId = r.headers("Set-Cookie")
                     .firstNotNullOfOrNull { Regex("sp_t=([^;]+)").find(it)?.groupValues?.get(1) }
                     ?: UUID.randomUUID().toString()
@@ -442,7 +442,7 @@ object SpotifyCanvasProvider {
             .header("User-Agent", APP_UA)
             .build()
         val bytes = runCatching {
-            http.newCall(req).execute().use { r -> if (r.isSuccessful) r.body?.bytes() else null }
+            http.newCall(req).execute().use { r -> if (r.isSuccessful) r.body.bytes() else null }
         }.getOrNull() ?: return null
         // not worth decoding the whole reply, we only need the mp4 link in it
         return Regex("https://[^\"'\\s\\u0000-\\u001F]+\\.cnvs\\.mp4").find(String(bytes, Charsets.ISO_8859_1))?.value

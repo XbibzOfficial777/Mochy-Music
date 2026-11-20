@@ -88,13 +88,16 @@ internal fun SkinCustomLyrics(lines: List<LyricsEntry>, style: SkinLyricStyle, c
     val values = context.values
     val factor = style.scale.factor(LocalConfiguration.current.screenWidthDp.toFloat(), values)
     val fill = style.fill?.let { lyricProgram(context, it) }
-    val effect = style.effect?.let { lyricProgram(context, it) }
+    val effectStyle = style.effect
+    val effect = effectStyle?.let { lyricProgram(context, it) }
     val textStyle = rememberLyricText(style, factor, fill)
     val base = context.color(style.color)
     val sung = context.color(style.sung)
     val align = style.align ?: context.layout.align
 
-    val bent = if (effect != null && style.effect != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Modifier.lyricEffect(effect, style.effect, context) else Modifier
+    val bent = if (effect != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Modifier.lyricEffect(effect, requireNotNull(effectStyle), context)
+    } else Modifier
     BoxWithConstraints(modifier.then(bent)) {
         val top = maxHeight * style.anchor
         val state = rememberLazyListState(initialFirstVisibleItemIndex = current.coerceIn(0, (lines.size - 1).coerceAtLeast(0)))

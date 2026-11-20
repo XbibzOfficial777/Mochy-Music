@@ -246,7 +246,7 @@ internal class CanvasGif(
     // the master playlist lists the same video in many sizes, the smallest one that is still 480 wide is plenty for a small picture
     private fun pickVariant(masterUrl: String): String {
         val text = runCatching {
-            DiscordHttp.client.newCall(Request.Builder().url(masterUrl).build()).execute().use { r -> r.body?.string().orEmpty() }
+            DiscordHttp.client.newCall(Request.Builder().url(masterUrl).build()).execute().use { r -> r.body.string() }
         }.getOrDefault("")
         // already a playlist of one size
         if (!text.contains("#EXT-X-STREAM-INF")) return masterUrl
@@ -291,7 +291,7 @@ internal class CanvasGif(
     private fun download(url: String, out: File) {
         DiscordHttp.client.newCall(Request.Builder().url(url).build()).execute().use { r ->
             check(r.isSuccessful) { "canvas download failed: HTTP ${r.code}" }
-            val body = r.body!!
+            val body = r.body
             val total = body.contentLength()
             var got = 0L
             body.byteStream().use { input ->

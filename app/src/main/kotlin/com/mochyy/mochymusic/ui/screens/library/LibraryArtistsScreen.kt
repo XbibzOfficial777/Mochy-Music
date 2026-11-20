@@ -33,7 +33,7 @@ fun LibraryArtistsScreen(
         return
     }
     val viewModel: LibraryHomeViewModel = hiltViewModel()
-    val artists by (shelf?.let(viewModel::shelf)?.artists ?: viewModel.artists).collectAsStateWithLifecycle()
+    val artists by viewModel.shelf(shelf).artists.collectAsStateWithLifecycle()
     val menuState = LocalMenuState.current
     val coroutineScope = rememberCoroutineScope()
     val resources = LocalContext.current.resources
@@ -44,7 +44,6 @@ fun LibraryArtistsScreen(
             when (shelf) {
                 LibraryShelfKind.Local -> R.string.lib_artists_local_subtitle
                 LibraryShelfKind.Cached -> R.string.lib_artists_cached_subtitle
-                null -> R.string.lib_artists_all_subtitle
             },
         ),
         searchPlaceholder = stringResource(R.string.lib_artists_search),
@@ -56,7 +55,6 @@ fun LibraryArtistsScreen(
             when (shelf) {
                 LibraryShelfKind.Local -> resources.getString(R.string.lib_count_on_device, count)
                 LibraryShelfKind.Cached -> resources.getString(R.string.lib_count_cached, count)
-                null -> count
             }
         },
         thumbnailOf = { it.artist.thumbnailUrl },

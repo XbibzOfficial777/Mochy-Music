@@ -3046,7 +3046,7 @@ class MusicService :
                 level < 0.4f -> PresetReverb.PRESET_SMALLROOM
                 level < 0.75f -> PresetReverb.PRESET_MEDIUMROOM
                 else -> PresetReverb.PRESET_LARGEHALL
-            }.toShort()
+            }
             effect.enabled = true
         } catch (e: Exception) {
             reportException(e)

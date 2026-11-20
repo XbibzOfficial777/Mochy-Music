@@ -391,8 +391,9 @@ class SkinParserTest {
         assertEquals(PageControl.Original, (page.blocks[2] as PageBlock.Control).kind)
         assertEquals(500, (page.blocks[3] as PageBlock.Songs).limit)
         assertTrue(page.blocks[5] == PageBlock.Styles)
-        assertTrue(page.condition!!.holdsFor(mapOf("custom" to "true")))
-        assertFalse(page.condition!!.holdsFor(mapOf("custom" to "false")))
+        val condition = checkNotNull(page.condition)
+        assertTrue(condition.holdsFor(mapOf("custom" to "true")))
+        assertFalse(condition.holdsFor(mapOf("custom" to "false")))
     }
 
     @Test

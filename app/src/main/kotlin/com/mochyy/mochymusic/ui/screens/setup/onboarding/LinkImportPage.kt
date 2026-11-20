@@ -27,7 +27,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -96,7 +98,8 @@ internal fun LinkImportPage(
 /** the link field, with a paste chip while it's empty since a link nearly always comes from the clipboard */
 @Composable
 private fun LinkField(link: String, onLinkChange: (String) -> Unit, onDone: () -> Unit) {
-    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     OnbTextField(
         value = link,
         onValueChange = onLinkChange,
@@ -115,7 +118,9 @@ private fun LinkField(link: String, onLinkChange: (String) -> Unit, onDone: () -
                     .background(Onb.ButtonPrimary)
                     .clickable {
                         if (showPaste) {
-                            clipboard.getText()?.text?.trim()?.takeIf { it.isNotEmpty() }?.let(onLinkChange)
+                            clipboard.primaryClip?.takeIf { it.itemCount > 0 }
+                                ?.getItemAt(0)?.coerceToText(context)?.toString()?.trim()
+                                ?.takeIf { it.isNotEmpty() }?.let(onLinkChange)
                         } else {
                             onLinkChange("")
                         }

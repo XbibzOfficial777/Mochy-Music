@@ -42,7 +42,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.CrossmixMode
 import com.mochyy.mochymusic.constants.CrossmixModeKey

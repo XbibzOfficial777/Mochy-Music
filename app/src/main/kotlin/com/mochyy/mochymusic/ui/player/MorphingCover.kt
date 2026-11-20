@@ -488,13 +488,14 @@ fun MorphingCover(
 
     val isVideoActive = !isDiscStyle && playVideoBackground && videoInfo != null
     // the ambient backdrop takes its colours from the video and the animated cover, so neither is mirrored under the cover then
-    val ambientBackdrop = ambient != null && !alternateStyle && backgroundStyle == PlayerBackgroundStyle.AMBIENT
+    val ambientColors = ambient
+    val ambientBackdrop = ambientColors != null && !alternateStyle && backgroundStyle == PlayerBackgroundStyle.AMBIENT
     // the new flagship keeps the moving mirrors: its veil washes them in the colours instead
     val mirrorsOff = ambientBackdrop && !frostedCover
-    val feedsAmbient = ambient != null && !alternateStyle
-    if (feedsAmbient && ambient != null) {
-        FollowPicture(ambient, trackInfo.thumbnailUrl)
-        LaunchedEffect(isVideoActive) { if (!isVideoActive) ambient.endLive() }
+    val feedsAmbient = ambientColors != null && !alternateStyle
+    if (ambientColors != null && !alternateStyle) {
+        FollowPicture(ambientColors, trackInfo.thumbnailUrl)
+        LaunchedEffect(isVideoActive) { if (!isVideoActive) ambientColors.endLive() }
     }
     val currentOnVideoShowing by androidx.compose.runtime.rememberUpdatedState(onVideoShowingChange)
     LaunchedEffect(isVideoActive) { currentOnVideoShowing(isVideoActive) }
@@ -1119,8 +1120,8 @@ fun MorphingCover(
                                 sheetFade = if (squaredCards) ::squaredCanvasSheetFade else ::canvasSheetFade,
                                 mirror = if (playing && canvasMirrorWanted) canvasMirror else null,
                                 // only the playing song's canvas feeds the colours, the one sliding away has had its turn
-                                onFrameColors = if (playing && feedsAmbient) ambient?.let { it::live } else null,
-                                onLiveEnd = if (playing && feedsAmbient) ambient?.let { it::endLive } else null,
+                                onFrameColors = if (playing && ambientColors != null && feedsAmbient) ambientColors::live else null,
+                                onLiveEnd = if (playing && ambientColors != null && feedsAmbient) ambientColors::endLive else null,
                                 onShowingChange = if (playing) { shown -> liveCanvasShown = shown } else null,
                                 feedsMenu = playing,
                             )
@@ -1130,7 +1131,7 @@ fun MorphingCover(
                                     video = videoInfo,
                                     isPlaying = isPlaying,
                                     glassState = if (mirrorsOff) null else videoGlassState,
-                                    onFrameColors = if (feedsAmbient) ambient?.let { it::live } else null,
+                                    onFrameColors = if (ambientColors != null && feedsAmbient) ambientColors::live else null,
                                     onShowingChange = { shown -> liveVideoShown = shown },
                                     modifier = Modifier
                                         .fillMaxSize()
