@@ -73,7 +73,7 @@ function youtubeId(value) {
 }
 function safeMediaUrl(value) {
     const u = new URL(value);
-    if (u.protocol !== 'https:' || !u.hostname.endsWith('.googlevideo.com')) throw new Error('Host audio tidak diizinkan.');
+    if (u.protocol !== 'https:' || (u.hostname !== 'googlevideo.com' && !u.hostname.endsWith('.googlevideo.com'))) throw new Error('Host audio tidak diizinkan.');
     return u.href;
 }
 module.exports = { Library, defaults, validateLibrary, byteRange, youtubeId, safeMediaUrl };

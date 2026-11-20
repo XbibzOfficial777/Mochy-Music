@@ -56,6 +56,12 @@ export class Playback extends EventTarget {
             ? 'Audio diblokir browser. Ketuk Putar sekali lagi.'
             : error.message || 'Audio gagal diputar.';
         this.loading = false;
+        this.diagnostic = '';
+        this.api.diagnostics?.().then(list => {
+            const last = list?.at(-1);
+            if (last) this.diagnostic = last.message;
+            this.changed();
+        }).catch(() => {});
         this.changed();
     }
     // The equalizer is optional. If WebAudio cannot own the media element, play straight
@@ -114,6 +120,7 @@ export class Playback extends EventTarget {
             if (generation !== this.generation) return;
             this.loading = false;
             this.error = '';
+            this.diagnostic = '';
             this.changed();
             await this.api.played(this.track.id);
             this.dispatchEvent(new Event('played'));

@@ -15,6 +15,12 @@ const resources = app.isPackaged ? path.join(process.resourcesPath, 'resources')
 const engine = new Engine(path.join(resources, `yt-dlp${process.platform === 'win32' ? '.exe' : ''}`));
 const streams = new Map();
 const downloads = new Set();
+const mediaDiagnostics = [];
+function recordMediaError(where, error) {
+    mediaDiagnostics.push({ at: new Date().toISOString(), where, message: error.message || String(error) });
+    if (mediaDiagnostics.length > 20) mediaDiagnostics.shift();
+    console.error('[mochi] media', where, error.message || error);
+}
 let library, window;
 // Isolated user data is also useful for portable development runs; packaged apps use the OS profile.
 if (process.env.MOCHI_USER_DATA) {
@@ -54,6 +60,7 @@ async function importPaths(paths) {
 }
 function registerHandlers() {
     handle('version', () => ({ version: app.getVersion(), platform: process.platform }));
+    handle('diagnostics', () => [...mediaDiagnostics]);
     handle('library', () => library.data);
     handle('importFiles', async () => {
         const result = await dialog.showOpenDialog(window, { title: 'Tambah musik', properties: ['openFile', 'multiSelections'], filters: [{ name: 'Audio', extensions: ['mp3', 'flac', 'wav', 'ogg', 'opus', 'm4a', 'aac', 'webm'] }] });
@@ -83,7 +90,15 @@ function registerHandlers() {
     handle('resolve', async id => {
         const track = library.get(id);
         const token = randomUUID();
-        const source = track.source === 'local' || track.downloadPath ? { path: track.downloadPath || track.path } : await engine.resolve(track.videoId);
+        let source;
+        try {
+            source = track.source === 'local' || track.downloadPath
+                ? { path: track.downloadPath || track.path }
+                : await engine.resolve(track.videoId);
+        } catch (error) {
+            recordMediaError(`resolve:${track.id}`, error);
+            throw error;
+        }
         // Keep in-flight media requests valid, but cap stale tokens.
         streams.set(token, source);
         if (streams.size > 100) streams.delete(streams.keys().next().value);
@@ -183,7 +198,10 @@ async function media(request) {
         const audioTypes = { m4a: 'audio/mp4', webm: 'audio/webm', mp3: 'audio/mpeg', ogg: 'audio/ogg', opus: 'audio/ogg' };
         if (audioTypes[source.ext]) out.set('Content-Type', audioTypes[source.ext]);
         return new Response(response.body, { status: response.status, headers: out });
-    } catch { return new Response('Audio unavailable', { status: 502, headers: cors }); }
+    } catch (error) {
+        recordMediaError(request.url, error);
+        return new Response('Audio unavailable', { status: 502, headers: { ...cors, 'Content-Type': 'text/plain' } });
+    }
 }
 function createWindow() {
     window = new BrowserWindow({ width: 1280, height: 900, minWidth: 390, minHeight: 620, backgroundColor: '#000000', title: 'Mochi Bibz', icon: path.join(resources, 'icon.png'), autoHideMenuBar: true,

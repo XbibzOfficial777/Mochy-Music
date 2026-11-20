@@ -23,6 +23,7 @@ test('online identifiers and media URLs reject arbitrary network destinations', 
     assert.equal(youtubeId('jNQXAC9IVRw'), 'jNQXAC9IVRw');
     for (const value of ['--help', '../anything', null, 'https://youtube.com/']) assert.throws(() => youtubeId(value));
     assert.equal(safeMediaUrl('https://r1.googlevideo.com/audio'), 'https://r1.googlevideo.com/audio');
+    assert.equal(safeMediaUrl('https://googlevideo.com/audio'), 'https://googlevideo.com/audio');
     for (const url of ['http://r1.googlevideo.com/audio', 'file:///etc/passwd', 'https://googlevideo.com.evil.test/', 'https://localhost/', 'https://googlevideo.com@evil.test/']) assert.throws(() => safeMediaUrl(url));
 });
 test('library mutations survive a new process-equivalent load', async t => {

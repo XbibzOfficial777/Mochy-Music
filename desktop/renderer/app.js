@@ -366,7 +366,9 @@ function renderTransport() {
     $('#elapsed').textContent = time(audio.currentTime); $('#duration').textContent = time(duration);
     $('#mini-progress').value = duration ? audio.currentTime / duration * 100 : 0;
     $('#volume').value = String(audio.volume);
-    $('#playback-status').textContent = playback.error || (playback.loading ? 'Menyiapkan audio…' : playing ? 'Sedang diputar' : 'Dijeda');
+    $('#playback-status').textContent = playback.error
+        ? `${playback.error}${playback.diagnostic ? ` · ${playback.diagnostic}` : ''}`
+        : playback.loading ? 'Menyiapkan audio…' : playing ? 'Sedang diputar' : 'Dijeda';
     $('#playback-status').classList.toggle('error', !!playback.error);
     if (playback.error) { $('#mini-artist').textContent = playback.error; }
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';

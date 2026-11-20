@@ -1,15 +1,11 @@
 const { safeMediaUrl } = require('./core.cjs');
 
-// Validate every redirect, not only the URL returned by the extractor.
+// Let the runtime follow YouTube's redirect chain, then validate the FINAL URL.
+// Manual redirect handling can return an opaque response and lose the body.
 async function fetchMedia(url, options = {}) {
-    for (let redirects = 0; redirects < 5; redirects++) {
-        const response = await fetch(safeMediaUrl(url), { ...options, redirect: 'manual' });
-        if (![301, 302, 303, 307, 308].includes(response.status)) return response;
-        const location = response.headers.get('location');
-        await response.body?.cancel();
-        if (!location) throw new Error('Audio redirect has no destination.');
-        url = new URL(location, url).href;
-    }
-    throw new Error('Too many audio redirects.');
+    const initial = safeMediaUrl(url);
+    const response = await fetch(initial, { ...options, redirect: 'follow' });
+    if (response.url) safeMediaUrl(response.url);
+    return response;
 }
 module.exports = { fetchMedia };
