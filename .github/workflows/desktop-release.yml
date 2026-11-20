@@ -223,6 +223,17 @@ jobs:
           pattern: desktop-*-*
           path: release-assets
           merge-multiple: true
+      - name: List downloaded assets
+        shell: bash
+        run: find release-assets -maxdepth 3 -type f -printf '%p\n' | sort
+      - name: Flatten installer assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          find release-assets -mindepth 2 -type f \
+            \( -name '*.exe' -o -name '*.exe.blockmap' -o -name '*.dmg' -o -name '*.zip' \
+               -o -name '*.AppImage' -o -name '*.deb' \) \
+            -exec cp -f {} release-assets/ \;
       - name: Discard test reports from published assets
         shell: bash
         run: find release-assets -mindepth 1 -maxdepth 1 -type d -exec rm -rf {} +
