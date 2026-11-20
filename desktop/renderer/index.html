@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://i.ytimg.com; media-src mochi:; connect-src mochi:; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <title>Mochi Bibz</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="#home" aria-label="Mochi Bibz, beranda"><span data-icon="music"></span>Mochi <span>Bibz</span></a>
+        <div class="top-actions"><button id="import" class="pill">Tambah musik</button><button data-page="settings" class="icon" aria-label="Pengaturan" data-icon="settings"></button></div>
+    </header>
+    <main id="content" tabindex="-1" aria-label="Konten utama"><p role="status">Membuka koleksi…</p></main>
+    <div class="bottom-chrome">
+        <section class="mini-player glass" aria-label="Pemutar mini">
+            <button id="now-playing" class="now-playing" aria-label="Buka pemutar" disabled><span id="mini-art" class="artwork">♪</span><span class="track-label"><strong id="mini-title">Belum ada musik</strong><small id="mini-artist">Pilih lagu untuk mulai</small></span></button>
+            <button id="mini-play" class="icon" data-action="toggle" aria-label="Putar" data-icon="play" disabled></button>
+            <button class="icon" data-action="next" aria-label="Lagu berikutnya" data-icon="next" disabled></button>
+            <progress id="mini-progress" max="100" value="0" aria-label="Kemajuan pemutaran"></progress>
+        </section>
+        <nav class="navigation glass" aria-label="Navigasi utama">
+            <button data-page="home" class="active" aria-current="page"><span data-icon="home"></span><span>Beranda</span></button>
+            <button data-page="search"><span data-icon="search"></span><span>Cari</span></button>
+            <button data-page="library"><span data-icon="library"></span><span>Koleksi</span></button>
+            <button data-page="settings"><span data-icon="settings"></span><span>Pengaturan</span></button>
+        </nav>
+    </div>
+    <dialog id="player-dialog" class="player-sheet" aria-label="Sedang diputar">
+        <div class="sheet-header"><button id="close-player" class="icon" aria-label="Tutup pemutar" data-icon="down"></button><span>SEDANG DIPUTAR</span><button id="download-current" class="icon" aria-label="Unduh lagu" data-icon="download" disabled></button></div>
+        <div class="full-player">
+            <div id="full-art" class="full-art artwork">♪</div>
+            <div class="player-body">
+                <div class="song-info"><div><h1 id="full-title">Belum ada musik</h1><p id="full-artist"></p></div><button id="like-current" class="icon" aria-label="Sukai lagu" aria-pressed="false" data-icon="heart"></button></div>
+                <input id="seek" aria-label="Posisi pemutaran" type="range" min="0" max="100" value="0" step="0.1">
+                <div class="time-labels"><span id="elapsed">0:00</span><span id="duration">0:00</span></div>
+                <div class="transport"><button id="shuffle" class="icon" aria-label="Acak" aria-pressed="false" data-icon="shuffle"></button><button class="icon transport-skip" data-action="previous" aria-label="Lagu sebelumnya" data-icon="previous"></button><button id="play" class="play" data-action="toggle" aria-label="Putar" data-icon="play"></button><button class="icon transport-skip" data-action="next" aria-label="Lagu berikutnya" data-icon="next"></button><button id="repeat" class="icon" aria-label="Ulang: off" data-icon="repeat"></button></div>
+                <label class="volume"><span data-icon="volume"></span><input id="volume" aria-label="Volume" type="range" min="0" max="1" step="0.01" value="0.7"></label>
+                <p id="playback-status" role="status"></p>
+                <div class="player-tabs glass" role="tablist" aria-label="Panel pemutar"><button id="lyrics-tab" role="tab" aria-selected="true" aria-controls="lyrics-panel">Lirik</button><button id="queue-tab" role="tab" aria-selected="false" aria-controls="queue-panel">Antrean</button><button id="add-current" aria-label="Tambahkan lagu ke playlist" data-icon="plus"></button></div>
+                <section id="lyrics-panel" role="tabpanel" aria-labelledby="lyrics-tab"><p class="muted">Lirik belum dimuat.</p><button id="load-lyrics" class="pill">Cari lirik</button><div id="lyrics-lines"></div></section>
+                <section id="queue-panel" role="tabpanel" aria-labelledby="queue-tab" hidden><div id="queue-items"></div></section>
+            </div>
+        </div>
+    </dialog>
+    <dialog id="playlist-dialog" aria-labelledby="playlist-heading"><form id="playlist-form"><h2 id="playlist-heading">Playlist baru</h2><label>Nama playlist<input id="playlist-name" maxlength="100" required autocomplete="off"></label><div class="dialog-actions"><button type="button" data-close="playlist-dialog" class="pill">Batal</button><button class="primary" type="submit">Buat playlist</button></div></form></dialog>
+    <dialog id="add-dialog" aria-labelledby="add-heading"><h2 id="add-heading">Tambahkan ke playlist</h2><div id="add-playlists"></div><button data-close="add-dialog" class="pill">Tutup</button></dialog>
+    <div id="toast" role="status" hidden></div>
+    <audio id="audio" crossorigin="anonymous" preload="metadata"></audio>
+    <script src="app.js" type="module"></script>
+</body>
+</html>

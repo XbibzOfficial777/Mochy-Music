@@ -1,0 +1,6 @@
+node_modules/
+dist/
+resources/yt-dlp*
+test-results/
+playwright-report/
+online-report.json
