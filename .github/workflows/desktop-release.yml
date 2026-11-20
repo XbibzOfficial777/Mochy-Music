@@ -230,7 +230,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          find release-assets -mindepth 2 -type f \
+          find release-assets -mindepth 2 -maxdepth 2 -type f -path '*/dist/*' \
             \( -name '*.exe' -o -name '*.exe.blockmap' -o -name '*.dmg' -o -name '*.zip' \
                -o -name '*.AppImage' -o -name '*.deb' \) \
             -exec cp -f {} release-assets/ \;
