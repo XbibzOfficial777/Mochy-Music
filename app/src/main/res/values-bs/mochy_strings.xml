@@ -131,8 +131,7 @@
     <string name="views">Pregleda</string>
     <string name="likes">Lajkova</string>
 <string name="dislikes">Dislajkova</string>
-<string name="more_options">Više opcija</string>
-    <plurals name="seconds">
+<plurals name="seconds">
         <item quantity="one">%dsekund</item>
         <item quantity="few">%dsekunde</item>
         <item quantity="other">%dsekundi</item>

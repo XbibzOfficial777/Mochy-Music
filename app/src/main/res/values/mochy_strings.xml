@@ -1299,12 +1299,10 @@
     <string name="menu_choose_version_desc">Wrong recording? Pick the right one from a list</string>
 <string name="audio_lab_title">Audio Lab</string>
     <string name="donate_dismiss">Close</string>
-    <string name="donate_kofi">Ko-fi · xbibzofficial</string>
     <string name="donate_qris">QRIS</string>
     <string name="donate_qris_close">Tap to hide</string>
     <string name="donate_qris_hint">Tap to show the payment poster</string>
     <string name="donate_saweria">Saweria · xbibzofficial</string>
-    <string name="donate_subtitle">Support %1$s</string>
     <string name="donate_thanks">Any amount helps keep this fork alive.</string>
     <string name="donate_title">Thank you</string>
     <string name="eq_auto_preamp">Auto preamp</string>
