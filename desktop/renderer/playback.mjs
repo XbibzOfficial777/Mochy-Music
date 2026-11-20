@@ -37,7 +37,10 @@ export class Playback extends EventTarget {
             audio.addEventListener(event, () => this.changed());
         }
         audio.addEventListener('error', () => {
-            if (audio.error) this.fail(new Error(`Audio gagal diputar (${audio.error.code}). Periksa file atau coba lagi.`));
+            // An element with no src reports code 4. Ignore it; only real source failures matter.
+            if (audio.error && audio.getAttribute('src')) {
+                this.fail(new Error(`Audio gagal diputar (${audio.error.code}). Periksa file atau coba lagi.`));
+            }
         });
         audio.addEventListener('ended', () => {
             if (this.settings.repeat === 'one') {
@@ -94,8 +97,7 @@ export class Playback extends EventTarget {
         if (!tracks[index]) return;
         const generation = ++this.generation;
         this.audio.pause();
-        this.audio.removeAttribute('src');
-        this.audio.load();
+        // Do not clear src or call load(): that fires a bogus MEDIA_ERR_SRC_NOT_SUPPORTED.
         this.error = '';
         this.queue = [...tracks];
         this.index = index;
@@ -111,6 +113,7 @@ export class Playback extends EventTarget {
             await this.audio.play();
             if (generation !== this.generation) return;
             this.loading = false;
+            this.error = '';
             this.changed();
             await this.api.played(this.track.id);
             this.dispatchEvent(new Event('played'));

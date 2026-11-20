@@ -179,6 +179,9 @@ async function media(request) {
         const response = await fetchMedia(source.url, { headers, method: request.method, signal: AbortSignal.any([request.signal, AbortSignal.timeout(120000)]) });
         const out = new Headers(cors);
         for (const h of ['content-type', 'content-length', 'content-range']) if (response.headers.has(h)) out.set(h, response.headers.get(h));
+        // YouTube sometimes labels audio as video/mp4 or octet-stream. Give Chromium an audio MIME.
+        const audioTypes = { m4a: 'audio/mp4', webm: 'audio/webm', mp3: 'audio/mpeg', ogg: 'audio/ogg', opus: 'audio/ogg' };
+        if (audioTypes[source.ext]) out.set('Content-Type', audioTypes[source.ext]);
         return new Response(response.body, { status: response.status, headers: out });
     } catch { return new Response('Audio unavailable', { status: 502, headers: cors }); }
 }
