@@ -648,7 +648,7 @@ object YTPlayerUtils {
 
                 if (currentClient.useWebPoTokens && poToken?.streamingDataPoToken != null) {
                     Timber.tag(logTag).d("Appending pot= parameter to stream URL")
-                    val separator = if ("?" in (streamUrl ?: resolvedUrl)) "&" else "?"
+                    val separator = if ("?" in streamUrl) "&" else "?"
                     streamUrl = "${streamUrl}${separator}pot=${android.net.Uri.encode(poToken.streamingDataPoToken)}"
                 }
 
@@ -675,7 +675,7 @@ object YTPlayerUtils {
                     break
                 }
 
-                if (validateStatus(streamUrl ?: resolvedUrl, currentClient.streamHeaders(), resolvedFormat.contentLength)) {
+                if (validateStatus(streamUrl, currentClient.streamHeaders(), resolvedFormat.contentLength)) {
 
                     Timber.tag(logTag).d("Stream validated successfully with client: ${currentClient.clientName}")
                     successClient = currentClient
@@ -696,7 +696,7 @@ object YTPlayerUtils {
                         var nTransformWorked = false
 
                         try {
-                            val nTransformed = CipherDeobfuscator.transformNParamInUrl(streamUrl ?: resolvedUrl)
+                            val nTransformed = CipherDeobfuscator.transformNParamInUrl(streamUrl)
                             if (nTransformed != streamUrl) {
                                 Timber.tag(logTag).d("CipherDeobfuscator n-transform applied, re-validating...")
                                 if (validateStatus(nTransformed, currentClient.streamHeaders(), format.contentLength)) {
