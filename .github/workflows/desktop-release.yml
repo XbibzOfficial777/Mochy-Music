@@ -116,9 +116,20 @@ jobs:
           sudo apt-get install -y pulseaudio xvfb
           pulseaudio --start --exit-idle-time=-1 --load="module-null-sink sink_name=mochi_test sink_properties=device.description=MochiTest"
           echo "PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native" >> "$GITHUB_ENV"
-      - name: Verify real local playback, persistence and UI
+      - name: Verify real local playback, persistence and UI (Linux)
         working-directory: desktop
         run: xvfb-run -a npm run test:desktop
+        if: matrix.platform == 'linux'
+        env:
+          CI: 'true'
+          DEBUG: pw:browser
+      - name: Verify real local playback, persistence and UI
+        working-directory: desktop
+        run: npm run test:desktop
+        if: matrix.platform != 'linux'
+        env:
+          CI: 'true'
+          DEBUG: pw:browser
         env:
           CI: 'true'
           DEBUG: pw:browser

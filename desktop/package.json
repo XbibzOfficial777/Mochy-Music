@@ -3,6 +3,7 @@
   "productName": "Mochi Bibz",
   "version": "0.1.0",
   "description": "Mochi Bibz desktop music player",
+  "homepage": "https://github.com/XbibzOfficial777/Mochy-Music",
   "author": "XbibzOfficial777",
   "license": "GPL-3.0-only",
   "main": "src/main.cjs",
