@@ -1021,7 +1021,7 @@
     <string name="eq_auto_preamp_off">Mati: lebih keras, tetapi dorongan besar terpotong di lagu keras</string>
     <string name="eq_delete_preset_title">Hapus “%1$s”?</string>
     <string name="donate_title">Terima kasih</string>
-    <string name="donate_subtitle">Dukung %1$s</string>
+    <string name="donate_subtitle">Ini cara untuk mendukung dan berdonasi kepada kami!</string>
     <string name="donate_kofi">Ko-fi · xbibzofficial</string>
     <string name="donate_saweria">Saweria · xbibzofficial</string>
     <string name="donate_qris">QRIS</string>
