@@ -142,14 +142,25 @@ function registerHandlers() {
     });
     handle('lyrics', async id => {
         const t = library.get(id);
-        const params = new URLSearchParams({ track_name: t.title, artist_name: t.artist });
-        const response = await fetch(`https://lrclib.net/api/search?${params}`, { signal: AbortSignal.timeout(15000), headers: { 'User-Agent': 'MochiBibz/0.1.0 (https://github.com/XbibzOfficial777/Mochy-Music)' } });
-        if (!response.ok) throw new Error(`Layanan lirik: HTTP ${response.status}`);
-        const results = await response.json();
-        const usable = (Array.isArray(results) ? results : [])
-            .filter(item => item && (item.syncedLyrics || item.plainLyrics) && Math.abs((item.duration || 0) - t.duration) < 15)
-            .sort((a, b) => Math.abs(a.duration - t.duration) - Math.abs(b.duration - t.duration));
-        return usable[0] || null;
+        const clean = value => String(value || '')
+            .replace(/\s*[\(\[](official|audio|video|music video|lyrics?|hd|hq|4k|live|remastered)[^\)\]]*[\)\]]/gi, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+        const title = clean(t.title);
+        const artist = clean(t.artist);
+        async function lookup(params) {
+            const url = `https://lrclib.net/api/search?${new URLSearchParams(params)}`;
+            const response = await fetch(url, { signal: AbortSignal.timeout(15000), headers: { 'User-Agent': 'MochiBibz/0.1.0 (https://github.com/XbibzOfficial777/Mochy-Music)' } });
+            if (!response.ok) throw new Error(`Layanan lirik: HTTP ${response.status}`);
+            return response.json();
+        }
+        const pick = results => (Array.isArray(results) ? results : [])
+            .filter(item => item && (item.syncedLyrics || item.plainLyrics))
+            .sort((a, b) => Math.abs((a.duration || 0) - t.duration) - Math.abs((b.duration || 0) - t.duration));
+        let results = pick(await lookup({ track_name: title, artist_name: artist }));
+        if (!results.length && artist) results = pick(await lookup({ track_name: title }));
+        if (!results.length && title !== t.title) results = pick(await lookup({ track_name: t.title }));
+        return results[0] || null;
     });
     handle('download', async id => {
         const t = library.get(id);
@@ -189,15 +200,18 @@ async function media(request) {
             if (range.partial) headers['Content-Range'] = `bytes ${range.start}-${range.end}/${stat.size}`;
             return new Response(request.method === 'HEAD' ? null : Readable.toWeb(createReadStream(source.path, { start: range.start, end: range.end })), { status: range.partial ? 206 : 200, headers });
         }
-        const headers = { ...source.headers };
-        if (request.headers.has('range')) headers.Range = request.headers.get('range');
-        const response = await fetchMedia(source.url, { headers, method: request.method, signal: AbortSignal.any([request.signal, AbortSignal.timeout(120000)]) });
-        const out = new Headers(cors);
-        for (const h of ['content-type', 'content-length', 'content-range']) if (response.headers.has(h)) out.set(h, response.headers.get(h));
-        // YouTube sometimes labels audio as video/mp4 or octet-stream. Give Chromium an audio MIME.
+        // YouTube ranged responses are frequently rejected by Chromium when proxied through
+        // a custom protocol. Stream the whole response as 200; bytes still arrive over the
+        // network in real time, nothing is written to disk.
+        const response = await fetchMedia(source.url, {
+            headers: { ...source.headers },
+            method: 'GET',
+            signal: AbortSignal.any([request.signal, AbortSignal.timeout(120000)]),
+        });
         const audioTypes = { m4a: 'audio/mp4', webm: 'audio/webm', mp3: 'audio/mpeg', ogg: 'audio/ogg', opus: 'audio/ogg' };
-        if (audioTypes[source.ext]) out.set('Content-Type', audioTypes[source.ext]);
-        return new Response(response.body, { status: response.status, headers: out });
+        const out = new Headers(cors);
+        out.set('Content-Type', audioTypes[source.ext] || response.headers.get('content-type') || 'application/octet-stream');
+        return new Response(request.method === 'HEAD' ? null : response.body, { status: 200, headers: out });
     } catch (error) {
         recordMediaError(request.url, error);
         return new Response('Audio unavailable', { status: 502, headers: { ...cors, 'Content-Type': 'text/plain' } });
