@@ -11,7 +11,8 @@ win32)
     files=(*.exe)
     ((${#files[@]} > 0)) || { echo 'No Windows installer found' >&2; exit 1; }
     for file in "${files[@]}"; do
-        file "$file" | grep -qiE 'PE32|MS Windows' || { echo "Not a Windows executable: $file" >&2; exit 1; }
+        magic="$(head -c 2 "$file")"
+        test "$magic" = 'MZ' || { echo "Not a Windows executable: $file" >&2; exit 1; }
     done
     ;;
 darwin)
