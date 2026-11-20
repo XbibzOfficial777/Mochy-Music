@@ -1,8 +1,15 @@
 {
-  "versionName": "8.4.2-xbibz.23",
-  "versionCode": 97,
-  "description": "Mochy Xbibz **8.4.2-xbibz.23**: tarikan Mochy resmi 8.4.2, patch Bagikan tetap.",
+  "versionName": "8.4.2-xbibz.24",
+  "versionCode": 98,
+  "description": "Mochy Xbibz **8.4.2-xbibz.24**: slider beranda liquid glass seperti sebelum 8.4.2.",
   "changelog": [
+    {
+      "title": "8.4.2-xbibz.24",
+      "items": [
+        "Slider bawah (Pencarian, Beranda, Library, Mochi) kembali liquid glass: tetesan mengalir, bisa diseret seperti air.",
+        "Bukan fade kaku 8.4.2 resmi. Kode versi **98**. Tag .16–.23 tidak ditimpa."
+      ]
+    },
     {
       "title": "8.4.2-xbibz.23",
       "items": [

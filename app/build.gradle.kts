@@ -28,9 +28,9 @@ extensions.configure<ApplicationExtension> {
         minSdk = 24
         targetSdk = 37
         // New package: installs beside older Bibz (com.mochyy.mochymusic), does not replace .16/.18.
-        // .21 and .22 already tagged — this sync is 8.4.2-xbibz.23.
-        versionCode = 97
-        versionName = "8.4.2-xbibz.23"
+        // .23 already tagged — nav liquid-glass restore is 8.4.2-xbibz.24.
+        versionCode = 98
+        versionName = "8.4.2-xbibz.24"
         buildConfigField("String", "UPSTREAM_VERSION", "\"8.4.2\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
