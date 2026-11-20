@@ -74,10 +74,6 @@
     <plurals name="storage_export_skipped">
         <item quantity="other">%d bài hát chưa tải xuống đầy đủ nên đã bị bỏ qua</item>
     </plurals>
-    <string name="storage_export_folder_music">Nhạc</string>
-    <string name="storage_export_folder_playlists">Danh sách phát</string>
-    <string name="storage_export_folder_albums">Album</string>
-    <string name="storage_export_folder_liked">Bài hát yêu thích</string>
     <string name="storage_transfer_title">Chuyển sang điện thoại mới? Mang theo mọi thứ nhé</string>
     <string name="storage_export_user_data">Xuất dữ liệu người dùng</string>
     <string name="storage_import_user_data">Nhập dữ liệu người dùng</string>

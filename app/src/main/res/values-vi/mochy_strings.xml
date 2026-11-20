@@ -410,7 +410,7 @@
     <string name="wrapped_intro_button">bắt đầu nào!</string>
     <string name="wrapped_end_thanks">Cảm ơn bạn đã nghe nhạc cùng mochy!</string>
     <string name="wrapped_end_create_playlist">Tạo danh sách phát Wrapped của bạn</string>
-    <string name="wrapped_end_creating_playlist">Đang tạo...</string>
+    <string name="wrapped_end_creating_playlist">Đang tạo…</string>
     <string name="wrapped_end_playlist_saved">Đã lưu danh sách phát</string>
     <string name="wrapped_ready_title">WRAPPED CỦA BẠN ĐÃ SẴN SÀNG!</string>
     <string name="wrapped_ready_subtitle">Cùng xem bạn đã yêu thích gì trong năm nay.</string>
@@ -595,7 +595,7 @@
     <string name="unblock">Bỏ chặn</string>
     <string name="user_blocked_by_host">Người dùng bị chặn bởi chủ phòng</string>
     <string name="ai_lyrics_translation">Dịch lời bài hát bằng AI</string>
-    <string name="ai_translating_lyrics">Đang dịch lời bài hát...</string>
+    <string name="ai_translating_lyrics">Đang dịch lời bài hát…</string>
     <string name="ai_lyrics_translated">Đã dịch lời bài hát</string>
     <string name="ai_provider">Nhà cung cấp</string>
     <string name="ai_api_key">Khóa API</string>

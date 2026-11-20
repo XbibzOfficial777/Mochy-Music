@@ -45,7 +45,10 @@ data class StageOutput(
                 device.type == AudioDeviceInfo.TYPE_BLE_SPEAKER -> true
                 device.type == AudioDeviceInfo.TYPE_LINE_ANALOG || device.type == AudioDeviceInfo.TYPE_LINE_DIGITAL ||
                     device.type == AudioDeviceInfo.TYPE_AUX_LINE -> true
-                kind == AudioOutputs.Kind.BLUETOOTH -> bluetoothSpeaker(context, device.address)
+                kind == AudioOutputs.Kind.BLUETOOTH -> bluetoothSpeaker(
+                    context,
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) device.address else null,
+                )
                 else -> false
             }
             return StageOutput("${kind.name}:${device.type}:$name", name, kind, speaker)

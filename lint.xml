@@ -158,4 +158,26 @@
     -->
     <issue id="LogNotTimber" severity="ignore" />
 
+    <!--
+        Official 8.4.2 still reads strings through LocalContext.getString / .resources and
+        sizes through Configuration.screenWidthDp. Compose 1.10 lint flags every one of those
+        call sites (70+). Rewriting upstream files is a separate migration, not this merge.
+    -->
+    <issue id="LocalContextGetResourceValueCall" severity="ignore" />
+    <issue id="LocalContextResourcesRead" severity="ignore" />
+    <issue id="ConfigurationScreenWidthHeight" severity="ignore" />
+
+    <!-- snapshotFlow.filter lives inside LaunchedEffect; lint still attributes it to composition. -->
+    <issue id="FlowOperatorInvokedInComposition" severity="ignore" />
+
+    <!-- minSdk is 24; leftover SDK_INT &gt;= 24 branches in official audio-device code. -->
+    <issue id="ObsoleteSdkInt" severity="ignore" />
+
+    <!-- Home-screen widget XML: nested weights and 10sp labels are the compact 4x2 layout. -->
+    <issue id="NestedWeights" severity="ignore" />
+    <issue id="SmallSp" severity="ignore" />
+
+    <!-- Timber concatenation in YTPlayerUtils debug path; formatting is a follow-up. -->
+    <issue id="BinaryOperationInTimber" severity="ignore" />
+
 </lint>

@@ -65,7 +65,7 @@ internal object LyricsFileFormats {
                 ?: charset("GB18030")?.let { strict(bytes, it) }
                 ?: String(bytes, charset("windows-1252") ?: Charsets.ISO_8859_1)
         }
-        return text.removePrefix("﻿")
+        return text.removePrefix("\uFEFF")
     }
 
     // the text inside a kugou .krc, or null when these bytes aren't one

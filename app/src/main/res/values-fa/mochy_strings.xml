@@ -73,8 +73,8 @@
     <string name="crop_album_art_desc">برش مربعی تصویر ویدیو</string>
     <string name="already_in_playlist">همین الان در لیست پخش است:</string>
     <plurals name="n_element">
-        <item quantity="one">مورد</item>
-        <item quantity="other">موارد</item>
+        <item quantity="one">%d مورد</item>
+        <item quantity="other">%d موارد</item>
     </plurals>
     <plurals name="n_time">
         <item quantity="one">%d بار</item>
@@ -82,8 +82,8 @@
     </plurals>
     <string name="seek_backward">۵ ثانیه به عقب</string>
     <string name="seek_forward">۵ ثانیه به جلو</string>
-    <string name="seek_forward_dynamic">ثانیه به جلو</string>
-    <string name="seek_backward_dynamic">ثانیه به عقب</string>
+    <string name="seek_forward_dynamic">+%1$d ثانیه به جلو</string>
+    <string name="seek_backward_dynamic">-%1$d ثانیه به عقب</string>
     <string name="seek_seconds_addup">افزایش تدریجی زمان پرش</string>
     <string name="seek_seconds_addup_description">درصورت فعال بودن، با هر بار پرش، ۵ ثانیه به‌صورت تدریجی اضافه می‌شود</string>
     <string name="similar_content">محتوای مشابه</string>

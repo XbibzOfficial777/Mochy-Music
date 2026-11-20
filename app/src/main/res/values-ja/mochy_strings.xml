@@ -502,7 +502,7 @@
     <string name="unblock">ブロックを解除</string>
     <string name="user_blocked_by_host">ホストによってユーザーがブロックされました</string>
     <string name="ai_lyrics_translation">AI歌詞翻訳</string>
-    <string name="ai_translating_lyrics">歌詞を翻訳中...</string>
+    <string name="ai_translating_lyrics">歌詞を翻訳中…</string>
     <string name="ai_lyrics_translated">翻訳しました</string>
     <string name="ai_provider">提供元</string>
     <string name="ai_base_url">ベースURL</string>

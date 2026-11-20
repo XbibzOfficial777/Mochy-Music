@@ -512,7 +512,7 @@
     <string name="unblock">Desbloquear</string>
     <string name="user_blocked_by_host">Usuario bloqueado por el anfitrión</string>
     <string name="ai_lyrics_translation">Traducción de letras con IA</string>
-    <string name="ai_translating_lyrics">Traduciendo letras...</string>
+    <string name="ai_translating_lyrics">Traduciendo letras…</string>
     <string name="ai_lyrics_translated">Letras traducidas</string>
     <string name="ai_provider">Proveedor</string>
     <string name="ai_base_url">URL base</string>

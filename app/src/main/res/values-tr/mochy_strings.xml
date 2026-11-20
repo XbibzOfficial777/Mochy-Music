@@ -1035,7 +1035,6 @@
     <string name="song_share_romanisation_main_hint">Kart romanizasyonu söyler, orijinal altına gider</string>
     <string name="song_share_translation_hint">Her satır senin dilinde, altında</string>
     <string name="song_share_caption">%1$s · %2$s</string>
-    <string name="meta_app_id" translatable="false"></string>
     <string name="yt_sync_exclude_title">İçe aktarılan müziği YouTube\'a gönderme</string>
     <string name="yt_sync_exclude_desc">Spotify ve diğer uygulamalardan gelen şarkılar ve çalma listeleri bu telefonda kalır</string>
     <string name="yt_sync_undo_title">Son senkronu geri al</string>

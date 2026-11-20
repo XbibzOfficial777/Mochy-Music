@@ -631,7 +631,7 @@
     <string name="unblock">Buka blokir</string>
     <string name="user_blocked_by_host">Pengguna diblokir oleh host</string>
     <string name="ai_lyrics_translation">Terjemahan Lirik AI</string>
-    <string name="ai_translating_lyrics">Menerjemahkan lirik...</string>
+    <string name="ai_translating_lyrics">Menerjemahkan lirik…</string>
     <string name="ai_lyrics_translated">Lirik diterjemahkan</string>
     <string name="ai_provider">Penyedia</string>
     <string name="ai_base_url">URL dasar</string>

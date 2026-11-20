@@ -7,6 +7,7 @@
     <string name="albums">Albümler</string>
     <string name="playlists">Çalma Listeleri</string>
     <plurals name="n_selected">
+        <item quantity="one">%d seçili</item>
         <item quantity="other">%d seçililer</item>
     </plurals>
     <string name="history">Geçmiş</string>

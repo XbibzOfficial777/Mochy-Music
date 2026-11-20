@@ -517,7 +517,7 @@
     <string name="unblock">Разблокировать</string>
     <string name="user_blocked_by_host">Пользователь заблокирован хостом</string>
     <string name="ai_lyrics_translation">ИИ-перевод текста</string>
-    <string name="ai_translating_lyrics">Перевод текста...</string>
+    <string name="ai_translating_lyrics">Перевод текста…</string>
     <string name="ai_lyrics_translated">Текст переведён</string>
     <string name="ai_provider">Провайдер</string>
     <string name="ai_base_url">Базовый URL</string>

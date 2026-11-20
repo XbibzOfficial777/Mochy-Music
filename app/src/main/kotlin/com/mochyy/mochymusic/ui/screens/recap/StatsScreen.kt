@@ -46,6 +46,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -773,13 +774,14 @@ private fun WeekdayCard(
 ) {
     val best = s.weekdayMs.indices.maxByOrNull { s.weekdayMs[it] } ?: 0
     val day = DayOfWeek.of(best + 1)
+    val locale = LocalConfiguration.current.locales[0]
     StatsCardBox(
         expandKey = "weekday",
         expanded = expanded,
         detail = {
             WeekdayBars(
                 values = s.weekdayMs,
-                labels = DayOfWeek.entries.map { it.getDisplayName(JavaTextStyle.NARROW, Locale.getDefault()) },
+                labels = DayOfWeek.entries.map { it.getDisplayName(JavaTextStyle.NARROW, locale) },
             )
         },
     ) {
@@ -796,7 +798,7 @@ private fun WeekdayCard(
             style = statsText(13f, FontWeight.SemiBold),
         )
         Text(
-            day.getDisplayName(JavaTextStyle.FULL, Locale.getDefault()),
+            day.getDisplayName(JavaTextStyle.FULL, locale),
             style = statsText(32f, tracking = -1.2f),
             modifier = Modifier.padding(vertical = 2.dp),
         )

@@ -527,7 +527,7 @@
     <string name="unblock">إلغاء الحظر</string>
     <string name="user_blocked_by_host">تم حظر المستخدم من قبل المضيف</string>
     <string name="ai_lyrics_translation">ترجمة كلمات الأغاني باستخدام الذكاء الاصطناعي</string>
-    <string name="ai_translating_lyrics">ترجمة كلمات الأغاني...</string>
+    <string name="ai_translating_lyrics">ترجمة كلمات الأغاني…</string>
     <string name="ai_lyrics_translated">تمت ترجمة كلمات الأغنية</string>
     <string name="ai_provider">الموفر</string>
     <string name="ai_base_url">عنوان URL الأساسي</string>
