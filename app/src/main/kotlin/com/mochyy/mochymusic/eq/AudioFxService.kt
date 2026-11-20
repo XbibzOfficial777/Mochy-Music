@@ -1,16 +1,22 @@
 package com.mochyy.mochymusic.eq
 
+import com.mochyy.mochymusic.eq.audio.EightDParams
 import com.mochyy.mochymusic.eq.audio.LoudnessParams
 import com.mochyy.mochymusic.eq.audio.ReplayGainParams
 import com.mochyy.mochymusic.eq.audio.ReverbParams
 import com.mochyy.mochymusic.eq.audio.SpatialParams
 import com.mochyy.mochymusic.eq.audio.VolumeCurve
+import com.mochyy.mochymusic.eq.stage.StageNative
+import com.mochyy.mochymusic.eq.stage.StageParams
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /** the audio fx settings every player's effects read at the start of each buffer */
 @Singleton
 class AudioFxService @Inject constructor() {
+    @Volatile
+    var eightD: EightDParams = EightDParams()
+
     @Volatile
     var reverb: ReverbParams = ReverbParams()
 
@@ -19,6 +25,13 @@ class AudioFxService @Inject constructor() {
 
     @Volatile
     var spatial: SpatialParams = SpatialParams()
+
+    /** 3d sims as the native room reads it; while it plays, spatial's own stereo modes step aside */
+    @Volatile
+    var stage: StageParams = StageParams.Off
+
+    /** how loud each kind of sound in the room is right now (0..1, StageSource order), written by the playback thread for the room's dots */
+    val stageLevels = FloatArray(StageNative.Kinds)
 
     /** replaced, never mutated: the sink notices a new curve by identity */
     @Volatile

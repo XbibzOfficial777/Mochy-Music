@@ -47,6 +47,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
@@ -204,7 +206,7 @@ fun GeneratedSearchCapsule(
             ) {
                 Icon(
                     painter = painterResource(R.drawable.close),
-                    contentDescription = "Clear",
+                    contentDescription = stringResource(R.string.clear),
                     tint = Color.White,
                     modifier = Modifier.size(14.dp),
                 )
@@ -229,7 +231,7 @@ fun GeneratedGroupHeader(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun GeneratedNoResults(query: String, modifier: Modifier = Modifier) {
     Text(
-        text = "Nothing here matches \"$query\"",
+        text = stringResource(R.string.platform_generated_empty, query),
         style = PlaylistStatsStyle.copy(fontSize = 13.sp),
         color = Color.White.copy(alpha = 0.6f),
         modifier = modifier.padding(horizontal = PlaylistInset, vertical = 24.dp),
@@ -237,13 +239,25 @@ fun GeneratedNoResults(query: String, modifier: Modifier = Modifier) {
 }
 
 /** "21 songs · 1h 23m" */
+@Composable
 fun generatedStats(songCount: Int, totalSeconds: Int): String {
-    val count = "$songCount ${if (songCount == 1) "song" else "songs"}"
+    val count = pluralStringResource(R.plurals.pc_detail_songs, songCount, songCount)
     if (totalSeconds <= 0) return count
     val hours = totalSeconds / 3600
     val minutes = (totalSeconds % 3600) / 60
-    return "$count · ${if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"}"
+    val duration = if (hours > 0) {
+        stringResource(R.string.platform_duration_hours_minutes, hours, minutes)
+    } else {
+        stringResource(R.string.platform_duration_minutes, minutes)
+    }
+    return stringResource(R.string.platform_stats_pair, count, duration)
 }
+
+private val OnTheirWay = setOf(
+    androidx.media3.exoplayer.offline.Download.STATE_QUEUED,
+    androidx.media3.exoplayer.offline.Download.STATE_DOWNLOADING,
+    androidx.media3.exoplayer.offline.Download.STATE_COMPLETED,
+)
 
 /** all downloaded, some on their way, or neither, for the ••• menu's download line */
 @Composable
@@ -252,18 +266,15 @@ fun rememberSongsDownloadState(songIds: List<String>): Int {
     var state by remember { mutableIntStateOf(androidx.media3.exoplayer.offline.Download.STATE_STOPPED) }
     androidx.compose.runtime.LaunchedEffect(songIds) {
         if (songIds.isEmpty()) return@LaunchedEffect
+        // walked off the main thread: liked songs can run to thousands and the map changes with every song that finishes
         downloadUtil.downloads.collect { downloads ->
-            state = when {
-                songIds.all { downloads[it]?.state == androidx.media3.exoplayer.offline.Download.STATE_COMPLETED } ->
-                    androidx.media3.exoplayer.offline.Download.STATE_COMPLETED
-                songIds.all {
-                    downloads[it]?.state in setOf(
-                        androidx.media3.exoplayer.offline.Download.STATE_QUEUED,
-                        androidx.media3.exoplayer.offline.Download.STATE_DOWNLOADING,
-                        androidx.media3.exoplayer.offline.Download.STATE_COMPLETED,
-                    )
-                } -> androidx.media3.exoplayer.offline.Download.STATE_DOWNLOADING
-                else -> androidx.media3.exoplayer.offline.Download.STATE_STOPPED
+            state = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                when {
+                    songIds.all { downloads[it]?.state == androidx.media3.exoplayer.offline.Download.STATE_COMPLETED } ->
+                        androidx.media3.exoplayer.offline.Download.STATE_COMPLETED
+                    songIds.all { downloads[it]?.state in OnTheirWay } -> androidx.media3.exoplayer.offline.Download.STATE_DOWNLOADING
+                    else -> androidx.media3.exoplayer.offline.Download.STATE_STOPPED
+                }
             }
         }
     }

@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- pengaturan, modul: daftar modul, halaman modul, mencari modul lain dan masuk -->
 <resources>
     <string name="module_adds_songs">Lagu</string>
     <string name="module_adds_lyrics">Lirik</string>

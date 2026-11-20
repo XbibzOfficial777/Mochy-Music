@@ -3,6 +3,7 @@
 package com.mochyy.mochymusic.utils
 
 import android.net.ConnectivityManager
+import android.util.Log
 import androidx.media3.common.PlaybackException
 import com.music.innertube.NewPipeExtractor
 import com.music.innertube.YouTube
@@ -39,7 +40,6 @@ import com.mochyy.mochymusic.utils.PlaybackLogLevel
 import com.mochyy.mochymusic.utils.PlaybackLogManager
 import com.music.innertube.models.IpVersion
 import io.ktor.client.plugins.ResponseException
-import kotlinx.coroutines.ensureActive
 import okhttp3.Dns
 import okhttp3.OkHttpClient
 import timber.log.Timber
@@ -481,7 +481,7 @@ object YTPlayerUtils {
         if (isAgeRestrictedFromResponse && isLoggedIn) {
 
             Timber.tag(logTag).d("Restricted content detected, trying WEB_CREATOR")
-            Timber.tag(TAG).i("Age-restricted: using WEB_CREATOR for videoId=$videoId")
+            Log.i(TAG, "Age-restricted: using WEB_CREATOR for videoId=$videoId")
             val creatorResponse = YouTube.player(videoId, playlistId, WEB_CREATOR, null, null).getOrNull()
             if (creatorResponse?.playabilityStatus?.status == "OK") {
                 Timber.tag(logTag).d("WEB_CREATOR works for age-restricted content")
@@ -506,7 +506,7 @@ object YTPlayerUtils {
 
         if (isAgeRestricted) {
             Timber.tag(logTag).d("Content is still age-restricted (status: $currentStatus), will try fallback clients")
-            Timber.tag(TAG).i("Age-restricted content detected: videoId=$videoId, status=$currentStatus")
+            Log.i(TAG, "Age-restricted content detected: videoId=$videoId, status=$currentStatus")
         }
 
         val isPrivateTrack = mainPlayerResponse?.videoDetails?.musicVideoType == "MUSIC_VIDEO_TYPE_PRIVATELY_OWNED_TRACK"
@@ -632,7 +632,7 @@ object YTPlayerUtils {
                 if (currentClient.solvesN()) {
                     try {
                         Timber.tag(logTag).d("Applying n-transform to stream URL for ${currentClient.clientName}")
-                        val transformed = EjsNTransformSolver.transformNParamInUrl(streamUrl)
+                        val transformed = EjsNTransformSolver.transformNParamInUrl(streamUrl!!)
                         if (transformed != streamUrl) {
                             streamUrl = transformed
                             Timber.tag(logTag).d("N-transform applied successfully")
@@ -644,7 +644,7 @@ object YTPlayerUtils {
 
                 if (currentClient.useWebPoTokens && poToken?.streamingDataPoToken != null) {
                     Timber.tag(logTag).d("Appending pot= parameter to stream URL")
-                    val separator = if ("?" in streamUrl) "&" else "?"
+                    val separator = if ("?" in streamUrl!!) "&" else "?"
                     streamUrl = "${streamUrl}${separator}pot=${android.net.Uri.encode(poToken.streamingDataPoToken)}"
                 }
 
@@ -667,11 +667,11 @@ object YTPlayerUtils {
                 if (isPrivatelyOwned) {
                     Timber.tag(logTag).d("Using stream without validation: ${currentClient.clientName}")
                     successClient = currentClient
-                    Timber.tag(TAG).i("Playback: client=${currentClient.clientName}, videoId=$videoId, private=$isPrivatelyOwned")
+                    Log.i(TAG, "Playback: client=${currentClient.clientName}, videoId=$videoId, private=$isPrivatelyOwned")
                     break
                 }
 
-                if (validateStatus(streamUrl, currentClient.streamHeaders(), format.contentLength)) {
+                if (validateStatus(streamUrl!!, currentClient.streamHeaders(), format.contentLength)) {
 
                     Timber.tag(logTag).d("Stream validated successfully with client: ${currentClient.clientName}")
                     successClient = currentClient
@@ -683,7 +683,7 @@ object YTPlayerUtils {
                             "bytes=${format.contentLength ?: 0}",
                     )
 
-                    Timber.tag(TAG).i("Playback: client=${currentClient.clientName}, videoId=$videoId")
+                    Log.i(TAG, "Playback: client=${currentClient.clientName}, videoId=$videoId")
                     break
                 } else {
                     Timber.tag(logTag).d("Stream validation failed for client: ${currentClient.clientName}")
@@ -692,7 +692,7 @@ object YTPlayerUtils {
                         var nTransformWorked = false
 
                         try {
-                            val nTransformed = CipherDeobfuscator.transformNParamInUrl(streamUrl)
+                            val nTransformed = CipherDeobfuscator.transformNParamInUrl(streamUrl!!)
                             if (nTransformed != streamUrl) {
                                 Timber.tag(logTag).d("CipherDeobfuscator n-transform applied, re-validating...")
                                 if (validateStatus(nTransformed, currentClient.streamHeaders(), format.contentLength)) {
@@ -700,7 +700,7 @@ object YTPlayerUtils {
                                     streamUrl = nTransformed
                                     nTransformWorked = true
                                     successClient = currentClient
-                                    Timber.tag(TAG).i("Playback: client=${currentClient.clientName}, videoId=$videoId (cipher n-transform)")
+                                    Log.i(TAG, "Playback: client=${currentClient.clientName}, videoId=$videoId (cipher n-transform)")
                                 }
                             }
                         } catch (e: Exception) {
@@ -785,7 +785,7 @@ object YTPlayerUtils {
 
         Timber.tag(logTag).d("Successfully obtained playback data with format: ${format.mimeType}, bitrate: ${format.bitrate}")
         if (isUploadedTrack) {
-            println("[PLAYBACK_DEBUG] SUCCESS: Got playback data for uploaded track - format=${format.mimeType}, streamUrl=${streamUrl.take(100)}...")
+            println("[PLAYBACK_DEBUG] SUCCESS: Got playback data for uploaded track - format=${format.mimeType}, streamUrl=${streamUrl?.take(100)}...")
         }
         PlaybackData(
             audioConfig,
@@ -794,8 +794,8 @@ object YTPlayerUtils {
             format,
             streamUrl,
             streamExpiresInSeconds,
-            streamClient = successClient.clientName,
-            streamHeaders = successClient.streamHeaders().orEmpty(),
+            streamClient = successClient?.clientName ?: "unknown",
+            streamHeaders = successClient?.streamHeaders().orEmpty(),
         )
     }.onFailure { e ->
         Timber.tag(logTag).e(e, "Playback resolution failed")
@@ -813,9 +813,8 @@ object YTPlayerUtils {
         WEB,
     )
 
-    // Keep all supported codec families; try another client if it offers a closer size below
-    // the user's ceiling. Links still have to serve the whole file, as in upstream.
-    suspend fun resolveVideoStreams(videoId: String, preferredShortSide: Int = 1080): Result<VideoStreams> = runCatching {
+    // every size of the video's picture from the first client whose links really serve the whole file
+    suspend fun resolveVideoStreams(videoId: String): Result<VideoStreams> = runCatching {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             // without a visitorData the first client says UNPLAYABLE and the ones after it stop the video a few seconds in
             if (YouTube.cookie == null && YouTube.visitorData.isNullOrEmpty()) {
@@ -823,29 +822,22 @@ object YTPlayerUtils {
                     .onFailure { Timber.tag(logTag).w(it, "resolveVideoStreams: no visitorData: ${it.message}") }
             }
             val signatureTimestamp: SignatureTimestampResult by lazy { getSignatureTimestampOrNull(videoId) }
-            val decoder = AndroidVideoDecoderProbe()
-            var best: VideoStreams? = null
-            var bestSide = -1
+
             for (client in VIDEO_BACKGROUND_CLIENTS) {
-                kotlinx.coroutines.currentCoroutineContext().ensureActive()
                 val streams = try {
-                    videoStreamsFrom(client, videoId, decoder, preferredShortSide) { signatureTimestamp.timestamp }
+                    videoStreamsFrom(client, videoId) { signatureTimestamp.timestamp }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     Timber.tag(logTag).d("resolveVideoStreams: client ${client.clientName} threw: ${e.message}")
                     null
-                } ?: continue
-                val side = streams.tracks.asSequence().map { it.shortSide }
-                    .filter { it <= preferredShortSide }.maxOrNull() ?: 0
-                if (side > bestSide) {
-                    best = streams
-                    bestSide = side
                 }
-                Timber.tag(logTag).d("resolveVideoStreams: ${streams.tracks.size} tracks via ${client.clientName}, best ${side}p")
-                if (side >= preferredShortSide) break
+                if (streams != null) {
+                    Timber.tag(logTag).d("resolveVideoStreams: ${streams.tracks.size} sizes via ${client.clientName}")
+                    return@withContext streams
+                }
             }
-            best ?: throw Exception("Could not resolve a playable video stream for videoId=$videoId after trying ${VIDEO_BACKGROUND_CLIENTS.size} clients")
+            throw Exception("Could not resolve a playable video stream for videoId=$videoId after trying ${VIDEO_BACKGROUND_CLIENTS.size} clients")
         }
     }
 
@@ -853,8 +845,6 @@ object YTPlayerUtils {
     private suspend fun videoStreamsFrom(
         client: YouTubeClient,
         videoId: String,
-        decoder: AndroidVideoDecoderProbe,
-        preferredShortSide: Int,
         signatureTimestamp: () -> Int?,
     ): VideoStreams? {
         val timestamp = if (client.useSignatureTimestamp) signatureTimestamp() else null
@@ -864,50 +854,28 @@ object YTPlayerUtils {
             return null
         }
         val streaming = response.streamingData ?: return null
-        val tracks = mutableListOf<VideoTrack>()
-        // A later quality choice performs a new, ceiling-keyed lookup. Avoid resolving larger
-        // formats now, which would waste decoder queries and signed-URL work on ordinary 720p.
-        val underCap = streaming.adaptiveFormats.filter { format ->
-            minOf(format.width ?: 0, format.height ?: 0) <= preferredShortSide
-        }
-        for (group in videoFormatCandidateGroups(underCap, decoder::supports)) {
-            // One usable stream per codec and size; if its URL cannot be resolved, try the
-            // other variants instead of dropping that size or the whole client.
-            for (format in group) {
-                kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                var url = try {
-                    findUrlOrNull(format, videoId, response, skipNewPipe = false)
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    null
-                } ?: continue
-                if (client.useWebPoTokens) {
-                    url = try {
-                        EjsNTransformSolver.transformNParamInUrl(url)
-                    } catch (e: kotlinx.coroutines.CancellationException) {
-                        throw e
-                    } catch (_: Exception) {
-                        url
-                    }
-                }
-                tracks += VideoTrack(
-                    itag = format.itag,
-                    url = url,
-                    mimeType = format.containerType(),
-                    codecs = format.codecs(),
-                    width = format.width ?: 0,
-                    height = format.height ?: 0,
-                    fps = format.fps ?: 30,
-                    bitrate = format.bitrate,
-                    initRange = format.initRange?.toLongRange(),
-                    indexRange = format.indexRange?.toLongRange(),
-                    contentLength = format.contentLength,
-                )
-                break
+        suspend fun trackOf(format: PlayerResponse.StreamingData.Format): VideoTrack? {
+            var url = runCatching { findUrlOrNull(format, videoId, response, skipNewPipe = false) }.getOrNull()
+                ?: return null
+            if (client.useWebPoTokens) {
+                url = runCatching { EjsNTransformSolver.transformNParamInUrl(url) }.getOrDefault(url)
             }
+            return VideoTrack(
+                itag = format.itag,
+                url = url,
+                mimeType = format.containerType(),
+                codecs = format.codecs(),
+                width = format.width ?: 0,
+                height = format.height ?: 0,
+                fps = format.fps ?: 30,
+                bitrate = format.bitrate,
+                initRange = format.initRange?.toLongRange(),
+                indexRange = format.indexRange?.toLongRange(),
+                contentLength = format.contentLength,
+                lines = format.lines(),
+            )
         }
-        tracks.sortBy { it.shortSide }
+        val tracks = pickVideoFamily(streaming.adaptiveFormats).mapNotNull { trackOf(it) }
         if (tracks.isEmpty()) {
             Timber.tag(logTag).d("resolveVideoStreams: client ${client.clientName} had no video format")
             return null
@@ -922,12 +890,14 @@ object YTPlayerUtils {
         val durationMs = streaming.adaptiveFormats.firstNotNullOfOrNull { it.approxDurationMs?.toLongOrNull() }
             ?: response.videoDetails?.lengthSeconds?.toLongOrNull()?.times(1000L)
             ?: 0L
+        val sharpTracks = pickSharpFamily(streaming.adaptiveFormats, tracks.last().lines).mapNotNull { trackOf(it) }
         return VideoStreams(
             videoId = videoId,
             tracks = tracks,
             headers = headers,
             expiresAtMs = System.currentTimeMillis() + streaming.expiresInSeconds * 1000L,
             durationMs = durationMs,
+            sharpTracks = sharpTracks,
         )
     }
 
@@ -1056,11 +1026,9 @@ object YTPlayerUtils {
         }
 
         Timber.tag(logTag).d(
-            "Format candidates (%s): %s",
-            effectiveQuality,
-            candidates.take(8).joinToString {
+            "Format candidates ($effectiveQuality): " + candidates.take(8).joinToString {
                 "${it.mimeType}@${it.bitrate}${if (it.url.isNullOrEmpty()) " (cipher)" else ""}"
-            },
+            }
         )
 
         return candidates
@@ -1148,7 +1116,7 @@ object YTPlayerUtils {
                     error.cause?.message?.contains("age-restricted", ignoreCase = true) == true
                 if (isAgeRestricted) {
                     Timber.tag(logTag).d("Age-restricted content detected from NewPipe")
-                    Timber.tag(TAG).i("Age-restricted detected early via NewPipe: videoId=$videoId")
+                    Log.i(TAG, "Age-restricted detected early via NewPipe: videoId=$videoId")
                 } else {
                     Timber.tag(logTag).e(error, "Failed to get signature timestamp")
                     reportException(error)

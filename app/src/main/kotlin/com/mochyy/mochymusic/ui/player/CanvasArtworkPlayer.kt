@@ -6,10 +6,10 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.core.graphics.createBitmap
 import com.mochyy.mochymusic.ui.utils.rememberSettled
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -37,7 +37,10 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.AspectRatioFrameLayout
+import com.mochyy.mochymusic.constants.CanvasBestQualityKey
 import com.mochyy.mochymusic.utils.followAppProxy
+import com.mochyy.mochymusic.utils.rememberDataSaverActive
+import com.mochyy.mochymusic.utils.rememberPreference
 import com.music.innertube.models.YouTubeClient
 import okhttp3.OkHttpClient
 import java.util.Locale
@@ -71,6 +74,54 @@ private const val CanvasSettleMs = 700L
 private const val CanvasSamplePx = 32
 private const val CanvasSampleMs = 1_500L
 
+// one shared client for every animated cover so song changes don't pile up connection pools
+private val CanvasHttpClient: OkHttpClient by lazy {
+    OkHttpClient
+        .Builder()
+        .followAppProxy()
+        .addInterceptor { chain ->
+            val request = chain.request()
+            val host = request.url.host
+            val isYouTubeMediaHost =
+                host.endsWith("googlevideo.com") ||
+                    host.endsWith("googleusercontent.com") ||
+                    host.endsWith("youtube.com") ||
+                    host.endsWith("youtube-nocookie.com") ||
+                    host.endsWith("ytimg.com")
+
+            if (!isYouTubeMediaHost) return@addInterceptor chain.proceed(request)
+
+            val clientParam = request.url.queryParameter("c")?.trim().orEmpty()
+            val isWeb =
+                clientParam.startsWith("WEB", ignoreCase = true) ||
+                    clientParam.startsWith("WEB_REMIX", ignoreCase = true) ||
+                    request.url.toString().contains("c=WEB", ignoreCase = true)
+
+            val userAgent =
+                when {
+                    clientParam.startsWith("WEB", ignoreCase = true) ||
+                        clientParam.startsWith("WEB_REMIX", ignoreCase = true) -> YouTubeClient.USER_AGENT_WEB
+
+                    clientParam.startsWith("IOS", ignoreCase = true) -> YouTubeClient.IOS.userAgent
+
+                    clientParam.startsWith("ANDROID_VR", ignoreCase = true) -> YouTubeClient.ANDROID_VR_NO_AUTH.userAgent
+
+                    clientParam.startsWith("ANDROID", ignoreCase = true) -> YouTubeClient.MOBILE.userAgent
+
+                    else -> YouTubeClient.USER_AGENT_WEB
+                }
+
+            val builder = request.newBuilder().header("User-Agent", userAgent)
+            if (isWeb) {
+                builder.header("Origin", YouTubeClient.ORIGIN_YOUTUBE_MUSIC)
+                builder.header("Referer", YouTubeClient.REFERER_YOUTUBE_MUSIC)
+            }
+
+            chain.proceed(builder.build())
+        }
+        .build()
+}
+
 @Composable
 fun CanvasArtworkPlayer(
     primaryUrl: String?,
@@ -82,6 +133,8 @@ fun CanvasArtworkPlayer(
     onReadyChange: ((Boolean) -> Unit)? = null,
     // the flagship's moving backdrop, fed four tones from a tiny copy of the playing frame
     onFrameColors: ((List<androidx.compose.ui.graphics.Color>) -> Unit)? = null,
+    // told the short side of the picture playing, and 0 once it's gone, so the player's menu can say what it shows
+    onPlayingSize: ((Int) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val primary = primaryUrl?.takeIf { it.isNotBlank() }
@@ -90,60 +143,24 @@ fun CanvasArtworkPlayer(
     val initial = rememberSettled(primary ?: fallback ?: return, CanvasSettleMs) ?: return
     var currentUrl by remember(initial) { mutableStateOf(initial) }
     var isVideoReady by remember(initial) { mutableStateOf(false) }
+    var playingSide by remember(initial) { mutableIntStateOf(0) }
     val currentOnReadyChange by rememberUpdatedState(onReadyChange)
+    val currentOnPlayingSize by rememberUpdatedState(onPlayingSize)
+    // data saver keeps covers on the light version even with the sharpest one picked
+    val bestQuality = rememberPreference(CanvasBestQualityKey, defaultValue = true).value && !rememberDataSaverActive()
     // nothing to show with the app in the background, and a looping canvas kept decoding there for nobody
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val shouldPlay = isPlaying && lifecycle.isAtLeast(Lifecycle.State.STARTED)
     LaunchedEffect(isVideoReady) { currentOnReadyChange?.invoke(isVideoReady) }
-    DisposableEffect(Unit) { onDispose { currentOnReadyChange?.invoke(false) } }
-
-    val okHttpClient =
-        remember {
-            OkHttpClient
-                .Builder()
-                .followAppProxy()
-                .addInterceptor { chain ->
-                    val request = chain.request()
-                    val host = request.url.host
-                    val isYouTubeMediaHost =
-                        host.endsWith("googlevideo.com") ||
-                            host.endsWith("googleusercontent.com") ||
-                            host.endsWith("youtube.com") ||
-                            host.endsWith("youtube-nocookie.com") ||
-                            host.endsWith("ytimg.com")
-
-                    if (!isYouTubeMediaHost) return@addInterceptor chain.proceed(request)
-
-                    val clientParam = request.url.queryParameter("c")?.trim().orEmpty()
-                    val isWeb =
-                        clientParam.startsWith("WEB", ignoreCase = true) ||
-                            clientParam.startsWith("WEB_REMIX", ignoreCase = true) ||
-                            request.url.toString().contains("c=WEB", ignoreCase = true)
-
-                    val userAgent =
-                        when {
-                            clientParam.startsWith("WEB", ignoreCase = true) ||
-                                clientParam.startsWith("WEB_REMIX", ignoreCase = true) -> YouTubeClient.USER_AGENT_WEB
-
-                            clientParam.startsWith("IOS", ignoreCase = true) -> YouTubeClient.IOS.userAgent
-
-                            clientParam.startsWith("ANDROID_VR", ignoreCase = true) -> YouTubeClient.ANDROID_VR_NO_AUTH.userAgent
-
-                            clientParam.startsWith("ANDROID", ignoreCase = true) -> YouTubeClient.MOBILE.userAgent
-
-                            else -> YouTubeClient.USER_AGENT_WEB
-                        }
-
-                    val builder = request.newBuilder().header("User-Agent", userAgent)
-                    if (isWeb) {
-                        builder.header("Origin", YouTubeClient.ORIGIN_YOUTUBE_MUSIC)
-                        builder.header("Referer", YouTubeClient.REFERER_YOUTUBE_MUSIC)
-                    }
-
-                    chain.proceed(builder.build())
-                }
-                .build()
+    LaunchedEffect(isVideoReady, playingSide) { currentOnPlayingSize?.invoke(if (isVideoReady) playingSide else 0) }
+    DisposableEffect(Unit) {
+        onDispose {
+            currentOnReadyChange?.invoke(false)
+            currentOnPlayingSize?.invoke(0)
         }
+    }
+
+    val okHttpClient = CanvasHttpClient
     val mediaSourceFactory =
         remember(okHttpClient) {
             val upstreamFactory = DefaultDataSource.Factory(
@@ -176,12 +193,13 @@ fun CanvasArtworkPlayer(
     // the texture outlives a session, so a new url's player draws into the same view
     val texture = remember { CanvasTexture() }
     val session = remember(initial) {
-        CanvasVideoSession(context, mediaSourceFactory, shouldPlay).also { texture.session = it }
+        CanvasVideoSession(context, mediaSourceFactory, shouldPlay, bestQuality).also { texture.session = it }
     }
 
     LaunchedEffect(shouldPlay) {
         session.setPlaying(shouldPlay)
     }
+    LaunchedEffect(session, bestQuality) { session.setBestQuality(bestQuality) }
 
     DisposableEffect(session, primary, fallback) {
         val listener =
@@ -207,6 +225,7 @@ fun CanvasArtworkPlayer(
                         // callbacks land on the canvas thread, but the view only takes changes on the main one
                         aspectRatioFrameLayout.post {
                             aspectRatioFrameLayout.setAspectRatio(videoSize.width.toFloat() / videoSize.height)
+                            playingSide = minOf(videoSize.width, videoSize.height)
                         }
                     }
                 }
@@ -245,16 +264,17 @@ fun CanvasArtworkPlayer(
     val sampling = onFrameColors != null
     LaunchedEffect(isVideoReady, sampling, shouldPlay) {
         if (!isVideoReady || !sampling) return@LaunchedEffect
-        val sample = createBitmap(CanvasSamplePx, CanvasSamplePx, android.graphics.Bitmap.Config.ARGB_8888)
+        val sampler = com.mochyy.mochymusic.ui.player.video.VideoFrameSampler(CanvasSamplePx)
         val pixels = IntArray(CanvasSamplePx * CanvasSamplePx)
         // a paused canvas never changes, so it's read once and left alone
         do {
             val view = aspectRatioFrameLayout.getChildAt(0) as? TextureView
-            if (view != null && view.isAvailable && runCatching { view.getBitmap(sample) }.isSuccess) {
-                sample.getPixels(pixels, 0, CanvasSamplePx, 0, 0, CanvasSamplePx, CanvasSamplePx)
-                currentOnFrameColors?.invoke(
+            if (sampler.read(session.frameSurface, view)) {
+                val tones = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    sampler.bitmap.getPixels(pixels, 0, CanvasSamplePx, 0, 0, CanvasSamplePx, CanvasSamplePx)
                     com.mochyy.mochymusic.ui.player.flagship.ambientTones(pixels, CanvasSamplePx, CanvasSamplePx)
-                )
+                }
+                currentOnFrameColors?.invoke(tones)
             }
             kotlinx.coroutines.delay(CanvasSampleMs)
         } while (shouldPlay)
@@ -307,10 +327,15 @@ internal class CanvasVideoSession(
     context: Context,
     mediaSourceFactory: MediaSource.Factory,
     playing: Boolean,
+    // the sharpest version the phone's decoder can take, instead of a small one that starts fast
+    private var bestQuality: Boolean = false,
 ) {
     private val handler = CanvasVideoThread.handler
     private var player: ExoPlayer? = null
-    private var surface: Surface? = null
+    @Volatile private var surface: Surface? = null
+
+    // what the decoder draws into, for reading its colours off the main thread
+    val frameSurface: Surface? get() = surface
 
     init {
         handler.post {
@@ -319,12 +344,7 @@ internal class CanvasVideoSession(
                 .setMediaSourceFactory(mediaSourceFactory)
                 .build()
                 .apply {
-                    trackSelectionParameters = trackSelectionParameters
-                        .buildUpon()
-                        .setMaxVideoSize(1280, 1280)
-                        .setMaxVideoBitrate(2_500_000)
-                        .setForceHighestSupportedBitrate(false)
-                        .build()
+                    applyQuality(bestQuality)
                     setAudioAttributes(
                         AudioAttributes
                             .Builder()
@@ -344,6 +364,31 @@ internal class CanvasVideoSession(
 
     fun setPlaying(playing: Boolean) = handler.post {
         player?.let { if (it.playWhenReady != playing) it.playWhenReady = playing }
+    }
+
+    // a change switches the picture where it plays, no reload
+    fun setBestQuality(best: Boolean) = handler.post {
+        if (best == bestQuality) return@post
+        bestQuality = best
+        player?.applyQuality(best)
+    }
+
+    // apple sends sizes up to 4k, and exoplayer drops anything bigger than the screen unless told not to
+    private fun ExoPlayer.applyQuality(best: Boolean) {
+        trackSelectionParameters = trackSelectionParameters.buildUpon().apply {
+            if (best) {
+                clearVideoSizeConstraints()
+                setMaxVideoBitrate(Int.MAX_VALUE)
+                clearViewportSizeConstraints()
+                // the biggest picture the decoder can play, at the best bitrate for that size; a size it can't play is skipped
+                setForceHighestSupportedBitrate(true)
+            } else {
+                setMaxVideoSize(1280, 1280)
+                setMaxVideoBitrate(2_500_000)
+                setViewportSizeToPhysicalDisplaySize(true)
+                setForceHighestSupportedBitrate(false)
+            }
+        }.build()
     }
 
     fun addListener(listener: Player.Listener) = handler.post { player?.addListener(listener) }

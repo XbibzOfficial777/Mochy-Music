@@ -49,8 +49,8 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,7 +90,6 @@ import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.mochyy.mochymusic.LocalDatabase
-import com.mochyy.mochymusic.LocalDownloadUtil
 import com.mochyy.mochymusic.LocalPlayerAwareWindowInsets
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.R
@@ -122,7 +121,7 @@ import com.mochyy.mochymusic.ui.component.librarySwipeAction
 import com.mochyy.mochymusic.ui.component.queueSwipeAction
 import com.mochyy.mochymusic.ui.component.removeFromPlaylistSwipeAction
 import com.mochyy.mochymusic.ui.component.detail.CreatorUi
-import com.mochyy.mochymusic.ui.component.detail.featuredArtistsOf
+import com.mochyy.mochymusic.ui.component.detail.rememberFeaturedArtists
 import com.mochyy.mochymusic.ui.component.detail.FeaturedArtistsRow
 import com.mochyy.mochymusic.ui.component.detail.PlaylistDetailScaffold
 import com.mochyy.mochymusic.ui.component.detail.PlaylistEndOfLine
@@ -154,6 +153,8 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.time.LocalDateTime
 
+private val YouTubeChannelRegex = Regex("music\\.youtube\\.com/channel/([A-Za-z0-9_-]+)")
+
 @SuppressLint("RememberReturnType")
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -173,6 +174,7 @@ fun LocalPlaylistScreen(
     val queueTitle by playerConnection.queueTitle.collectAsState()
 
     val playlist by viewModel.playlist.collectAsState()
+    val imported by viewModel.imported.collectAsState()
     val songs by viewModel.playlistSongs.collectAsState()
     val mutableSongs = remember { mutableStateListOf<com.mochyy.mochymusic.db.entities.PlaylistSong>() }
     val playlistLength = remember(songs) { songs.fastSumBy { it.song.song.duration } }
@@ -218,8 +220,7 @@ fun LocalPlaylistScreen(
         selection.clear()
     }
 
-    val downloadUtil = LocalDownloadUtil.current
-    var downloadState by remember { mutableIntStateOf(Download.STATE_STOPPED) }
+    val downloadState = rememberSongsDownloadState(remember(songs) { songs.map { it.song.id } })
 
     val editable: Boolean = playlist?.playlist?.isEditable == true
     // unlocking from the menu turns the rows into drag handles; the bar's tick locks them again
@@ -248,22 +249,6 @@ fun LocalPlaylistScreen(
         mutableSongs.apply {
             clear()
             addAll(songs)
-        }
-        if (songs.isEmpty()) return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
-            downloadState =
-                if (songs.all { downloads[it.song.id]?.state == Download.STATE_COMPLETED }) {
-                    Download.STATE_COMPLETED
-                } else if (songs.all {
-                        downloads[it.song.id]?.state == Download.STATE_QUEUED ||
-                                downloads[it.song.id]?.state == Download.STATE_DOWNLOADING ||
-                                downloads[it.song.id]?.state == Download.STATE_COMPLETED
-                    }
-                ) {
-                    Download.STATE_DOWNLOADING
-                } else {
-                    Download.STATE_STOPPED
-                }
         }
     }
 
@@ -391,10 +376,25 @@ fun LocalPlaylistScreen(
         playlist?.thumbnails?.firstOrNull()
             ?: songs.firstOrNull { !it.song.song.thumbnailUrl.isNullOrEmpty() }?.song?.song?.thumbnailUrl
     }
-    val featuredArtists = remember(songs) {
-        featuredArtistsOf(songs.flatMap { it.song.artists }, id = { it.id }, name = { it.name })
-    }
+    val featuredArtists = rememberFeaturedArtists(songs, { songs.flatMap { it.song.artists } }, id = { it.id }, name = { it.name })
     val creatorAvatar = profilePicUri.takeIf { it.isNotBlank() }?.let { if (it.contains("://")) it else "file://$it" }
+    val uriHandler = LocalUriHandler.current
+    // a playlist imported from a service credits whoever made it there, the rest are the user's own
+    val creators = remember(imported, accountName, creatorAvatar) {
+        val author = imported?.authorName
+        when {
+            author != null -> listOf(CreatorUi(name = author, avatarUrl = imported?.authorAvatarUrl))
+            accountName.isNotBlank() -> listOf(CreatorUi(name = accountName, avatarUrl = creatorAvatar))
+            else -> emptyList()
+        }
+    }
+    val onCreatorClick: ((CreatorUi) -> Unit)? = imported?.authorUrl?.let { url ->
+        { _: CreatorUi ->
+            // a youtube channel opens in the app, anything else on its own site
+            val channel = YouTubeChannelRegex.find(url)?.groupValues?.get(1)
+            if (channel != null) navController.navigate("artist/$channel") else runCatching { uriHandler.openUri(url) }
+        }
+    }
 
     fun play(items: List<com.mochyy.mochymusic.db.entities.PlaylistSong>, startIndex: Int = 0) {
         val current = playlist ?: return
@@ -586,7 +586,8 @@ fun LocalPlaylistScreen(
                 PlaylistHeader(
                     onSearchClick = { isSearching = true },
                     title = currentPlaylist.playlist.name,
-                    creators = if (accountName.isNotBlank()) listOf(CreatorUi(name = accountName, avatarUrl = creatorAvatar)) else emptyList(),
+                    creators = creators,
+                    onCreatorClick = onCreatorClick,
                     stats = playlistStats(
                         LocalResources.current.getQuantityString(R.plurals.n_song, songs.size, songs.size),
                         playlistLength,
@@ -647,7 +648,11 @@ fun LocalPlaylistScreen(
                     deleteFromPlaylist()
                     val browseId = playlist?.playlist?.browseId
                     com.mochyy.mochymusic.ui.component.TopToaster.show(
-                        text = "Removed ${removed.song.song.title} from ${playlist?.playlist?.name ?: "playlist"}",
+                        text = context.getString(
+                            R.string.playlist_removed_song_from,
+                            removed.song.song.title,
+                            playlist?.playlist?.name ?: context.getString(R.string.playlist_fallback_name),
+                        ),
                         thumbnail = removed.song.song.thumbnailUrl,
                         iconRes = R.drawable.playlist_add,
                         actionLabel = resources.getString(R.string.undo),
@@ -723,7 +728,7 @@ fun LocalPlaylistScreen(
                                     ) {
                                         Icon(
                                             painter = painterResource(R.drawable.drag_handle),
-                                            contentDescription = "Drag to move",
+                                            contentDescription = stringResource(R.string.playlist_drag_to_move),
                                             tint = Color.White.copy(alpha = 0.78f),
                                         )
                                     }
@@ -821,7 +826,7 @@ fun LocalPlaylistScreen(
                             .fillMaxWidth()
                             .padding(top = 28.dp)
                     ) {
-                        PlaylistSectionTitle(title = "Related Playlists")
+                        PlaylistSectionTitle(title = stringResource(R.string.playlist_related))
                         Spacer(Modifier.height(9.dp))
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 36.dp),
@@ -896,7 +901,7 @@ fun LocalPlaylistScreen(
     if (showSortDialog) {
         AlertDialog(
             onDismissRequest = { showSortDialog = false },
-            title = { Text("Sort order") },
+            title = { Text(stringResource(R.string.playlist_sort_order)) },
             text = {
                 Column {
                     PlaylistSongSortType.entries.forEach { type ->
@@ -920,7 +925,9 @@ fun LocalPlaylistScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = stringResource(playlistSortLabel(type)) +
-                                    if (sortType == type) (if (sortDescending) " (Desc)" else " (Asc)") else "",
+                                    if (sortType == type) (if (sortDescending) stringResource(
+                                                        R.string.playlist_sort_desc,
+                                                    ) else stringResource(R.string.playlist_sort_asc)) else "",
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }

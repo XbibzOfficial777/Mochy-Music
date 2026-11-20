@@ -66,6 +66,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -431,7 +432,7 @@ fun SearchAvatar(
         if (model != null) {
             AsyncImage(
                 model = model,
-                contentDescription = "Profile",
+                contentDescription = stringResource(R.string.profile_label),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
@@ -830,11 +831,11 @@ fun SearchOverflowDots(onClick: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun SearchRule(modifier: Modifier = Modifier) {
+fun SearchRule(modifier: Modifier = Modifier, horizontalPadding: Dp = SearchHorizontalPadding) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = SearchHorizontalPadding)
+            .padding(horizontal = horizontalPadding)
             .height(1.dp)
             .background(SearchColors.Divider)
     )

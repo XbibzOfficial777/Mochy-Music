@@ -15,10 +15,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -39,6 +41,7 @@ import com.mochyy.mochymusic.ui.component.SettingsItem
 import com.mochyy.mochymusic.ui.component.SubSettingsScaffold
 import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.viewmodels.ImportSyncViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun YouTubeSyncScreen(
@@ -58,135 +61,157 @@ fun YouTubeSyncScreen(
     var confirmSignOut by remember { mutableStateOf(false) }
     var confirmUpload by remember { mutableStateOf(false) }
     var confirmUndo by remember { mutableStateOf(false) }
+    // how many lost likes the dialog offers to bring back, null while it's closed
+    var lostLikes by remember { mutableStateOf<Int?>(null) }
+    val scope = rememberCoroutineScope()
 
     SubSettingsScaffold(
-        title = "Sync",
+        title = stringResource(R.string.import_sync_sync_title),
         onBack = { navController.navigateUp() },
     ) {
         SettingsGroup(
-            title = "YouTube account",
+            title = stringResource(R.string.yt_sync_account_header),
             style = SettingsGroupStyle.Grouped,
-            items = listOf(
-                if (signedIn) {
+            items =
+                listOf(
+                    if (signedIn) {
+                        SettingsItem(
+                            title = { Text(accountName.ifBlank { stringResource(R.string.yt_sync_signed_in) }) },
+                            descriptionText = accountEmail.ifBlank { "YouTube Music" },
+                            icon = painterResource(R.drawable.account),
+                            iconShape = CircleShape,
+                            trailingContent = {
+                                TextButton(onClick = { confirmSignOut = true }) { Text(stringResource(R.string.yt_sync_sign_out)) }
+                            },
+                        )
+                    } else {
+                        SettingsItem(
+                            title = { Text(stringResource(R.string.yt_sync_sign_in_title)) },
+                            descriptionText = stringResource(R.string.yt_sync_sign_in_desc),
+                            icon = painterResource(R.drawable.login),
+                            iconShape = CircleShape,
+                            onClick = { navController.navigate(YouTubeLoginRoute) },
+                        )
+                    },
+                ),
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        SettingsGroup(
+            title = stringResource(R.string.yt_sync_keep_in_sync_header),
+            style = SettingsGroupStyle.Grouped,
+            items =
+                listOf(
+                    toggleItem(
+                        title = stringResource(R.string.yt_sync_auto_sync_title),
+                        description = stringResource(R.string.yt_sync_auto_sync_desc),
+                        icon = R.drawable.sync,
+                        checked = autoSync,
+                        enabled = signedIn,
+                        onChange = onAutoSyncChange,
+                    ),
+                    toggleItem(
+                        title = stringResource(R.string.yt_sync_new_playlists_title),
+                        description = stringResource(R.string.yt_sync_new_playlists_desc),
+                        icon = R.drawable.playlist_add,
+                        checked = syncNewPlaylists,
+                        enabled = signedIn,
+                        onChange = onSyncNewPlaylistsChange,
+                    ),
+                    toggleItem(
+                        title = stringResource(R.string.yt_sync_report_plays_title),
+                        description = stringResource(R.string.yt_sync_report_plays_desc),
+                        icon = R.drawable.history,
+                        checked = reportPlays,
+                        enabled = signedIn,
+                        onChange = onReportPlaysChange,
+                    ),
+                    toggleItem(
+                        title = stringResource(R.string.yt_sync_pull_history_title),
+                        description = stringResource(R.string.yt_sync_pull_history_desc),
+                        icon = R.drawable.history,
+                        checked = pullHistory,
+                        enabled = signedIn,
+                        onChange = onPullHistoryChange,
+                    ),
+                ),
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        SettingsGroup(
+            title = stringResource(R.string.yt_sync_other_apps_header),
+            style = SettingsGroupStyle.Grouped,
+            items =
+                listOf(
+                    toggleItem(
+                        title = stringResource(R.string.yt_sync_exclude_title),
+                        description = stringResource(R.string.yt_sync_exclude_desc),
+                        icon = R.drawable.cloud,
+                        checked = excludeImports,
+                        enabled = true,
+                        onChange = onExcludeImportsChange,
+                    ),
+                ),
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        SettingsGroup(
+            title = stringResource(R.string.yt_sync_now_header),
+            style = SettingsGroupStyle.Grouped,
+            items =
+                listOf(
                     SettingsItem(
-                        title = { Text(accountName.ifBlank { "Signed in" }) },
-                        descriptionText = accountEmail.ifBlank { "YouTube Music" },
-                        icon = painterResource(R.drawable.account),
+                        title = { Text(stringResource(R.string.yt_sync_now_title)) },
+                        descriptionText =
+                            if (pullHistory) {
+                                stringResource(
+                                    R.string.yt_sync_now_desc_history,
+                                )
+                            } else {
+                                stringResource(R.string.yt_sync_now_desc_no_history)
+                            },
+                        icon = painterResource(R.drawable.refresh),
                         iconShape = CircleShape,
-                        trailingContent = {
-                            TextButton(onClick = { confirmSignOut = true }) { Text("Sign out") }
-                        },
-                    )
-                } else {
+                        enabled = signedIn && !state.running,
+                        onClick = viewModel::syncNow,
+                    ),
                     SettingsItem(
-                        title = { Text("Sign in to YouTube") },
-                        descriptionText = "Needed for sync. Your login stays on this phone",
-                        icon = painterResource(R.drawable.login),
+                        title = { Text(stringResource(R.string.yt_sync_pull_history_now_title)) },
+                        descriptionText = stringResource(R.string.yt_sync_pull_history_now_desc),
+                        icon = painterResource(R.drawable.history),
                         iconShape = CircleShape,
-                        onClick = { navController.navigate(YouTubeLoginRoute) },
-                    )
-                }
-            ),
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        SettingsGroup(
-            title = "Keep in sync",
-            style = SettingsGroupStyle.Grouped,
-            items = listOf(
-                toggleItem(
-                    title = "Sync library on launch",
-                    description = "Likes, library, artists and saved playlists from YouTube",
-                    icon = R.drawable.sync,
-                    checked = autoSync,
-                    enabled = signedIn,
-                    onChange = onAutoSyncChange,
+                        enabled = signedIn && !state.running,
+                        onClick = viewModel::pullHistoryNow,
+                    ),
+                    SettingsItem(
+                        title = { Text(stringResource(R.string.yt_sync_undo_title)) },
+                        descriptionText = stringResource(R.string.yt_sync_undo_desc),
+                        icon = painterResource(R.drawable.undo),
+                        iconShape = CircleShape,
+                        enabled = signedIn && state.canUndo && !state.running,
+                        onClick = { confirmUndo = true },
+                    ),
+                    SettingsItem(
+                        title = { Text(stringResource(R.string.yt_sync_lost_likes_title)) },
+                        descriptionText = stringResource(R.string.yt_sync_lost_likes_desc),
+                        icon = painterResource(R.drawable.restore),
+                        iconShape = CircleShape,
+                        enabled = !state.running,
+                        onClick = { scope.launch { lostLikes = viewModel.lostLikesCount() } },
+                    ),
+                    SettingsItem(
+                        title = { Text(stringResource(R.string.yt_sync_upload_playlists_title)) },
+                        descriptionText = stringResource(R.string.yt_sync_upload_playlists_desc),
+                        detail = stringResource(R.string.yt_sync_upload_playlists_detail),
+                        icon = painterResource(R.drawable.cloud),
+                        iconShape = CircleShape,
+                        enabled = signedIn && !state.running,
+                        onClick = { confirmUpload = true },
+                    ),
                 ),
-                toggleItem(
-                    title = "New playlists go to YouTube",
-                    description = "Playlists you create here are created on YouTube too",
-                    icon = R.drawable.playlist_add,
-                    checked = syncNewPlaylists,
-                    enabled = signedIn,
-                    onChange = onSyncNewPlaylistsChange,
-                ),
-                toggleItem(
-                    title = "Send plays to YouTube history",
-                    description = "Songs you play here show up in your YouTube history",
-                    icon = R.drawable.history,
-                    checked = reportPlays,
-                    enabled = signedIn,
-                    onChange = onReportPlaysChange,
-                ),
-                toggleItem(
-                    title = "Copy YouTube history here",
-                    description = "Plays from your other devices join Mochy's history on each sync",
-                    icon = R.drawable.history,
-                    checked = pullHistory,
-                    enabled = signedIn,
-                    onChange = onPullHistoryChange,
-                ),
-            ),
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        SettingsGroup(
-            title = "Other apps",
-            style = SettingsGroupStyle.Grouped,
-            items = listOf(
-                toggleItem(
-                    title = stringResource(R.string.yt_sync_exclude_title),
-                    description = stringResource(R.string.yt_sync_exclude_desc),
-                    icon = R.drawable.cloud,
-                    checked = excludeImports,
-                    enabled = true,
-                    onChange = onExcludeImportsChange,
-                ),
-            ),
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        SettingsGroup(
-            title = "Now",
-            style = SettingsGroupStyle.Grouped,
-            items = listOf(
-                SettingsItem(
-                    title = { Text("Sync now") },
-                    descriptionText = if (pullHistory) "Library, playlists and history" else "Library and playlists",
-                    icon = painterResource(R.drawable.refresh),
-                    iconShape = CircleShape,
-                    enabled = signedIn && !state.running,
-                    onClick = viewModel::syncNow,
-                ),
-                SettingsItem(
-                    title = { Text("Copy YouTube history now") },
-                    descriptionText = "Only adds plays Mochy doesn't have yet",
-                    icon = painterResource(R.drawable.history),
-                    iconShape = CircleShape,
-                    enabled = signedIn && !state.running,
-                    onClick = viewModel::pullHistoryNow,
-                ),
-                SettingsItem(
-                    title = { Text(stringResource(R.string.yt_sync_undo_title)) },
-                    descriptionText = stringResource(R.string.yt_sync_undo_desc),
-                    icon = painterResource(R.drawable.undo),
-                    iconShape = CircleShape,
-                    enabled = signedIn && state.canUndo && !state.running,
-                    onClick = { confirmUndo = true },
-                ),
-                SettingsItem(
-                    title = { Text("Put local playlists on YouTube") },
-                    descriptionText = "Copy local playlists to YouTube",
-                    detail = "Creates a YouTube copy of every playlist that only exists here",
-                    icon = painterResource(R.drawable.cloud),
-                    iconShape = CircleShape,
-                    enabled = signedIn && !state.running,
-                    onClick = { confirmUpload = true },
-                ),
-            ),
         )
 
         if (state.running || state.message != null) {
@@ -200,7 +225,7 @@ fun YouTubeSyncScreen(
                     }
                 } else {
                     Text(state.message.orEmpty(), style = MaterialTheme.typography.bodyLarge)
-                    TextButton(onClick = viewModel::clearYouTubeMessage) { Text("OK") }
+                    TextButton(onClick = viewModel::clearYouTubeMessage) { Text(stringResource(R.string.import_sync_btn_ok)) }
                 }
             }
         }
@@ -208,7 +233,7 @@ fun YouTubeSyncScreen(
         if (!signedIn) {
             Spacer(Modifier.height(16.dp))
             Text(
-                "Import from a YouTube playlist link doesn't need an account. Use Import → YouTube Music.",
+                stringResource(R.string.yt_sync_no_account_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -219,17 +244,17 @@ fun YouTubeSyncScreen(
         DefaultDialog(
             onDismiss = { confirmSignOut = false },
             horizontalAlignment = Alignment.Start,
-            title = { Text("Sign out of YouTube?") },
+            title = { Text(stringResource(R.string.yt_sync_dialog_sign_out_title)) },
             buttons = {
-                TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") }
+                TextButton(onClick = { confirmSignOut = false }) { Text(stringResource(R.string.yt_sync_cancel)) }
                 TextButton(onClick = {
                     confirmSignOut = false
                     viewModel.signOut()
-                }) { Text("Sign out") }
+                }) { Text(stringResource(R.string.yt_sync_sign_out)) }
             },
         ) {
             Text(
-                "Everything already in your library stays. Sync stops until you sign in again.",
+                stringResource(R.string.yt_sync_dialog_sign_out_body),
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
@@ -241,7 +266,7 @@ fun YouTubeSyncScreen(
             horizontalAlignment = Alignment.Start,
             title = { Text(stringResource(R.string.yt_sync_undo_dialog_title)) },
             buttons = {
-                TextButton(onClick = { confirmUndo = false }) { Text("Cancel") }
+                TextButton(onClick = { confirmUndo = false }) { Text(stringResource(R.string.yt_sync_cancel)) }
                 TextButton(onClick = {
                     confirmUndo = false
                     viewModel.undoLastSync(withYouTube = false)
@@ -268,21 +293,32 @@ fun YouTubeSyncScreen(
         }
     }
 
+    lostLikes?.let { count ->
+        LostLikesDialog(
+            count = count,
+            onDismiss = { lostLikes = null },
+            onConfirm = {
+                lostLikes = null
+                viewModel.bringBackLikes()
+            },
+        )
+    }
+
     if (confirmUpload) {
         DefaultDialog(
             onDismiss = { confirmUpload = false },
             horizontalAlignment = Alignment.Start,
-            title = { Text("Put local playlists on YouTube?") },
+            title = { Text(stringResource(R.string.yt_sync_dialog_upload_title)) },
             buttons = {
-                TextButton(onClick = { confirmUpload = false }) { Text("Cancel") }
+                TextButton(onClick = { confirmUpload = false }) { Text(stringResource(R.string.yt_sync_cancel)) }
                 TextButton(onClick = {
                     confirmUpload = false
                     viewModel.uploadLocalPlaylists()
-                }) { Text("Create") }
+                }) { Text(stringResource(R.string.yt_sync_dialog_upload_create)) }
             },
         ) {
             Text(
-                "Each playlist that only exists in Mochy gets a private copy on your YouTube account. After that, changes go to both.",
+                stringResource(R.string.yt_sync_dialog_upload_body),
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
@@ -307,3 +343,34 @@ private fun toggleItem(
     onClick = { onChange(!checked) },
     trailingContent = { AppSwitch(checked = checked, onCheckedChange = onChange, enabled = enabled) },
 )
+
+@Composable
+private fun LostLikesDialog(
+    count: Int,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    DefaultDialog(
+        onDismiss = onDismiss,
+        horizontalAlignment = Alignment.Start,
+        title = {
+            Text(
+                if (count == 0) stringResource(R.string.yt_sync_lost_likes_none_title)
+                else pluralStringResource(R.plurals.yt_sync_lost_likes_dialog_title, count, count),
+            )
+        },
+        buttons = {
+            if (count == 0) {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.import_sync_btn_ok)) }
+            } else {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.yt_sync_cancel)) }
+                TextButton(onClick = onConfirm) { Text(stringResource(R.string.yt_sync_lost_likes_confirm)) }
+            }
+        },
+    ) {
+        Text(
+            stringResource(if (count == 0) R.string.yt_sync_lost_likes_none_body else R.string.yt_sync_lost_likes_dialog_body),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+}

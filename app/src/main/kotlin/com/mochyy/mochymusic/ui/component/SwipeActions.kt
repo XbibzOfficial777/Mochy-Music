@@ -494,7 +494,8 @@ fun downloadSwipeAction(mediaItem: (() -> MediaItem)?): SwipeAction {
                 .setData(title.toByteArray())
                 .build()
             DownloadService.sendAddDownload(context, ExoDownloadService::class.java, request, false)
-            TopToaster.show(text = "${resources.getString(R.string.downloading)} ${title.ifBlank { "song" }}", thumbnail = thumb, iconRes = R.drawable.download)
+            TopToaster.show(text = "${resources.getString(R.string.downloading)} ${title.ifBlank { resources.getString(R.string.pc_song_fallback) }}", thumbnail = thumb, iconRes = R.drawable.download)
+
         }
     }
 }
@@ -503,6 +504,7 @@ fun downloadSwipeAction(mediaItem: (() -> MediaItem)?): SwipeAction {
 @Composable
 fun playNextSwipeAction(mediaItem: (() -> MediaItem)?): SwipeAction {
     val playerConnection = LocalPlayerConnection.current
+    val context = LocalContext.current
     return SwipeAction(
         icon = SongSwipeAction.PlayNext.icon,
         color = SongSwipeAction.PlayNext.color,
@@ -512,7 +514,7 @@ fun playNextSwipeAction(mediaItem: (() -> MediaItem)?): SwipeAction {
         val target = mediaItem?.invoke() ?: return@SwipeAction
         playerConnection?.playNext(target)
         TopToaster.show(
-            text = "Playing ${target.mediaMetadata.title ?: "song"} next",
+            text = context.getString(R.string.pc_playing_next, target.mediaMetadata.title ?: context.getString(R.string.pc_song_fallback)),
             thumbnail = target.mediaMetadata.artworkUri?.toString(),
             iconRes = R.drawable.playlist_play,
         )

@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -77,7 +78,8 @@ fun UpdatePromptSheet(
     }
 
     var needsPermission by remember { mutableStateOf(false) }
-    val allowUnknownApps = stringResource(R.string.allow_unknown_apps)
+    val installPermissionMessage = stringResource(R.string.supplemental_install_permission)
+    val downloadFailedMessage = stringResource(R.string.download_failed)
 
     val startInstall: (java.io.File) -> Unit = { file ->
         if (installApk(context, file)) {
@@ -85,7 +87,7 @@ fun UpdatePromptSheet(
         } else {
             needsPermission = true
             readyToInstall = true
-            error = allowUnknownApps
+            error = installPermissionMessage
         }
     }
 
@@ -125,8 +127,7 @@ fun UpdatePromptSheet(
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = if (userName.isBlank()) stringResource(R.string.update_available_title)
-                else stringResource(R.string.update_available_named, userName),
+                text = if (userName.isBlank()) stringResource(R.string.update_available_title) else stringResource(R.string.supplemental_update_personal, userName),
                 color = Color.White,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
@@ -144,7 +145,7 @@ fun UpdatePromptSheet(
                     .padding(16.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.what_changed_on, release.version),
+                    text = stringResource(R.string.supplemental_update_changes, release.version),
                     color = Color.White,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
@@ -156,7 +157,7 @@ fun UpdatePromptSheet(
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = stringResource(R.string.to_be_installed),
+                text = stringResource(R.string.supplemental_update_install_target),
                 color = Color(0xFF8A8A8A),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -213,9 +214,11 @@ fun UpdatePromptSheet(
                 enabled = !downloading && release.apkUrl != null,
                 progress = animatedProgress,
                 label = when {
-                    downloading -> stringResource(R.string.downloading_percent, (animatedProgress * 100).toInt())
-                    release.apkUrl == null -> stringResource(R.string.no_apk_in_release)
-                    else -> stringResource(R.string.install_here)
+                    downloading -> stringResource(R.string.supplemental_update_downloading, (animatedProgress * 100).toInt())
+                    release.apkUrl == null -> stringResource(R.string.supplemental_update_no_apk)
+                    needsPermission -> stringResource(R.string.supplemental_install_here)
+                    readyToInstall -> stringResource(R.string.supplemental_install_here)
+                    else -> stringResource(R.string.supplemental_install_here)
                 },
                 dimmed = release.apkUrl == null,
                 onClick = {
@@ -232,7 +235,7 @@ fun UpdatePromptSheet(
                             downloading = false
                             result.fold(
                                 onSuccess = { startInstall(it) },
-                                onFailure = { error = it.message ?: "Download failed" },
+                                onFailure = { error = it.message ?: downloadFailedMessage },
                             )
                         }
                     }
@@ -243,7 +246,7 @@ fun UpdatePromptSheet(
 
             PromptButton(
                 enabled = !downloading,
-                label = "Open the web",
+                label = stringResource(R.string.supplemental_update_open_web),
                 dimmed = downloading,
                 onClick = { context.openReleaseUrl(release.htmlUrl) },
             )
@@ -252,7 +255,7 @@ fun UpdatePromptSheet(
 
             PromptButton(
                 enabled = !downloading,
-                label = "no thanks remind me in 24 hour",
+                label = stringResource(R.string.supplemental_update_snooze),
                 dimmed = downloading,
                 onClick = onSnooze,
             )

@@ -1,6 +1,5 @@
 package com.mochyy.mochymusic.ui.player.video
 
-import android.graphics.Bitmap
 import android.graphics.SurfaceTexture
 import android.os.SystemClock
 import android.view.TextureView
@@ -28,7 +27,6 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.graphics.createBitmap
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
@@ -85,8 +83,7 @@ fun DriveYouTubeVideo(
     autoCap: Int,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
-    val (quality) = rememberEnumPreference(VideoQualityKey, VideoQuality.Q720)
-    val preferredShortSide by rememberUpdatedState(if (quality == VideoQuality.AUTO) autoCap else quality.shortSide)
+    val (quality) = rememberEnumPreference(VideoQualityKey, VideoQuality.AUTO)
     // nothing to show with the app in the background, so the picture stops there too
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val running by rememberUpdatedState(isPlaying && lifecycle.isAtLeast(Lifecycle.State.STARTED))
@@ -107,7 +104,7 @@ fun DriveYouTubeVideo(
     LaunchedEffect(session) {
         snapshotFlow { session.failures }.filter { it in 1..MaxRefreshes }.collectLatest { count ->
             delay(1_000L * count * count)
-            YTPlayerUtils.resolveVideoStreams(session.videoId, preferredShortSide).getOrNull()?.let { streams = it }
+            YTPlayerUtils.resolveVideoStreams(session.videoId).getOrNull()?.let { streams = it }
         }
     }
 
@@ -169,7 +166,7 @@ fun YouTubeVideoSurface(
 
     LaunchedEffect(session) {
         snapshotFlow { session.hasFrame }.first { it }
-        val sample = createBitmap(SampleSize, SampleSize, Bitmap.Config.ARGB_8888)
+        val sampler = VideoFrameSampler(SampleSize)
         val pixels = IntArray(SampleSize * SampleSize)
         val vertical = LetterboxStabilizer()
         val horizontal = LetterboxStabilizer()
@@ -179,18 +176,22 @@ fun YouTubeVideoSurface(
             delay(SampleIntervalMs)
             // a paused frame never changes, so it's read once and then left alone
             if ((read && !playing) || !textureView.isAvailable) continue
-            if (runCatching { textureView.getBitmap(sample) }.isFailure) continue
-            sample.getPixels(pixels, 0, SampleSize, 0, 0, SampleSize, SampleSize)
+            if (!sampler.read(session.frameSurface, textureView)) continue
             read = true
 
-            val reading = VideoLetterbox.analyze(pixels, SampleSize, SampleSize)
+            // analyse the frame off the main thread so scanning 20k pixels every 300ms never stalls a 120hz frame
+            val (reading, edges, tones) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                sampler.bitmap.getPixels(pixels, 0, SampleSize, 0, 0, SampleSize, SampleSize)
+                val r = VideoLetterbox.analyze(pixels, SampleSize, SampleSize)
+                val e = edgeColors(pixels, SampleSize, horizontal.inset, vertical.inset)
+                val t = com.mochyy.mochymusic.ui.player.flagship.ambientTones(pixels, SampleSize, SampleSize, horizontal.inset, vertical.inset)
+                Triple(r, e, t)
+            }
             val now = SystemClock.uptimeMillis()
             if (vertical.offer(reading.vertical, now)) launch { barInsetY.animateTo(vertical.inset, zoomSpec) }
             if (horizontal.offer(reading.horizontal, now)) launch { barInsetX.animateTo(horizontal.inset, zoomSpec) }
-            currentOnAmbient?.invoke(edgeColors(pixels, SampleSize, horizontal.inset, vertical.inset))
-            currentOnFrameColors?.invoke(
-                com.mochyy.mochymusic.ui.player.flagship.ambientTones(pixels, SampleSize, SampleSize, horizontal.inset, vertical.inset)
-            )
+            currentOnAmbient?.invoke(edges)
+            currentOnFrameColors?.invoke(tones)
         }
     }
 

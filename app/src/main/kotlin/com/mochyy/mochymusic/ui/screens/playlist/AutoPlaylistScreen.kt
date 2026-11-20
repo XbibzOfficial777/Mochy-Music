@@ -32,7 +32,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,7 +65,6 @@ import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
-import com.mochyy.mochymusic.LocalDownloadUtil
 import com.mochyy.mochymusic.LocalPlayerAwareWindowInsets
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.R
@@ -93,7 +91,7 @@ import com.mochyy.mochymusic.ui.component.SongSwipeBox
 import com.mochyy.mochymusic.ui.component.librarySwipeAction
 import com.mochyy.mochymusic.ui.component.rememberLikedCoverColors
 import com.mochyy.mochymusic.ui.component.queueSwipeAction
-import com.mochyy.mochymusic.ui.component.detail.featuredArtistsOf
+import com.mochyy.mochymusic.ui.component.detail.rememberFeaturedArtists
 import com.mochyy.mochymusic.ui.component.detail.FeaturedArtistsRow
 import com.mochyy.mochymusic.ui.component.detail.PlaylistDetailScaffold
 import com.mochyy.mochymusic.ui.component.detail.PlaylistEndOfLine
@@ -143,7 +141,7 @@ fun AutoPlaylistScreen(
         "liked" -> stringResource(R.string.liked)
         "uploaded" -> stringResource(R.string.uploaded_playlist)
         "downloaded" -> stringResource(R.string.offline)
-        "local" -> "Local"
+        "local" -> stringResource(R.string.library_tab_local)
         "local_liked" -> "Local liked songs"
         "cached" -> "Cached"
         "cached_liked" -> "Cached liked songs"
@@ -204,8 +202,10 @@ fun AutoPlaylistScreen(
     val (likedSortType, onLikedSortTypeChange) = rememberEnumPreference(LikedSongSortTypeKey, LikedSongSortType.CREATE_DATE)
     val (likedSortDescending, onLikedSortDescendingChange) = rememberPreference(LikedSongSortDescendingKey, true)
 
-    val downloadUtil = LocalDownloadUtil.current
-    var downloadState by remember { mutableIntStateOf(Download.STATE_STOPPED) }
+    // a file imported from the device is already on it, so only the rest say whether this list is downloaded
+    val downloadState = rememberSongsDownloadState(
+        remember(songs) { songs.orEmpty().filterNot { it.song.isLocal }.map { it.song.id } },
+    )
 
     LaunchedEffect(Unit) {
         if (ytmSync) {
@@ -213,28 +213,6 @@ fun AutoPlaylistScreen(
                 if (playlistType == PlaylistType.LIKE) viewModel.syncLikedSongs()
                 if (playlistType == PlaylistType.UPLOADED) viewModel.syncUploadedSongs()
             }
-        }
-    }
-
-    LaunchedEffect(songs) {
-        // a file imported from the device is never a download - it's on the device already - so
-        // only the rest say whether this list is downloaded
-        val current = songs?.filterNot { it.song.isLocal }
-        if (current.isNullOrEmpty()) return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
-            downloadState =
-                if (current.all { downloads[it.song.id]?.state == Download.STATE_COMPLETED }) {
-                    Download.STATE_COMPLETED
-                } else if (current.all {
-                        downloads[it.song.id]?.state == Download.STATE_QUEUED ||
-                                downloads[it.song.id]?.state == Download.STATE_DOWNLOADING ||
-                                downloads[it.song.id]?.state == Download.STATE_COMPLETED
-                    }
-                ) {
-                    Download.STATE_DOWNLOADING
-                } else {
-                    Download.STATE_STOPPED
-                }
         }
     }
 
@@ -295,9 +273,7 @@ fun AutoPlaylistScreen(
         }
     }
 
-    val featuredArtists = remember(songs) {
-        featuredArtistsOf(songs.orEmpty().flatMap { it.artists }, id = { it.id }, name = { it.name })
-    }
+    val featuredArtists = rememberFeaturedArtists(songs, { songs.orEmpty().flatMap { it.artists } }, id = { it.id }, name = { it.name })
 
     val state = rememberLazyListState()
     // each new search shows its matches from the first, not from wherever the last one was scrolled (#128)

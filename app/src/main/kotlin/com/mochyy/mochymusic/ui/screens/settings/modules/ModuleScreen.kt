@@ -109,7 +109,7 @@ fun ModuleScreen(navController: NavController, id: String, viewModel: ModulesVie
                 Spacer(Modifier.height(20.dp))
                 EnableCard(entry) { viewModel.setEnabled(id, it) }
                 Spacer(Modifier.height(10.dp))
-                InfoCard(entry)
+                InfoCard(entry, onRaise = { viewModel.raise(id) })
                 UpdateCard(
                     entry = entry,
                     updating = viewModel.updating.collectAsState().value == id,
@@ -205,7 +205,7 @@ private fun ModuleHeader(entry: ModuleEntry) {
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            info.description, fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
+            builtInModuleDescription(entry), fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
             lineHeight = 20.sp, color = Color.White.copy(alpha = 0.92f),
         )
         Spacer(Modifier.height(8.dp))

@@ -14,6 +14,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -74,7 +75,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import com.mochyy.mochymusic.ui.component.WideBarPillGap
 import com.mochyy.mochymusic.ui.utils.isWideLayout
 import com.mochyy.mochymusic.link.isTelevision
 import com.mochyy.mochymusic.ui.utils.stableStatusBars
@@ -195,6 +195,7 @@ import com.mochyy.mochymusic.playback.MusicService.MusicBinder
 import com.mochyy.mochymusic.playback.PlayerConnection
 import com.mochyy.mochymusic.playback.queues.YouTubeQueue
 import com.mochyy.mochymusic.ui.component.AppNavigationBar
+import com.mochyy.mochymusic.ui.component.navigateToTab
 import com.mochyy.mochymusic.ui.component.onTabTapped
 import com.mochyy.mochymusic.ui.component.LocalBottomSheetPageState
 import com.mochyy.mochymusic.ui.component.LocalMenuState
@@ -398,6 +399,14 @@ class MainActivity : ComponentActivity() {
         playerConnection = null
         // closed for good while the music plays on: the covers decoded for this screen have nothing left to show on
         if (isFinishing) coil3.SingletonImageLoader.get(this).memoryCache?.clear()
+    }
+
+    // home can show the same playlist in two rows, so the card under the finger claims the page's grow animation before the tap lands
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+            com.mochyy.mochymusic.ui.component.claimContainerTransformAt(androidx.compose.ui.geometry.Offset(ev.x, ev.y))
+        }
+        return super.dispatchTouchEvent(ev)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -752,7 +761,16 @@ class MainActivity : ComponentActivity() {
                     navigationItems.map { it.route }.toSet()
                 }
 
-                val shouldShowNavigationBar = remember(currentRoute, navigationItemRoutes) {
+                // "module/page" while one of a module's pages is open, so a look's own bar can keep it as a tab
+                val currentModulePage by remember {
+                    derivedStateOf {
+                        navBackStackEntry?.takeIf { it.destination.route == com.mochyy.mochymusic.ui.screens.settings.modules.ModulePageRoutePattern }
+                            ?.arguments?.let { "${it.getString("id")}/${it.getString("page")}" }
+                    }
+                }
+                val onModuleTab = com.mochyy.mochymusic.ui.component.isModuleBarTab(currentModulePage)
+
+                val shouldShowNavigationBar = onModuleTab || remember(currentRoute, navigationItemRoutes) {
                     currentRoute == null ||
                         navigationItemRoutes.contains(currentRoute) ||
                         currentRoute!!.startsWith("search/") ||
@@ -771,7 +789,7 @@ class MainActivity : ComponentActivity() {
 
                 // a phone on its side or a tablet: the mini player and the tabs share one pill along the bottom
                 val wideBar = if (isWideLayout()) {
-                    com.mochyy.mochymusic.ui.component.rememberWideBar(maxWidth, navigationItems.size)
+                    com.mochyy.mochymusic.ui.component.rememberWideBar(maxWidth, maxHeight, navigationItems.size)
                 } else null
                 val miniPill = when {
                     wideBar == null -> com.mochyy.mochymusic.ui.component.PhoneMiniPill
@@ -779,14 +797,16 @@ class MainActivity : ComponentActivity() {
                     else -> wideBar.miniAloneFrame
                 }
 
+                // the row the tabs take along the bottom: the wide bar's shrinks with a short screen
+                val navRowHeight = wideBar?.rowHeight ?: NavigationBarHeight
                 val navPadding = if (shouldShowNavigationBar) {
-                    if (slimNav && wideBar == null) SlimNavBarHeight else NavigationBarHeight
+                    if (slimNav && wideBar == null) SlimNavBarHeight else navRowHeight
                 } else {
                     0.dp
                 }
 
                 val navigationBarHeight by animateDpAsState(
-                    targetValue = if (shouldShowNavigationBar) NavigationBarHeight else 0.dp,
+                    targetValue = if (shouldShowNavigationBar) navRowHeight else 0.dp,
                     animationSpec = NavigationBarAnimationSpec,
                     label = "navBarHeight",
                 )
@@ -795,7 +815,7 @@ class MainActivity : ComponentActivity() {
                     dismissedBound = 0.dp,
                     collapsedBound = when {
                         // level with the tabs, in the same pill
-                        wideBar != null && shouldShowNavigationBar -> bottomInset + navPadding - WideBarPillGap
+                        wideBar != null && shouldShowNavigationBar -> bottomInset + navPadding - wideBar.pillGap
                         shouldShowNavigationBar -> bottomInset + navPadding + MiniPlayerHeight
                         else -> bottomInset + MiniPlayerHeight
                     },
@@ -807,13 +827,14 @@ class MainActivity : ComponentActivity() {
                 val sharedBarRow = wideBar != null && shouldShowNavigationBar
                 val playerAwareWindowInsets = remember(
                     bottomInset,
+                    navRowHeight,
                     shouldShowNavigationBar,
                     playerBottomSheetState.isDismissed,
                     sharedBarRow,
                 ) {
                     var bottom = bottomInset
                     if (shouldShowNavigationBar) {
-                        bottom += NavigationBarHeight
+                        bottom += navRowHeight
                     }
                     // in the wide bar the mini player shares the tabs' row, so it takes no room of its own
                     if (!playerBottomSheetState.isDismissed && !sharedBarRow) bottom += MiniPlayerHeight
@@ -1045,7 +1066,7 @@ class MainActivity : ComponentActivity() {
                                                         if (profilePicStr.isNotEmpty()) {
                                                             coil3.compose.AsyncImage(
                                                                 model = if (profilePicStr.startsWith("file://")) profilePicStr else "file://$profilePicStr",
-                                                                contentDescription = "Profile",
+                                                                contentDescription = stringResource(R.string.profile_label),
                                                                 modifier = Modifier
                                                                     .size(32.dp)
                                                                     .clip(CircleShape),
@@ -1095,7 +1116,7 @@ class MainActivity : ComponentActivity() {
                                     { navController.requestSearchFocus() }
                                 }
 
-                                val navBarTotalHeight = bottomInset + NavigationBarHeight
+                                val navBarTotalHeight = bottomInset + navRowHeight
 
                                 if (currentRoute != "wrapped" && currentRoute != "update") {
 
@@ -1138,7 +1159,7 @@ class MainActivity : ComponentActivity() {
                                                     } else {
                                                         val progress = playerBottomSheetState.progress.coerceIn(0f, 1f)
                                                         val slideOffset = totalHeightPx * progress
-                                                        val hideOffset = totalHeightPx * (1 - navBarHeightPx / NavigationBarHeight.toPx())
+                                                        val hideOffset = totalHeightPx * (1 - navBarHeightPx / navRowHeight.toPx())
                                                         slideOffset + hideOffset
                                                     }
                                                 }
@@ -1162,7 +1183,7 @@ class MainActivity : ComponentActivity() {
                                                     totalHeightPx
                                                 } else {
                                                     val slideOffset = totalHeightPx * progress
-                                                    val hideOffset = totalHeightPx * (1 - navBarHeightPx / NavigationBarHeight.toPx())
+                                                    val hideOffset = totalHeightPx * (1 - navBarHeightPx / navRowHeight.toPx())
                                                     slideOffset + hideOffset
                                                 }
 
@@ -1219,6 +1240,12 @@ class MainActivity : ComponentActivity() {
                                                 pureBlack = pureBlack,
                                                 slimNav = slimNav,
                                                 onSearchDoubleTap = onSearchDoubleTap,
+                                                currentPage = currentModulePage,
+                                                onOpenRoute = { route ->
+                                                    if (playerBottomSheetState.isExpanded) playerBottomSheetState.collapseSoft()
+                                                    navController.navigateToTab(route)
+                                                },
+                                                obscured = { playerBottomSheetState.progress > 0.001f },
                                                 modifier = barMotion,
                                             )
                                         }
@@ -1273,6 +1300,8 @@ class MainActivity : ComponentActivity() {
                                     CompositionLocalProvider(
                                         LocalSharedTransitionScope provides this,
                                         LocalAppContentObscured provides appContentObscured,
+                                        // a module page standing in for one of mochy's opens things the way the page it replaces would
+                                        com.mochyy.mochymusic.ui.screens.settings.modules.LocalModuleNavController provides navController,
                                     ) {
                                     // the settings list stays at the left of a wide screen while its pages open beside it
                                     val settingsPane = isWideLayout() &&
@@ -1502,9 +1531,9 @@ class MainActivity : ComponentActivity() {
                 controller.show(WindowInsetsCompat.Type.statusBars())
             }
         }
-        // set before the bar ever hides and left alone after, so hiding it never moves the window off the camera strip
+        // set before the bar ever hides and left alone after, so hiding it never moves the window off the camera strip; on its side the app always fills the strip, android left it a black bar
         LaunchedEffect(hideStatusBar, portrait) {
-            window.drawUnderCutout(hideStatusBar && portrait)
+            window.drawUnderCutout(!portrait || hideStatusBar)
         }
         // A bar a swipe brought back while the player stays open (Samsung's swipe-from-
         // bottom gestures) goes away again after a moment, as the transient one does.

@@ -78,5 +78,6 @@ class MusicWidgetReceiver : AppWidgetProvider() {
         const val ACTION_SEEK = "com.mochyy.mochymusic.widget.SEEK"
         const val ACTION_UPDATE_WIDGET = "com.mochyy.mochymusic.widget.UPDATE_WIDGET"
         const val EXTRA_SEEK_PROGRESS = "android.widget.extra.PROGRESS"
+        const val ACTION_REPEAT = "com.mochyy.mochymusic.widget.REPEAT"
     }
 }

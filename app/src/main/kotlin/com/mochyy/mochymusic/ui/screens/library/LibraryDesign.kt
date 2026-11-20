@@ -10,6 +10,7 @@
 
 package com.mochyy.mochymusic.ui.screens.library
 
+import androidx.compose.ui.res.stringResource
 import com.mochyy.mochymusic.ui.component.containerTransformSource
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.animation.core.Animatable
@@ -291,7 +292,7 @@ private fun LibraryCount(count: Int) {
 
 /** Centred placeholder for a screen or section with nothing in it. */
 @Composable
-fun LibraryEmptyState(modifier: Modifier = Modifier, text: String = "Nothing to show here") {
+fun LibraryEmptyState(modifier: Modifier = Modifier, text: String = stringResource(R.string.lib_nothing_to_show)) {
     Box(
         modifier = modifier.fillMaxWidth().padding(vertical = 56.dp, horizontal = SearchHorizontalPadding),
         contentAlignment = Alignment.Center,
@@ -360,7 +361,8 @@ fun LibraryCategoryCard(
 @Composable
 fun LibraryWideCard(
     title: String,
-    count: Int,
+    // null for a card whose title says it all, like All history
+    count: Int?,
     covers: List<String?>,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -397,7 +399,7 @@ fun LibraryWideCard(
                 .padding(start = 14.dp, bottom = 14.dp, end = 110.dp),
         ) {
             LibraryCardLabel(title)
-            LibraryCount(count)
+            if (count != null) LibraryCount(count)
         }
     }
 }
@@ -486,7 +488,7 @@ fun LibraryPlayBar(
         Spacer(modifier = Modifier.width(9.dp))
         com.mochyy.mochymusic.ui.component.detail.CircleAction(
             icon = R.drawable.shuffle,
-            contentDescription = "Shuffle",
+            contentDescription = stringResource(R.string.shuffle),
             onClick = onMore,
             spinOnClick = true,
         )

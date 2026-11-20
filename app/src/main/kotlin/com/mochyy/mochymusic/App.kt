@@ -94,6 +94,8 @@ private class MochiFileTree : Timber.Tree() {
         }
     }
 }
+// one character from each system fallback font titles commonly reach for: japanese, chinese, korean, emoji
+private const val FallbackFontWarmup = "あ漢한😀"
 
 @HiltAndroidApp
 class App : Application(), SingletonImageLoader.Factory {
@@ -212,6 +214,12 @@ class App : Application(), SingletonImageLoader.Factory {
             com.mochyy.mochymusic.ui.launch.LaunchGate.awaitIntro()
             runCatching { com.mochyy.mochymusic.importer.LocalArtwork.repair(this@App, musicDatabase) }
                 .onFailure { Timber.w(it, "Repairing local covers failed") }
+        }
+
+        applicationScope.launch(Dispatchers.Default) {
+            // the first japanese, korean or emoji title loaded its system font inside a scroll frame (6 ms on the avd); here it loads once, off the main thread
+            com.mochyy.mochymusic.ui.launch.LaunchGate.awaitIntro()
+            runCatching { android.graphics.Paint().measureText(FallbackFontWarmup) }
         }
     }
 
@@ -369,14 +377,16 @@ class App : Application(), SingletonImageLoader.Factory {
         }
     }
 
-    // the screen went to the background: covers decoded for it were the most the app held while music played on, so most of them go; the latest stay for coming back
+    // covers are the most the app holds: half go when the phone runs short, most when the screen goes to the background, all once the system starts reclaiming background apps
+    @Suppress("DEPRECATION")
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         com.mochyy.mochymusic.utils.DeviceHealth.onTrimMemory(level)
-        if (level == android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN &&
-            !com.mochyy.mochymusic.utils.DeviceHealth.ramOptimize
-        ) {
-            SingletonImageLoader.get(this).memoryCache?.let { cache -> cache.trimToSize(cache.size / 4) }
+        val cache = SingletonImageLoader.get(this).memoryCache ?: return
+        when {
+            level >= android.content.ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> cache.clear()
+            level >= android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> cache.trimToSize(cache.size / 4)
+            level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> cache.trimToSize(cache.size / 2)
         }
     }
 

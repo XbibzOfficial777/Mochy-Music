@@ -1,5 +1,8 @@
 package com.mochyy.mochymusic.utils
 
+import android.media.MediaCodecInfo
+import android.media.MediaCodecList
+import android.os.Build
 import com.music.innertube.models.response.PlayerResponse
 
 // one youtube video's pictures, each track the same picture at another size, with what the requests have to carry
@@ -10,33 +13,27 @@ data class VideoStreams(
     val headers: Map<String, String>,
     val expiresAtMs: Long,
     val durationMs: Long,
+    // the same picture past what tracks reach (1440p, 4k), which youtube only serves as vp9 or av1; empty when this phone can't decode it in hardware
+    val sharpTracks: List<VideoTrack> = emptyList(),
 ) {
     // a minute early, so a video that is just starting doesn't run into a dead link halfway
     val isExpired: Boolean get() = System.currentTimeMillis() > expiresAtMs - 60_000L
 
-    // Every size offered by a supported decoder, largest first.
-    val sizes: List<Int> get() = tracks.map { it.shortSide }.distinct().sortedDescending()
+    // every size there is by youtube's own names (1080 for 1080p), biggest first
+    val sizes: List<Int> get() = (tracks + sharpTracks).map { it.lines }.distinct().sortedDescending()
 
-    /**
-     * Pick one decoder family for DASH. Prefer the highest supported size under the user's
-     * ceiling, then H.264 for a tie. A 4K VP9/AV1 family can therefore beat 1080p H.264,
-     * while a 720p choice keeps the efficient H.264 track when it is available.
-     */
-    fun tracksFor(shortSide: Int): List<VideoTrack> = tracks
-        .filter { it.shortSide in 1..shortSide }
-        .groupBy { videoFamily(it.codecs, it.mimeType) }
-        .values
-        .sortedWith(compareByDescending<List<VideoTrack>> { family -> family.maxOf { it.shortSide } }
-            .thenBy { family -> videoFamilyRank(family.first().codecs) })
-        .firstOrNull()
-        ?.sortedBy { it.shortSide }
-        .orEmpty()
+    // h264 for anything it has, the sharper family only once a size past it is picked
+    fun tracksFor(lines: Int): List<VideoTrack> =
+        if (sharpTracks.isNotEmpty() && lines > (tracks.lastOrNull()?.lines ?: 0)) sharpTracks else tracks
 
-    // The chosen size is a ceiling, never an instruction to download a bigger track.
-    fun trackFor(shortSide: Int): VideoTrack? = tracksFor(shortSide).lastOrNull()
+    // the largest track named at or under lines, or the smallest when none is
+    fun trackFor(lines: Int): VideoTrack? {
+        val family = tracksFor(lines)
+        return family.lastOrNull { it.lines <= lines } ?: family.firstOrNull()
+    }
 }
 
-// Upstream's DASH builder operates on a selected family rather than the entire stream list.
+// every size can be fetched in small pieces, so the player can switch between them as the connection changes
 val List<VideoTrack>.chunked: Boolean get() = isNotEmpty() && all { it.chunked }
 
 data class VideoTrack(
@@ -51,14 +48,34 @@ data class VideoTrack(
     val initRange: LongRange?,
     val indexRange: LongRange?,
     val contentLength: Long?,
+    // the size youtube names this by (1080 for 1080p), so a wide 1920x800 video still lists as 1080p
+    val lines: Int = videoLines(width, height),
 ) {
-    // what "720p" means for a landscape and a portrait video alike
     val shortSide: Int get() = minOf(width, height)
 
     val chunked: Boolean get() = initRange != null && indexRange != null
 }
 
 private val CodecsPattern = Regex("codecs=\"([^\"]+)\"")
+
+private val LinesPattern = Regex("(\\d+)p")
+
+// the sizes youtube names its videos by
+private val LineSteps = intArrayOf(144, 240, 360, 480, 720, 1080, 1440, 2160, 4320)
+
+// a wide picture is named by its width (1920 wide is 1080p) and a narrow or upright one by its short side, snapped to youtube's steps
+internal fun videoLines(width: Int, height: Int): Int {
+    val shortSide = minOf(width, height)
+    if (shortSide <= 0) return 0
+    val fromLongSide = maxOf(width, height) * 9 / 16
+    val raw = maxOf(shortSide, fromLongSide)
+    return LineSteps.minBy { kotlin.math.abs(it - raw) }
+}
+
+// youtube's own label ("1080p60", "2160p HDR") when it sent one, worked out from the size otherwise
+internal fun PlayerResponse.StreamingData.Format.lines(): Int =
+    qualityLabel?.let { LinesPattern.find(it)?.groupValues?.get(1)?.toIntOrNull() }
+        ?: videoLines(width ?: 0, height ?: 0)
 
 internal fun PlayerResponse.StreamingData.Format.containerType(): String = mimeType.substringBefore(';').trim()
 
@@ -71,45 +88,73 @@ internal fun PlayerResponse.StreamingData.Format.ByteRange.toLongRange(): LongRa
     return if (last >= first) first..last else null
 }
 
-// Families must remain separate in the DASH manifest. Profiles of a family can coexist;
-// MIME is also part of the key so WebM and MP4 are never put in the same adaptation set.
-internal fun videoFamily(codecs: String, container: String): String {
-    val codec = codecs.lowercase()
-    val name = when {
-        codec.startsWith("avc1") || codec.startsWith("avc3") -> "avc"
-        codec.startsWith("vp9") || codec.startsWith("vp09") -> "vp9"
-        codec.startsWith("av01") -> "av1"
-        codec.startsWith("hvc1") || codec.startsWith("hev1") -> "hevc"
-        codec.startsWith("vp8") || codec.startsWith("vp08") -> "vp8"
-        else -> codec.substringBefore('.').ifBlank { "unknown" }
+// h264 has a hardware decoder on every phone, so it wins; vp9 and av1 only stand in for a video that has no h264
+private val CodecFamilies = listOf("avc1", "vp9", "vp09", "av01")
+
+// what youtube serves past 1080p, with the decoder type each one needs; vp9 first, far more phones decode it in hardware than av1
+private val SharpFamilies = listOf(
+    listOf("vp9", "vp09") to "video/x-vnd.on2.vp9",
+    listOf("av01") to "video/av01",
+)
+
+// the picture-only formats of one codec, one per size, smallest first; 30fps beats 60 at the same size, it's half the decoding behind lyrics
+internal fun pickVideoFamily(formats: List<PlayerResponse.StreamingData.Format>): List<PlayerResponse.StreamingData.Format> {
+    val pictures = formats.pictures()
+    for (family in CodecFamilies) {
+        val inFamily = pictures.filter { it.codecs().startsWith(family) }
+        if (inFamily.isEmpty()) continue
+        return inFamily.onePerSize()
     }
-    return "$name:${container.lowercase()}"
+    return emptyList()
 }
 
-internal fun videoFamilyRank(codecs: String): Int = when (videoFamily(codecs, "").substringBefore(':')) {
-    "avc" -> 0
-    "vp9" -> 1
-    "av1" -> 2
-    "hevc" -> 3
-    "vp8" -> 4
-    else -> 5
-}
-
-/**
- * Keep alternate codecs and sizes, not just the first H.264 family. Multiple formats at one
- * size remain candidates so the resolver can try another if a signed URL cannot be obtained.
- * The decoder predicate is injected for deterministic tests and is checked on the real device.
- */
-internal fun videoFormatCandidateGroups(
+// the same picture bigger than [aboveLines], in the first family this phone's hardware can decode at that size; a software decoder can't keep up with 4k
+internal fun pickSharpFamily(
     formats: List<PlayerResponse.StreamingData.Format>,
-    supported: (PlayerResponse.StreamingData.Format) -> Boolean = { true },
-): List<List<PlayerResponse.StreamingData.Format>> = formats.asSequence()
-    .filter { !it.isAudio && (it.width ?: 0) > 0 && (it.height ?: 0) > 0 && it.bitrate > 0 }
-    .filter { !it.url.isNullOrBlank() || !it.signatureCipher.isNullOrBlank() || !it.cipher.isNullOrBlank() }
-    .filter(supported)
-    .distinctBy { it.itag }
-    .groupBy { videoFamily(it.codecs(), it.containerType()) to minOf(it.width!!, it.height!!) }
-    .values
-    .map { sameSize -> sameSize.sortedWith(compareBy<PlayerResponse.StreamingData.Format> { it.fps ?: 30 }.thenByDescending { it.bitrate }) }
-    .sortedWith(compareBy<List<PlayerResponse.StreamingData.Format>> { minOf(it.first().width!!, it.first().height!!) }
-        .thenBy { videoFamilyRank(it.first().codecs()) })
+    aboveLines: Int,
+): List<PlayerResponse.StreamingData.Format> {
+    val pictures = formats.pictures()
+    for ((prefixes, decoderType) in SharpFamilies) {
+        val inFamily = pictures.filter { format -> prefixes.any { format.codecs().startsWith(it) } }
+            .onePerSize()
+            .filter { HardwareDecoders.canPlay(decoderType, it.width!!, it.height!!, it.fps ?: 30) }
+        if (inFamily.any { it.lines() > aboveLines }) return inFamily
+    }
+    return emptyList()
+}
+
+private fun List<PlayerResponse.StreamingData.Format>.pictures() =
+    filter { !it.isAudio && (it.width ?: 0) > 0 && (it.height ?: 0) > 0 && it.bitrate > 0 }
+
+private fun List<PlayerResponse.StreamingData.Format>.onePerSize() =
+    groupBy { it.lines() }
+        .map { (_, sameSize) -> sameSize.minWith(compareBy({ it.fps ?: 30 }, { it.bitrate })) }
+        .sortedBy { it.lines() }
+
+// which picture sizes this phone decodes in hardware, read from the codec list once per type
+private object HardwareDecoders {
+    private val byType = java.util.concurrent.ConcurrentHashMap<String, List<MediaCodecInfo.VideoCapabilities>>()
+
+    fun canPlay(type: String, width: Int, height: Int, fps: Int): Boolean =
+        byType.getOrPut(type) { find(type) }.any { caps ->
+            // some decoders only list landscape sizes, so a portrait video is checked turned on its side too
+            runCatching {
+                caps.areSizeAndRateSupported(width, height, fps.toDouble()) ||
+                    caps.areSizeAndRateSupported(height, width, fps.toDouble())
+            }.getOrDefault(false)
+        }
+
+    private fun find(type: String): List<MediaCodecInfo.VideoCapabilities> =
+        runCatching {
+            MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
+                .filter { info -> !info.isEncoder && info.supportedTypes.any { it.equals(type, ignoreCase = true) } && info.isHardware() }
+                .mapNotNull { runCatching { it.getCapabilitiesForType(type).videoCapabilities }.getOrNull() }
+        }.getOrDefault(emptyList())
+
+    // android 10 says so outright; before that the software decoders are the ones google ships under its own names
+    private fun MediaCodecInfo.isHardware(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) return isHardwareAccelerated
+        val lower = name.lowercase()
+        return !lower.startsWith("omx.google.") && !lower.startsWith("c2.android.") && !lower.contains(".sw.")
+    }
+}

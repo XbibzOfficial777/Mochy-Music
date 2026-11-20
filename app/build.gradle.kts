@@ -28,9 +28,10 @@ extensions.configure<ApplicationExtension> {
         minSdk = 24
         targetSdk = 37
         // New package: installs beside older Bibz (com.mochyy.mochymusic), does not replace .16/.18.
-        versionCode = 96
-        versionName = "8.4.1-xbibz.22"
-        buildConfigField("String", "UPSTREAM_VERSION", "\"8.4.1\"")
+        // .21 and .22 already tagged — this sync is 8.4.2-xbibz.23.
+        versionCode = 97
+        versionName = "8.4.2-xbibz.23"
+        buildConfigField("String", "UPSTREAM_VERSION", "\"8.4.2\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -505,4 +506,7 @@ dependencies {
     implementation(libs.androidx.webkit)
 
     testImplementation(libs.junit)
+    androidTestImplementation(libs.junit)
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }

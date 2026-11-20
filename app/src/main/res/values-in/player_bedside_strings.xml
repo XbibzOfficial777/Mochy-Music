@@ -1,11 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- the bedside player style: a big clock for the nightstand -->
     <string name="bedside_close">Tutup pemutar</string>
     <string name="bedside_unlock_to_close">Buka kunci untuk menutup pemutar</string>
     <string name="bedside_more">Lainnya</string>
-
-    <!-- the bedside's sheet in the player editor -->
     <string name="bedside_sheet_title">Jam samping tempat tidur</string>
     <string name="bedside_rest_caption">Saat dibiarkan</string>
     <string name="bedside_tint_off">Tetap putih</string>

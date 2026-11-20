@@ -1,8 +1,16 @@
 {
-  "versionName": "8.4.1-xbibz.22",
-  "versionCode": 96,
-  "description": "Mochy Xbibz **8.4.1-xbibz.22**: saklar Tanda Mochy tidak force-close.",
+  "versionName": "8.4.2-xbibz.23",
+  "versionCode": 97,
+  "description": "Mochy Xbibz **8.4.2-xbibz.23**: tarikan Mochy resmi 8.4.2, patch Bagikan tetap.",
   "changelog": [
+    {
+      "title": "8.4.2-xbibz.23",
+      "items": [
+        "Ditarik **Mochy resmi 8.4.2** (main bde01cb4): widget lirik, canvas/video, modul, perangkat, dan perbaikan resmi setelah 8.4.1.",
+        "Patch fork tetap: daftar baris Bagikan, **Select**, saklar **Tanda Mochy**, paket **mochi.bibz.app**, liquid glass, RAM/panas, identitas Xbibz.",
+        "Kode versi **97**. Rilis resmi. Tag .16–.22 (termasuk .21) **tidak** ditimpa."
+      ]
+    },
     {
       "title": "8.4.1-xbibz.22",
       "items": [

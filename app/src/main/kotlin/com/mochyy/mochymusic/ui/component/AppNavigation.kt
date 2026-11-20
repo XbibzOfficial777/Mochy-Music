@@ -32,6 +32,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavBackStackEntry
@@ -120,6 +121,8 @@ private val RouteOwners: List<Pair<String, String>> = listOf(
     "playback_diagnostics" to "settings",
     "mochy_settings" to "settings",
     "general_settings" to "settings",
+    "playback_settings" to "settings",
+    "now_playing_settings" to "settings",
     "experimental_settings" to "settings",
     "developer_space" to "settings",
     "developer_playground" to "settings",
@@ -205,15 +208,6 @@ class TabOwnership(private val navigationItems: List<Screens>) {
 internal val NavBarHeight = 64.dp
 internal val NavBarShape = RoundedCornerShape(50)
 
-/** The lit tab's highlight sits this far in from the bar's top, bottom and both ends. */
-private val NavHighlightInset = 8.dp
-
-/** Room between a highlight and where its neighbour's would be. */
-private val NavHighlightGap = 4.dp
-
-// half the gap is the row's padding and half is inside each slot, so the highlight sits as far from the ends as from the top and bottom
-internal val NavRowPadding = NavHighlightInset - NavHighlightGap / 2
-
 /** How bright an unlit tab's icon is. */
 private const val UnlitIconAlpha = 0.7f
 
@@ -228,8 +222,31 @@ fun AppNavigationBar(
     pureBlack: Boolean = false,
     slimNav: Boolean = false,
     /** a second quick tap on Search: straight into typing */
-    onSearchDoubleTap: (() -> Unit)? = null
+    onSearchDoubleTap: (() -> Unit)? = null,
+    /** "module/page" while one of a module's pages is on screen, so a look's bar can light its tab */
+    currentPage: String? = null,
+    /** opens a look's own tab page */
+    onOpenRoute: (String) -> Unit = {},
+    /** the player is over the app, so a look's moving bar can rest */
+    obscured: () -> Boolean = { false },
 ) {
+    // a look with a nav bar of its own draws it in this one's place
+    val moduleBar = com.mochyy.mochymusic.modules.skin.ActiveSkin.bar
+    if (moduleBar != null) {
+        ModuleNavBar(
+            active = moduleBar,
+            navigationItems = navigationItems,
+            selectedTabRoute = selectedTabRoute,
+            currentPage = currentPage,
+            onItemClick = onItemClick,
+            onOpenRoute = onOpenRoute,
+            onSearchDoubleTap = onSearchDoubleTap,
+            pureBlack = pureBlack,
+            obscured = obscured,
+            modifier = modifier,
+        )
+        return
+    }
     val glassState = LocalGlassState.current ?: remember { GlassState() }
     val accentWash = rememberChromeAccentWash()
     val selectedIndex = navigationItems.indexOfFirst { it.route == selectedTabRoute }
@@ -253,7 +270,7 @@ fun AppNavigationBar(
                 .clip(NavBarShape)
                 .drawWithContent {
                     drawContent()
-                    drawChromeOutline(Offset.Zero, size, cornerRadius = size.height / 2f)
+                    if (moduleGlass?.outline != false) drawChromeOutline(Offset.Zero, size, cornerRadius = size.height / 2f)
                 }
         ) {
             FrostedChromeGlass(
@@ -261,6 +278,7 @@ fun AppNavigationBar(
                 pureBlack = pureBlack,
                 accentWash = accentWash,
                 modifier = Modifier.fillMaxSize(),
+                pill = glassPill,
             )
 
             Row(
@@ -354,7 +372,7 @@ internal fun Modifier.navHighlight(selectedIndex: Int, tabCount: Int): Modifier 
  * A tab's tap, or with [onDoubleTap] a second tap close behind the first: the first still goes to
  * the tab at once, the second does [onDoubleTap] instead. [lastTap] holds the time of the one before.
  */
-private fun tabTapped(lastTap: LongArray, doubleTapTimeoutMillis: Long, onDoubleTap: (() -> Unit)?, onTap: () -> Unit) {
+internal fun tabTapped(lastTap: LongArray, doubleTapTimeoutMillis: Long, onDoubleTap: (() -> Unit)?, onTap: () -> Unit) {
     val now = android.os.SystemClock.uptimeMillis()
     if (onDoubleTap != null && now - lastTap[0] < doubleTapTimeoutMillis) {
         lastTap[0] = 0L

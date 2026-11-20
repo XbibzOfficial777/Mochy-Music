@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# GNU sed and macOS sed use different syntax for in-place edits.
+# BSD sed needs an empty backup suffix; GNU sed does not.
 sed_in_place() {
     if [[ "$OSTYPE" == darwin* ]]; then
         sed -i '' "$@"
@@ -30,6 +30,10 @@ IS_CUSTOM_BUILD=false
 BETA_NOTICE_FILE="app/src/main/kotlin/com/mochyy/mochymusic/ui/screens/beta/BetaNoticeScreen.kt"
 
 cleanup() {
+    # a nightly's fourth number only lives for its own build
+    if [ -n "$NIGHTLY_NUMBER" ] && [ -n "$BASE_VERSION" ] && [ -n "$BUILD_ATTEMPT" ]; then
+        sed_in_place "s/versionName = \".*\"/versionName = \"$BASE_VERSION build#$BUILD_ATTEMPT\"/g" app/build.gradle.kts
+    fi
     if [ "$IS_CUSTOM_BUILD" = true ]; then
         echo ""
         echo "Restoring original build files after custom build..."
@@ -150,8 +154,15 @@ if [ "$SKIP_BUILD" = false ]; then
     # read base version
     BASE_VERSION=$(grep 'versionName =' app/build.gradle.kts | head -n 1 | sed 's/.*versionName = "\(.*\)".*/\1/' | sed 's/ build#.*//')
 
-    # update version name
-    sed_in_place "s/versionName = \".*\"/versionName = \"$BASE_VERSION build#$BUILD_ATTEMPT\"/g" app/build.gradle.kts
+    # update version name, a nightly gets its fourth number for this build only (cleanup puts it back)
+    VERSION_LABEL="$BASE_VERSION"
+    GRADLE_FLAGS=""
+    if [ -n "$NIGHTLY_NUMBER" ]; then
+        VERSION_LABEL="$BASE_VERSION.$NIGHTLY_NUMBER"
+        GRADLE_FLAGS="-Pnightly=true"
+        echo "Building nightly $VERSION_LABEL..."
+    fi
+    sed_in_place "s/versionName = \".*\"/versionName = \"$VERSION_LABEL build#$BUILD_ATTEMPT\"/g" app/build.gradle.kts
 
     # update beta notice
     if [ -f "$BETA_NOTICE_FILE" ]; then

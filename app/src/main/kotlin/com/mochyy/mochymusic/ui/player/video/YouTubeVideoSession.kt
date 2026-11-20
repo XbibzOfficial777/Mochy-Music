@@ -14,7 +14,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
@@ -28,12 +27,11 @@ import androidx.media3.exoplayer.dash.DashMediaSource
 import androidx.media3.exoplayer.dash.manifest.DashManifestParser
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
-import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.VideoQuality
-import com.mochyy.mochymusic.ui.component.TopToaster
 import com.mochyy.mochymusic.utils.VideoStreams
+import com.mochyy.mochymusic.utils.VideoTrack
 import com.mochyy.mochymusic.utils.followAppProxy
-import com.mochyy.mochymusic.utils.nextAvailableVideoLimit
+import com.mochyy.mochymusic.utils.videoLines
 import okhttp3.OkHttpClient
 import kotlin.math.abs
 
@@ -50,9 +48,6 @@ private const val MaxNudge = 0.12f
 // a seek that hasn't finished loading by now is forgotten, so the next tick may try again
 private const val SeekGiveUpMs = 9_000L
 
-// If a decoder or a network stream hangs without an error, keep audio playing and try lower.
-private const val VideoBufferTimeoutMs = 25_000L
-
 // how far ahead of the song a seek may aim to make up for the time the picture takes to load
 private const val MaxLeadMs = 3_000L
 
@@ -65,7 +60,7 @@ private const val MaxBufferMs = 40_000
 private const val BufferToStartMs = 800
 private const val BufferToResumeMs = 1_600
 
-private val ManifestUri: Uri = "https://www.youtube.com/mochy-video.mpd".toUri()
+private val ManifestUri: Uri = Uri.parse("https://www.youtube.com/mochy-video.mpd")
 
 // the youtube video's own thread: building, loading and letting go of a player never lands on a frame
 private object YouTubeVideoThread {
@@ -92,8 +87,8 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
     var isStalled by mutableStateOf(false)
         private set
 
-    // the short side of the picture playing right now, for "Auto (720p)"
-    var playingShortSide by mutableIntStateOf(0)
+    // the size playing right now by youtube's name for it, for "Auto · 720p"
+    var playingLines by mutableIntStateOf(0)
         private set
 
     var aspect by mutableFloatStateOf(0f)
@@ -103,7 +98,7 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
     var failures by mutableIntStateOf(0)
         private set
 
-    // the short sides this video comes in, biggest first
+    // the sizes this video comes in (1080 for 1080p), biggest first
     var sizes by mutableStateOf(emptyList<Int>())
         private set
 
@@ -121,14 +116,17 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
     private val textures = ArrayList<SurfaceTexture>()
     private val surfaces = HashMap<SurfaceTexture, Surface>()
     private var owner: SurfaceTexture? = null
+
+    // the surface the picture goes to now, for reading its colours off the main thread
+    @Volatile var frameSurface: Surface? = null
+        private set
     private var streams: VideoStreams? = null
-    private var quality = VideoQuality.Q720
+    private var quality = VideoQuality.AUTO
     private var autoCap = 1080
-    // A fallback only affects this session, not the user's saved quality.
-    private var fallbackCap: Int? = null
-    private var bufferingSince = 0L
     // the size a whole-file video was loaded at; 0 when the player picks sizes itself
-    private var wholeFileSide = 0
+    private var wholeFileLines = 0
+    // h264 or the vp9/av1 family past 1080p, whichever the loaded source was built from
+    private var loadedFamily: List<VideoTrack>? = null
     private var seekStartedAt = 0L
     private var seekLatencyMs = 600.0
     private var speed = 1f
@@ -154,16 +152,16 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
         override fun onVideoSizeChanged(videoSize: VideoSize) {
             if (videoSize.width <= 0 || videoSize.height <= 0) return
             val ratio = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
-            val side = minOf(videoSize.width, videoSize.height)
+            val lines = streams?.let { s -> (s.tracks + s.sharpTracks).firstOrNull { it.width == videoSize.width && it.height == videoSize.height } }
+                ?.lines ?: videoLines(videoSize.width, videoSize.height)
             main.post {
                 aspect = ratio
-                playingShortSide = side
+                playingLines = lines
             }
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            val p = player
-            if (p == null) main.post { failures += 1 } else tryLowerOrRefresh(p)
+            main.post { failures += 1 }
         }
     }
 
@@ -173,12 +171,14 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
         sizes = streams.sizes
         handler.post {
             if (released) return@post
-            if (this.quality != quality || this.autoCap != autoCap) fallbackCap = null
             this.streams = streams
             this.quality = quality
             this.autoCap = autoCap
             val p = player ?: buildPlayer().also { player = it }
-            prepareAt(p, streams, startMs)
+            applyQuality(p)
+            seekStartedAt = SystemClock.elapsedRealtime()
+            p.setMediaSource(mediaSourceFor(streams), startMs.coerceAtLeast(0L))
+            p.prepare()
         }
     }
 
@@ -186,13 +186,16 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
         if (released || (this.quality == quality && this.autoCap == autoCap)) return@post
         this.quality = quality
         this.autoCap = autoCap
-        fallbackCap = null
-        main.post { failures = 0 }
         val p = player ?: return@post
+        applyQuality(p)
         val s = streams ?: return@post
-        // The requested ceiling can choose a different codec family (for example VP9 for 4K).
-        // Rebuild a single-family, under-cap source and resume at the current position.
-        prepareAt(p, s, p.currentPosition)
+        // a whole-file video can't change size by itself, nor can a manifest change codec: load the other one right where the picture is
+        val otherFamily = s.tracksFor(capLines()) !== loadedFamily
+        if (otherFamily || (wholeFileLines != 0 && s.trackFor(capLines())?.lines != wholeFileLines)) {
+            seekStartedAt = SystemClock.elapsedRealtime()
+            p.setMediaSource(mediaSourceFor(s), p.currentPosition)
+            p.prepare()
+        }
     }
 
     // where the song says the picture should be (null: wherever it is), read on the main thread just now
@@ -217,6 +220,7 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
             if (next != null) showOn(next) else {
                 surface?.let { player?.clearVideoSurface(it) }
                 owner = null
+                frameSurface = null
             }
         }
         surface?.release()
@@ -225,11 +229,13 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
 
     private fun showOn(texture: SurfaceTexture) {
         owner = texture
+        frameSurface = surfaces[texture]
         surfaces[texture]?.let { player?.setVideoSurface(it) }
     }
 
     internal fun release() = handler.post {
         released = true
+        frameSurface = null
         player?.removeListener(listener)
         player?.release()
         player = null
@@ -257,63 +263,16 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
                 addListener(listener)
             }
 
-    private fun capShortSide(): Int {
-        val requested = if (quality == VideoQuality.AUTO) autoCap else quality.shortSide
-        return minOf(requested, fallbackCap ?: requested)
-    }
-
-    private fun prepareAt(p: ExoPlayer, allStreams: VideoStreams, positionMs: Long) {
-        bufferingSince = 0L
-        val family = allStreams.tracksFor(capShortSide())
-        if (family.isEmpty()) {
-            // Do not silently exceed the user's ceiling. Audio is a separate player and continues.
-            p.stop()
-            wholeFileSide = 0
-            main.post {
-                hasFrame = false
-                playingShortSide = 0
-                isStalled = false
-                TopToaster.show(appContext.getString(R.string.bibz_video_unavailable))
-            }
-            return
-        }
-        applyQuality(p)
-        seekStartedAt = SystemClock.elapsedRealtime()
-        p.setMediaSource(mediaSourceFor(allStreams), positionMs.coerceAtLeast(0L))
-        p.prepare()
-    }
-
-    // Decoder errors and a bounded stall both walk actual lower sizes without touching the
-    // preference. Once exhausted, upstream's bounded link-refresh path gets a chance to recover.
-    private fun tryLowerOrRefresh(p: ExoPlayer) {
-        if (released) return
-        bufferingSince = 0L
-        val s = streams ?: return
-        val format = p.videoFormat
-        val reported = format?.let { minOf(it.width, it.height) }?.takeIf { it > 0 }
-        val failed = reported ?: wholeFileSide.takeIf { it > 0 } ?: capShortSide()
-        val lower = nextAvailableVideoLimit(failed, capShortSide(), s.tracks.map { it.shortSide })
-        main.post { hasFrame = false; playingShortSide = 0 }
-        if (lower != null) {
-            fallbackCap = lower
-            main.post { TopToaster.show(appContext.getString(R.string.bibz_video_try_lower, lower)) }
-            prepareAt(p, s, p.currentPosition)
-        } else {
-            p.stop()
-            main.post {
-                isStalled = false
-                failures += 1
-                TopToaster.show(appContext.getString(R.string.bibz_video_unavailable))
-            }
-        }
-    }
+    private fun capLines() = if (quality == VideoQuality.AUTO) autoCap else quality.shortSide
 
     private fun applyQuality(p: ExoPlayer) {
         val s = streams ?: return
-        val cap = capShortSide()
-        val landscape = s.tracks.lastOrNull()?.let { it.width >= it.height } ?: true
+        // the biggest track the pick allows is the cap, by its own width and height, since a wide 1080p is only 800 tall
+        val top = s.trackFor(capLines())
         p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
-            .setMaxVideoSize(if (landscape) Int.MAX_VALUE else cap, if (landscape) cap else Int.MAX_VALUE)
+            .setMaxVideoSize(top?.width ?: Int.MAX_VALUE, top?.height ?: Int.MAX_VALUE)
+            // exoplayer drops every size bigger than the screen by itself, so a 1080p phone never played 1440p or 4k
+            .clearViewportSizeConstraints()
             // a picked size stays put; auto is free to drop when the connection slows and climb back after
             .setForceHighestSupportedBitrate(quality != VideoQuality.AUTO)
             .build()
@@ -321,39 +280,31 @@ class YouTubeVideoSession internal constructor(context: Context, val videoId: St
 
     private fun mediaSourceFor(s: VideoStreams): MediaSource {
         val dataSource = OkHttpDataSource.Factory(YouTubeVideoHttp.client).setDefaultRequestProperties(s.headers)
-        val family = s.tracksFor(capShortSide())
+        val family = s.tracksFor(capLines())
+        loadedFamily = family
         val manifest = VideoDash.manifest(family, s.durationMs)?.let { xml ->
             runCatching { DashManifestParser().parse(ManifestUri, xml.byteInputStream()) }.getOrNull()
         }
         if (manifest != null) {
-            wholeFileSide = 0
+            wholeFileLines = 0
             val item = MediaItem.Builder().setUri(ManifestUri).setMimeType(MimeTypes.APPLICATION_MPD).build()
             return DashMediaSource.Factory(dataSource).createMediaSource(manifest, item)
         }
         // youtube only serves this one whole: one size, picked by the quality setting
-        val track = requireNotNull(s.trackFor(capShortSide()))
-        wholeFileSide = track.shortSide
+        val track = s.trackFor(capLines()) ?: s.tracks.first()
+        wholeFileLines = track.lines
         return ProgressiveMediaSource.Factory(dataSource).createMediaSource(MediaItem.fromUri(track.url))
     }
 
     private fun syncNow(targetMs: Long?, songSpeed: Float, playing: Boolean, sampledAt: Long) {
         val p = player ?: return
         if (p.playWhenReady != playing) p.playWhenReady = playing
-        val now = SystemClock.elapsedRealtime()
-        if (playing && p.playbackState == Player.STATE_BUFFERING) {
-            if (bufferingSince == 0L) bufferingSince = now
-            else if (now - bufferingSince >= VideoBufferTimeoutMs) {
-                tryLowerOrRefresh(p)
-                return
-            }
-        } else {
-            bufferingSince = 0L
-        }
         val duration = p.duration
         if (targetMs == null || duration <= 0L) {
             setSpeed(p, songSpeed)
             return
         }
+        val now = SystemClock.elapsedRealtime()
         val expected = targetMs + if (playing) ((now - sampledAt) * songSpeed).toLong() else 0L
         // the song's own intro or outro, past either end of the video: it just keeps playing
         if (expected !in 0..duration) {
@@ -402,6 +353,10 @@ object YouTubeVideoSessions {
     private val entries = HashMap<String, Entry>()
     private val main = Handler(Looper.getMainLooper())
 
+    // the video a view is showing right now, so the player's menu only offers its quality while one plays
+    var showing by mutableStateOf<YouTubeVideoSession?>(null)
+        private set
+
     fun acquire(context: Context, videoId: String): YouTubeVideoSession {
         // only one video plays at a time: one left waiting for a hand-over that didn't come goes as another starts
         entries.entries.removeAll { (id, other) ->
@@ -416,6 +371,7 @@ object YouTubeVideoSessions {
         entry.pendingRelease?.let(main::removeCallbacks)
         entry.pendingRelease = null
         entry.users += 1
+        showing = entry.session
         return entry.session
     }
 
@@ -423,6 +379,7 @@ object YouTubeVideoSessions {
         val entry = entries[session.videoId]?.takeIf { it.session === session } ?: return
         entry.users -= 1
         if (entry.users > 0) return
+        if (showing === session) showing = null
         val drop = Runnable {
             if (entry.users == 0 && entries[session.videoId] === entry) {
                 entries.remove(session.videoId)

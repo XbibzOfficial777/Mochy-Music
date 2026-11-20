@@ -89,6 +89,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+// a route's "{name}" placeholders, filled with the entry's own arguments
+private val RouteArgument = Regex("\\{(\\w+)\\}")
+
 // the tv app once a profile is picked: its pages, the chrome around them, and the player over everything
 @OptIn(
     ExperimentalMaterial3Api::class,
@@ -106,7 +109,14 @@ internal fun TvShell(
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = backStackEntry?.destination?.route
+    // with its arguments filled in, so the playlists grid lights its own stop on the rail instead of the library's
+    val currentRoute = remember(backStackEntry) {
+        backStackEntry?.let { entry ->
+            entry.destination.route?.let { pattern ->
+                RouteArgument.replace(pattern) { arg -> entry.arguments?.getString(arg.groupValues[1]).orEmpty() }
+            }
+        }
+    }
     val scope = rememberCoroutineScope()
     // a tv shell only ever runs inside TvActivity, so the window's activity is always there;
     // LocalActivity says that without casting a context to an Activity
@@ -136,7 +146,8 @@ internal fun TvShell(
         // back on a tab's own page takes the remote to the rail first, since the rail sits at the far right
         val railFocus = remember { FocusRequester() }
         var railHasFocus by remember { mutableStateOf(false) }
-        val onTabRoot = currentRoute in TvTab.entries.map { it.route } || currentRoute?.startsWith("${TvRoutes.Search}?") == true
+        val onTabRoot = currentRoute in TvTab.entries.map { it.route } ||
+            currentRoute?.startsWith("${TvRoutes.Search}?") == true
 
         var playerWasOpen by remember { mutableStateOf(false) }
         LaunchedEffect(sheet.isDismissed) {
@@ -218,10 +229,11 @@ internal fun TvShell(
                             onPillPlaced = { if (sheet.isDismissed) pillBounds = it },
                             onSwitchProfile = onSwitchProfile,
                             onTab = { tab ->
+                                val sameTab = tabOf(currentRoute) == tab
                                 navController.navigate(tab.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = !sameTab }
                                     launchSingleTop = true
-                                    restoreState = true
+                                    restoreState = !sameTab && tab != TvTab.Playlists
                                 }
                             },
                         )

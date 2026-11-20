@@ -44,6 +44,12 @@ data class ImportSessionSong(
     val liked: Boolean,
 )
 
+// a song an import liked, with the newest import that did it, so a lost like can come back near where it was
+data class ImportedLike(
+    val songId: String,
+    val importedAt: LocalDateTime,
+)
+
 /**
  * A playlist that came from a service, so the Library can count "Spotify playlists" and deleting
  * Spotify's imports can take its playlists with it. [sessionId] is null for a playlist that YouTube
@@ -67,6 +73,11 @@ data class ImportedPlaylist(
     /** The share link it was read from, when it came in by link. */
     val remoteUrl: String? = null,
     val lastSyncedAt: LocalDateTime? = null,
+    /** who made it on the service, so its page can credit them; imports from before version 45 have none */
+    val authorName: String? = null,
+    val authorAvatarUrl: String? = null,
+    /** the author's page on the service */
+    val authorUrl: String? = null,
 )
 
 /**

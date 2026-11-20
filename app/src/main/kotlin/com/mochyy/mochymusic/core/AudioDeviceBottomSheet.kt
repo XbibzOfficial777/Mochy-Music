@@ -157,7 +157,7 @@ enum class AudioDeviceType {
 @Composable
 fun AudioDeviceBottomSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val resources = LocalResources.current
+    val bluetoothPermissionMessage = stringResource(R.string.bluetooth_permission_required)
     var audioDevices by remember { mutableStateOf<List<AudioDevice>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -186,12 +186,13 @@ fun AudioDeviceBottomSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier)
                 isLoading = false
             })
         } else {
-            errorMessage = resources.getString(R.string.bluetooth_permission_required)
+            errorMessage = bluetoothPermissionMessage
             isLoading = false
         }
     }
 
     fun refreshDevices() {
+        if (!checkBluetoothPermission(context)) return
         loadDevices(context, service?.preferredDeviceId, onSuccess = { devices ->
             audioDevices = devices
         }, onError = {})
@@ -215,21 +216,27 @@ fun AudioDeviceBottomSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier)
             }
         }
 
-        context.registerReceiver(
+        ContextCompat.registerReceiver(
+            context,
             volumeChangeReceiver,
-            IntentFilter("android.media.VOLUME_CHANGED_ACTION")
+            IntentFilter("android.media.VOLUME_CHANGED_ACTION"),
+            ContextCompat.RECEIVER_EXPORTED,
         )
 
-        context.registerReceiver(
-            audioDeviceReceiver,
-            IntentFilter().apply {
-                addAction(AudioManager.ACTION_HEADSET_PLUG)
-                addAction(AudioManager.ACTION_HDMI_AUDIO_PLUG)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
-                }
-            }
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            ContextCompat.registerReceiver(
+                context,
+                audioDeviceReceiver,
+                IntentFilter().apply {
+                    addAction(AudioManager.ACTION_HEADSET_PLUG)
+                    addAction(AudioManager.ACTION_HDMI_AUDIO_PLUG)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+                    }
+                },
+                ContextCompat.RECEIVER_EXPORTED,
+            )
+        }
 
         if (checkBluetoothPermission(context)) {
             loadDevices(context, service?.preferredDeviceId, onSuccess = { devices ->
@@ -266,12 +273,14 @@ fun AudioDeviceBottomSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier)
             }
         }
 
-        context.registerReceiver(
+        ContextCompat.registerReceiver(
+            context,
             bluetoothReceiver,
             IntentFilter().apply {
                 addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
                 addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
-            }
+            },
+            ContextCompat.RECEIVER_EXPORTED,
         )
 
         val batteryPollingRunnable = object : Runnable {
@@ -882,14 +891,72 @@ private fun loadDevices(
                         }
                     } else null
 
-                    AudioDevice(
-                        name = deviceInfo.productName?.toString() ?: "Bluetooth Device",
-                        type = AudioDeviceType.BLUETOOTH,
-                        isConnected = true,
-                        isActive = false,
-                        batteryLevel = batteryLevel,
-                        deviceId = deviceInfo.id
-                    )
+                                    @SuppressLint("MissingPermission")
+                                    val battery = btDevice?.let { device ->
+                                        try {
+                                            val method = android.bluetooth.BluetoothDevice::class.java.getMethod(
+                                                "getBatteryLevel"
+                                            )
+                                            val level = method.invoke(device) as? Int
+                                            level
+                                        } catch (e: Exception) {
+                                            null
+                                        }
+                                    }
+                                    if (battery != null && battery >= 0 && battery <= 100) battery else null
+                                } else null
+                            } catch (e: Exception) {
+                                null
+                            }
+                        } else null
+
+                        AudioDevice(
+                            name = deviceInfo.productName?.toString() ?: context.getString(R.string.ps_device_bluetooth_device),
+                            type = AudioDeviceType.BLUETOOTH,
+                            isConnected = true,
+                            isActive = false,
+                            batteryLevel = batteryLevel,
+                            deviceId = deviceInfo.id
+                        )
+                    }
+
+                    AudioDeviceInfo.TYPE_WIRED_HEADPHONES, AudioDeviceInfo.TYPE_WIRED_HEADSET -> {
+                        AudioDevice(
+                            name = context.getString(R.string.wired_headphones),
+                            type = AudioDeviceType.WIRED_HEADPHONES,
+                            isConnected = true,
+                            isActive = false,
+                            deviceId = deviceInfo.id
+                        )
+                    }
+                    AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE -> {
+                        AudioDevice(
+                            name = deviceInfo.productName?.toString() ?: context.getString(R.string.ps_device_usb_audio),
+                            type = AudioDeviceType.USB_HEADSET,
+                            isConnected = true,
+                            isActive = false,
+                            deviceId = deviceInfo.id
+                        )
+                    }
+                    AudioDeviceInfo.TYPE_HDMI -> {
+                        AudioDevice(
+                            name = context.getString(R.string.hdmi),
+                            type = AudioDeviceType.HDMI,
+                            isConnected = true,
+                            isActive = false,
+                            deviceId = deviceInfo.id
+                        )
+                    }
+                    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> {
+                        AudioDevice(
+                            name = context.getString(R.string.phone_speaker),
+                            type = AudioDeviceType.PHONE_SPEAKER,
+                            isConnected = true,
+                            isActive = false,
+                            deviceId = deviceInfo.id
+                        )
+                    }
+                    else -> null
                 }
 
                 AudioDeviceInfo.TYPE_WIRED_HEADPHONES, AudioDeviceInfo.TYPE_WIRED_HEADSET -> {
@@ -950,7 +1017,7 @@ private fun loadDevices(
 
         onSuccess(sortedDevices.distinctBy { it.name })
     } catch (e: Exception) {
-        onError("Failed to load devices: ${e.message}")
+        onError(context.getString(R.string.platform_audio_load_failed, e.message.orEmpty()))
     }
 }
 
@@ -963,19 +1030,24 @@ private fun determineActiveDevice(
         audioDevices.find { it.id == preferredDeviceId }
     } else null
 
-    return preferred ?: when {
-        audioDevices.any { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP } ->
-            audioDevices.find { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP }
-        audioDevices.any {
-            it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
-                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET
-        } ->
-            audioDevices.find {
-                it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
-                        it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET
-            }
-        else -> audioDevices.find { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+@Suppress("DEPRECATION")
+private fun loadDevicesLegacy(context: Context, onSuccess: (List<AudioDevice>) -> Unit, onError: (String) -> Unit) {
+    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    val devices = mutableListOf<AudioDevice>()
+
+    if (audioManager.isBluetoothA2dpOn) {
+        devices.add(AudioDevice(context.getString(R.string.ps_device_bluetooth_device), AudioDeviceType.BLUETOOTH, true, true))
     }
+    if (audioManager.isWiredHeadsetOn) {
+        devices.add(AudioDevice(context.getString(R.string.wired_headphones), AudioDeviceType.WIRED_HEADPHONES, true, true))
+    }
+    if (audioManager.isSpeakerphoneOn) {
+        devices.add(AudioDevice(context.getString(R.string.platform_external_speaker), AudioDeviceType.EXTERNAL_SPEAKER, true, true))
+    }
+    if (devices.isEmpty() || !devices.any { it.isActive }) {
+        devices.add(AudioDevice(context.getString(R.string.phone_speaker), AudioDeviceType.PHONE_SPEAKER, true, true))
+    }
+    onSuccess(devices.filter { it.isActive }.take(1))
 }
 
 private fun checkBluetoothPermission(context: Context): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -1069,7 +1141,7 @@ private fun AudioDeviceRow(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                val statusText = if (isActiveDevice) "Connected" else "Available"
+                val statusText = stringResource(if (isActiveDevice) R.string.platform_device_connected else R.string.platform_audio_available)
 
                 Row(
                     modifier = Modifier
@@ -1098,8 +1170,8 @@ private fun AudioDeviceRow(
                     modifier = Modifier.padding(end = 4.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                        contentDescription = "Volume level",
+                        imageVector = Icons.Filled.VolumeUp,
+                        contentDescription = stringResource(R.string.platform_volume_level),
                         tint = onContainer,
                         modifier = Modifier.size(14.dp)
                     )

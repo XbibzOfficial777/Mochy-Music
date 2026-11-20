@@ -50,6 +50,7 @@ class SpatialAudioProcessor(private val service: AudioFxService) : AudioProcesso
 
     private var amount = 0f
     private var monoAmount = 0f
+    private var frame = FloatArray(0)
     private var crossfeed: Crossfeed? = null
     private var head: HeadRenderer? = null
     private var headAngle = Float.NaN
@@ -94,7 +95,6 @@ class SpatialAudioProcessor(private val service: AudioFxService) : AudioProcesso
         if (surround) {
             val renderer = head ?: HeadRenderer(sampleRate, surroundAzimuths(inChannels)).also { head = it }
             val out = replaceOutputBuffer(frames * 4)
-            val frame = FloatArray(inChannels)
             for (f in 0 until frames) {
                 for (c in 0 until inChannels) frame[c] = inputBuffer.getShort() * scale
                 renderer.render(frame)
@@ -105,7 +105,8 @@ class SpatialAudioProcessor(private val service: AudioFxService) : AudioProcesso
             return
         }
 
-        val target = if (params.enabled) params.amount.coerceIn(0f, 1f) else 0f
+        // 3d sims already places the song for two ears; crossfeed on top would smear it
+        val target = if (params.enabled && !service.stage.enabled) params.amount.coerceIn(0f, 1f) else 0f
         val monoTarget = if (params.mono) 1f else 0f
         val out = replaceOutputBuffer(bytes)
         if (target == 0f && amount == 0f && monoTarget == 0f && monoAmount == 0f) {
@@ -137,7 +138,6 @@ class SpatialAudioProcessor(private val service: AudioFxService) : AudioProcesso
                 val angle = params.speakerAngle.coerceIn(5f, 90f)
                 val renderer = head?.takeIf { headAngle == angle }
                     ?: HeadRenderer(sampleRate, floatArrayOf(-angle, angle)).also { head = it; headAngle = angle }
-                val frame = FloatArray(2)
                 for (f in 0 until frames) {
                     var l = inputBuffer.getShort() * scale
                     var r = inputBuffer.getShort() * scale
@@ -194,6 +194,7 @@ class SpatialAudioProcessor(private val service: AudioFxService) : AudioProcesso
                 sampleRate = format.sampleRate
                 inChannels = format.channelCount
                 surround = pendingSurround
+                frame = FloatArray(inChannels)
                 crossfeed = null
                 head = null
                 headAngle = Float.NaN
@@ -300,8 +301,12 @@ class SpatialAudioProcessor(private val service: AudioFxService) : AudioProcesso
                 for (ear in 0..1) {
                     val i = s * 2 + ear
                     if (az.isNaN()) {
-                        // lfe: no direction, straight to both ears
-                        b0[i] = 1f; b1[i] = 0f; a1[i] = 0f
+                        // lfe only carries deep bass; a 120 hz low-pass keeps dolby high-frequency residue out of both ears
+                        val wc = 2.0 * PI * 120.0
+                        val normLfe = wc + k
+                        b0[i] = (wc / normLfe).toFloat()
+                        b1[i] = (wc / normLfe).toFloat()
+                        a1[i] = ((wc - k) / normLfe).toFloat()
                         continue
                     }
                     val earAz = if (ear == 0) -90.0 else 90.0
@@ -361,7 +366,7 @@ class SpatialAudioProcessor(private val service: AudioFxService) : AudioProcesso
         }
 
         companion object {
-            private const val DelaySize = 64
+            private const val DelaySize = 256
             private const val HeadRadius = 0.0875
             private const val SpeedOfSound = 343.0
             private const val AlphaMin = 0.1
@@ -373,7 +378,7 @@ class SpatialAudioProcessor(private val service: AudioFxService) : AudioProcesso
         private val EMPTY_BUFFER: ByteBuffer = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
         private const val ToggleSeconds = 0.15f
         private const val SpeakerGain = 0.6f
-        private const val SurroundGain = 0.45f
+        private const val SurroundGain = 0.28f
         private const val Knee = 0.9f
 
         /** android's channel order: fl fr fc lfe bl br sl sr (fewer channels drop from the end) */

@@ -118,7 +118,7 @@ fun PlaybackSpeedSheet(onDismiss: () -> Unit) {
         ) {
             Spacer(modifier = Modifier.height(22.dp))
             Text(
-                text = "Playback speed and tempo",
+                text = stringResource(R.string.ps_speed_title),
                 color = Color.White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -126,13 +126,13 @@ fun PlaybackSpeedSheet(onDismiss: () -> Unit) {
             Spacer(modifier = Modifier.height(18.dp))
 
             ValueSlider(
-                label = "Speed",
+                label = stringResource(R.string.ps_speed_speed),
                 value = speed.floatValue,
                 onValueChange = { speed.floatValue = it; apply() },
             )
             Spacer(modifier = Modifier.height(14.dp))
             ValueSlider(
-                label = "Pitch",
+                label = stringResource(R.string.ps_speed_pitch),
                 value = pitch.floatValue,
                 onValueChange = { pitch.floatValue = it; apply() },
             )
@@ -157,7 +157,7 @@ fun PlaybackSpeedSheet(onDismiss: () -> Unit) {
                     .padding(vertical = 14.dp)
             ) {
                 Text(
-                    text = "RESET TO NORMAL",
+                    text = stringResource(R.string.ps_speed_reset),
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,

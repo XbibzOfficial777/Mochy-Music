@@ -22,7 +22,6 @@ import com.mochyy.mochymusic.db.entities.FormatEntity
 import com.mochyy.mochymusic.db.entities.SongAlbumMap
 import com.mochyy.mochymusic.db.entities.SongArtistMap
 import com.mochyy.mochymusic.db.entities.SongEntity
-import com.mochyy.mochymusic.ui.screens.extractAudioMetadata
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
@@ -36,21 +35,28 @@ suspend fun importLocalAudio(
     context: Context,
     database: MusicDatabase,
     uri: Uri,
+    lyricsFile: Uri? = null,
+    coverFile: Uri? = null,
 ): String {
     val metadata = withContext(Dispatchers.IO) {
         extractAudioMetadata(context, uri)
     }
 
-    // the file's own lyrics if its tags have any, saved with it so they work offline from the first play
+    // the file's own lyrics or the lyrics file beside it, saved with the song so they work offline from the first play
     val embeddedLyrics = withContext(Dispatchers.IO) {
-        com.mochyy.mochymusic.lyrics.readEmbeddedLyrics(context, uri)
+        LocalSidecars.betterLyrics(
+            embedded = com.mochyy.mochymusic.lyrics.readEmbeddedLyrics(context, uri),
+            beside = lyricsFile?.let { LocalSidecars.readLyrics(context, it) },
+        )
     }
 
     val isAlac = withContext(Dispatchers.IO) { isMp4(metadata.mimeType) && holdsAlac(context, uri) }
 
     val songId = "LOCAL_${UUID.randomUUID()}"
+    // the picture inside the file, else the one beside it
     val thumbnailUrl = withContext(Dispatchers.IO) {
-        metadata.embeddedArtwork?.let { LocalArtwork.save(context, songId, it) }
+        (metadata.embeddedArtwork ?: coverFile?.let { LocalSidecars.readCover(context, it) })
+            ?.let { LocalArtwork.save(context, songId, it) }
     }
     val albumTitle = metadata.album?.trim()?.takeIf { it.isNotEmpty() }
     val albumArtist = metadata.albumArtist?.trim()?.takeIf { it.isNotEmpty() } ?: metadata.artist
@@ -67,6 +73,7 @@ suspend fun importLocalAudio(
                     isLocal = true,
                     inLibrary = LocalDateTime.now(),
                     localUri = uri.toString(),
+                    genre = metadata.genre.orEmpty(),
                 ),
             )
 
@@ -144,6 +151,14 @@ suspend fun groupLocalAlbums(context: Context, database: MusicDatabase) {
         database.transaction {
             linkLocalAlbum(song.id, title, albumArtist, tags?.year, tags?.discNumber, tags?.trackNumber, song.song.thumbnailUrl)
         }
+    }
+}
+
+/** reads the genre of local files imported before genres were kept, once each; a file with none is marked so it isn't read again */
+suspend fun readLocalGenres(context: Context, database: MusicDatabase) {
+    database.localSongsWithoutGenre().forEach { song ->
+        val genre = withContext(Dispatchers.IO) { readGenreTag(context, Uri.parse(song.localUri)) } ?: return@forEach
+        withContext(Dispatchers.IO) { database.setSongGenre(song.id, genre) }
     }
 }
 

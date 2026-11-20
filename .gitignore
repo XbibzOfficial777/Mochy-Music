@@ -36,6 +36,9 @@ captures/
 CLAUDE.md
 .agents/
 AGENTS.md
+# the root rule files are public on purpose, so every fork's AI reads them
+!/CLAUDE.md
+!/AGENTS.md
 .kotlin/
 assetscon/
 apk-generated/
@@ -73,6 +76,8 @@ app/keystore/
 .cxx/
 *.so
 *.bin
+# the ear measurements 3d sims places sounds with, built by tools/stage/make_hrtf.py
+!app/src/main/assets/stage_hrtf.bin
 
 # Scratch files in the repo root (not part of the build)
 /test_*
@@ -89,6 +94,7 @@ app/keystore/
 # Misc
 *.py
 !scripts/*.py
+!tools/stage/*.py
 .env
 output-metadata.json
 vcs.xml

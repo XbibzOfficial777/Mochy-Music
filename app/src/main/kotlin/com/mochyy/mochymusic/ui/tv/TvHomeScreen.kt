@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -282,7 +283,7 @@ private fun TvHeroText(
                     is TvHeroCard.Pick -> {
                         val label = shown.item.label(isPlaying())
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(label.text, style = TvText.Sub.copy(color = Color(0xFFD0D0D0), fontSize = 12.sp))
+                            Text(if (label.textRes != 0) stringResource(label.textRes) else label.text, style = TvText.Sub.copy(color = Color(0xFFD0D0D0), fontSize = 12.sp))
                             label.subject?.let { subject ->
                                 Spacer(Modifier.width(6.dp))
                                 label.coverUrl?.let {
@@ -478,7 +479,7 @@ internal fun TvLocalShelf(title: String, items: List<LocalItem>, onFocused: ((Lo
                 contentPadding = PaddingValues(start = TvSpace.Start, end = TvSpace.End, top = 10.dp, bottom = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                items(items, key = { it.id }, contentType = { it::class.simpleName }) { item ->
+                itemsIndexed(items, key = { index, item -> "${item.id}#$index" }, contentType = { _, item -> item::class.simpleName }) { _, item ->
                     TvItemCard(
                         title = item.title,
                         subtitle = item.tvSubtitle(),
