@@ -381,7 +381,11 @@ async function init() {
     $('#playlist-form').addEventListener('submit', event => {
         event.preventDefault(); run(async () => {
             applyLibrary(await api.playlist($('#playlist-name').value));
-            $('#playlist-dialog').close(); filter = 'playlists'; selectedPlaylist = data.playlists.at(-1).id; navigate('library');
+            $('#playlist-dialog').close();
+            filter = 'playlists';
+            selectedPlaylist = data.playlists.at(-1).id;
+            page = 'library';
+            render();
         });
     });
     $('#lyrics-tab').addEventListener('click', () => panel('lyrics'));

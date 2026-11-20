@@ -94,7 +94,7 @@ jobs:
             win32/x64) name=yt-dlp.exe ;;
             win32/arm64) name=yt-dlp_arm64.exe ;;
           esac
-          expected="$(grep -F "  $name" ../.github/desktop-yt-dlp.sha256 | cut -d' ' -f1)"
+          expected="$(awk -v target="$name" '$2 == target { print $1 }' ../.github/desktop-yt-dlp.sha256)"
           test -n "$expected"
           url="https://github.com/yt-dlp/yt-dlp/releases/download/2026.10.26/$name"
           curl --fail --location --silent --show-error "$url" -o expected-engine
