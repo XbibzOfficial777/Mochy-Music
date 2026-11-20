@@ -168,8 +168,4 @@
         <item quantity="one">%d ثانیه</item>
         <item quantity="other">%d ثانیه</item>
     </plurals>
-<plurals name="n_element">
-        <item quantity="one">%d مورد</item>
-        <item quantity="other">موارد</item>
-    </plurals>
-    </resources>
+</resources>
