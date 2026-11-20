@@ -177,18 +177,19 @@ private fun groupLines(lines: List<LyricsEntry>, duet: Boolean, mirrored: Boolea
         val reading = script?.romanized?.getOrNull(index)?.takeIf { !it.text.isNullOrBlank() }
         val asMain = script != null && reading != null && script.romanizedAsMain
         // with the romanisation as the line, it's sung in its own timed pieces and the original goes under it
-        val text = if (reading != null && asMain) reading.text else entry.text
+        val text = if (reading != null && asMain) reading.text.orEmpty() else entry.text
         val words = if (reading != null && asMain) reading.words else entry.words
         val parts = splitBackingVocal(text, words)
+        val backing = parts.backing
         val group = when {
-            parts.backing == null -> LineGroup(PillRow(PillRowKind.LEAD, text, words, entry.time, endMs, side))
+            backing == null -> LineGroup(PillRow(PillRowKind.LEAD, text, words, entry.time, endMs, side))
             // a line that's all brackets is still the line being sung
-            parts.lead.isBlank() -> LineGroup(PillRow(PillRowKind.LEAD, parts.backing, parts.backingWords, entry.time, endMs, side))
+            parts.lead.isBlank() -> LineGroup(PillRow(PillRowKind.LEAD, backing, parts.backingWords, entry.time, endMs, side))
             else -> LineGroup(PillRow(PillRowKind.LEAD, parts.lead, parts.leadWords, entry.time, endMs, side)).also {
                 val backingWords = parts.backingWords
                 val backingStart = backingWords?.firstOrNull()?.let { word -> (word.startTime * 1000).toLong() } ?: entry.time
                 val backingEnd = backingWords?.lastOrNull()?.let { word -> (word.endTime * 1000).toLong() } ?: endMs
-                it.backing += PillRow(PillRowKind.BACKING, parts.backing, backingWords, backingStart, backingEnd, side)
+                it.backing += PillRow(PillRowKind.BACKING, backing, backingWords, backingStart, backingEnd, side)
             }
         }
         if (reading != null) {
