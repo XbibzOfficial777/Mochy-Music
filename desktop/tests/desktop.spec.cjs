@@ -23,6 +23,7 @@ async function launch(profile, files = []) {
         env,
         timeout: 60000,
     });
+    currentApp = app;
     const page = await app.firstWindow();
     if (!MOCHI_ONLINE) await page.route('**/*', route => {
         const url = route.request().url();
@@ -32,9 +33,27 @@ async function launch(profile, files = []) {
     await expect(page.getByRole('heading', { name: 'Dengarkan sekarang' })).toBeVisible();
     return { app, page };
 }
+let currentApp;
 async function screenshot(page, info, name) {
     const file = info.outputPath(`${name}.png`);
-    await page.screenshot({ path: file, fullPage: true });
+    try {
+        await page.screenshot({ path: file, fullPage: true });
+    } catch (error) {
+        // Chromium's CDP capture can fail under Xvfb. Electron's native capture uses another path.
+        let dataUrl;
+        try {
+            dataUrl = await currentApp?.evaluate(async ({ BrowserWindow }) => {
+                const window = BrowserWindow.getAllWindows()[0];
+                return (await window.webContents.capturePage()).toDataURL();
+            });
+        } catch {}
+        if (!dataUrl) {
+            await info.attach(`${name}-capture-unavailable`, { body: error.message, contentType: 'text/plain' });
+            await info.attach(`${name}-dom`, { body: await page.locator('body').innerHTML(), contentType: 'text/html' });
+            return;
+        }
+        await fs.writeFile(file, Buffer.from(dataUrl.split(',')[1], 'base64'));
+    }
     await info.attach(name, { path: file, contentType: 'image/png' });
 }
 async function selectTab(page, name) {
