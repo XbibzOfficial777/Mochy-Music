@@ -99,7 +99,7 @@ import com.mochyy.mochymusic.ui.component.SubSettingsSearchBar
 import com.mochyy.mochymusic.ui.screens.settings.BottomBarHighlightKey
 import com.mochyy.mochymusic.ui.screens.settings.TopBarHighlightKey
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filter as flowFilter
+import kotlinx.coroutines.flow.filter
 
 private val CardPadding = 20.dp
 
@@ -261,10 +261,10 @@ private fun PlayerSection() {
     PlayerStyleCard(
         selected = playerStyle,
         onOpenEditor = {
-            val connection = playerConnection
-            if (connection?.player?.currentMediaItem != null) {
+            val hasMedia = playerConnection?.player?.currentMediaItem != null
+            if (hasMedia) {
                 playerSheetState?.expandSoft()
-                connection.requestPlayerStudio()
+                playerConnection?.requestPlayerStudio()
             } else {
                 Toast.makeText(context, playFirst, Toast.LENGTH_SHORT).show()
             }
@@ -352,7 +352,7 @@ private fun Modifier.highlightTarget(keys: List<String>): Modifier {
     val placement = remember { SettingsPlacement() }
     LaunchedEffect(keys) {
         // watched, not keyed on: clearing the request restarted the effect and cut it off before it scrolled
-        snapshotFlow { SettingsHighlight.pending }.flowFilter { it in keys }.collect {
+        snapshotFlow { SettingsHighlight.pending }.filter { it in keys }.collect {
             SettingsHighlight.pending = null
             // let the page finish opening first, or it scrolls while still sliding in
             delay(320)
