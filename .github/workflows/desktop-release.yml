@@ -94,11 +94,13 @@ jobs:
             win32/x64) name=yt-dlp.exe ;;
             win32/arm64) name=yt-dlp_arm64.exe ;;
           esac
-          grep -F "  $name" ../.github/desktop-yt-dlp.sha256 > expected.sha256
+          expected="$(grep -F "  $name" ../.github/desktop-yt-dlp.sha256 | cut -d' ' -f1)"
+          test -n "$expected"
           url="https://github.com/yt-dlp/yt-dlp/releases/download/2026.10.26/$name"
           curl --fail --location --silent --show-error "$url" -o expected-engine
-          sha256sum --check --status expected.sha256
-          rm expected-engine expected.sha256
+          actual="$(sha256sum expected-engine | cut -d' ' -f1)"
+          test "$actual" = "$expected"
+          rm expected-engine
       - name: Install Playwright Chromium
         working-directory: desktop
         run: npx playwright install chromium --with-deps
