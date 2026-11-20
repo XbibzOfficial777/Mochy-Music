@@ -45,7 +45,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -325,8 +325,8 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
         } else {
             SettingsIndex.filter {
                 it.title.contains(q, ignoreCase = true) ||
-                    (it.titleRes ?: LocalizedSettingsTitles[it.title])?.let { id -> resources.getString(id).contains(q, ignoreCase = true) } == true ||
-                    (it.pageRes ?: LocalizedSettingsPages[it.page])?.let { id -> resources.getString(id).contains(q, ignoreCase = true) } == true ||
+                    (it.titleRes ?: LocalizedSettingsTitles[it.title])?.let { id -> context.getString(id).contains(q, ignoreCase = true) } == true ||
+                    (it.pageRes ?: LocalizedSettingsPages[it.page])?.let { id -> context.getString(id).contains(q, ignoreCase = true) } == true ||
                     it.keywords.contains(q, ignoreCase = true) ||
                     it.page.contains(q, ignoreCase = true)
             }
