@@ -16,6 +16,11 @@ test('queue boundaries respect repeat and avoid repeating the current shuffled i
         }
     }
 });
+test('search suggestions are trimmed, deduplicated and bounded', async () => {
+    const { normalizeSuggestions } = await import('../renderer/suggest.mjs');
+    assert.deepEqual(normalizeSuggestions(['  Lagu  pertama ', 'lagu pertama', '', 5, 'Lagu kedua'], 2), ['Lagu pertama', 'Lagu kedua']);
+    assert.deepEqual(normalizeSuggestions([null, '   ']), []);
+});
 test('synced lyrics retain repeated timestamps and sort chronologically', async () => {
     const { parseLyrics } = await import('../renderer/playback.mjs');
     assert.deepEqual(parseLyrics('[ar:Artist]\n[00:12.50][01:12.5]Chorus\n[00:02]Intro\n[00:05.125]'), [

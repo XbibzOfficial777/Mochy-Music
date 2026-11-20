@@ -1,4 +1,5 @@
 import { Playback, frequencies, parseLyrics } from './playback.mjs';
+import { normalizeSuggestions } from './suggest.mjs';
 
 const $ = selector => document.querySelector(selector);
 const api = window.mochi;
@@ -56,6 +57,44 @@ function time(value) {
 let data, playback, page = 'home', filter = 'all', selectedPlaylist = null;
 let searchResults = [], searchQuery = '', searching = false, searchError = '', searchGeneration = 0;
 let toastTimer, addTrack, lyrics = [], lyricsTrack = null, shownTrack = null, activeLyric = -1;
+let suggestItems = [], suggestIndex = -1, suggestGeneration = 0, suggestTimer;
+function hideSuggestions() {
+    suggestItems = []; suggestIndex = -1;
+    const list = $('#suggestions');
+    if (list) { list.hidden = true; list.replaceChildren(); }
+    $('#search-field-input')?.setAttribute('aria-expanded', 'false');
+}
+function renderSuggestions(list, input) {
+    if (page !== 'search' || !suggestItems.length) { hideSuggestions(); return; }
+    list.replaceChildren();
+    suggestItems.forEach((text, index) => {
+        const item = node('button', index === suggestIndex ? 'active' : '', text);
+        item.type = 'button'; item.setAttribute('role', 'option');
+        item.setAttribute('aria-selected', String(index === suggestIndex));
+        item.addEventListener('mousedown', event => event.preventDefault());
+        item.addEventListener('click', () => {
+            input.value = text; searchQuery = text; hideSuggestions();
+            input.closest('form').requestSubmit();
+        });
+        list.append(item);
+    });
+    list.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+}
+async function updateSuggestions(value, list, input) {
+    const query = value.trim();
+    const generation = ++suggestGeneration;
+    if (query.length < 2) { hideSuggestions(); return; }
+    const local = normalizeSuggestions(data.tracks.filter(track => track.title.toLowerCase().includes(query.toLowerCase())).map(track => track.title));
+    if (local.length) { suggestItems = local; suggestIndex = -1; renderSuggestions(list, input); }
+    try {
+        const remote = normalizeSuggestions(await api.suggest(query));
+        if (generation !== suggestGeneration || page !== 'search') return;
+        suggestItems = normalizeSuggestions([...local, ...remote]);
+        suggestIndex = -1;
+        renderSuggestions(list, input);
+    } catch { /* local suggestions stay visible */ }
+}
 function notify(message) {
     const toast = $('#toast');
     toast.textContent = message;
@@ -150,36 +189,60 @@ function home(container) {
     if (liked.length) container.append(section('Lagu disukai', trackRows(liked.slice(0, 6))));
 }
 function search(container) {
-    container.append(heading('Cari musik'));
-    const form = node('form', 'search-form');
-    const input = node('input');
-    input.type = 'search'; input.maxLength = 200; input.placeholder = 'Lagu, artis, atau album'; input.required = true;
-    input.value = searchQuery; input.setAttribute('aria-label', 'Cari musik');
-    input.addEventListener('input', () => { searchQuery = input.value; });
-    const submit = node('button', 'primary', searching ? 'Mencari…' : 'Cari');
-    submit.type = 'submit'; submit.disabled = searching;
-    form.append(input, submit);
-    form.addEventListener('submit', event => {
-        event.preventDefault();
-        const query = input.value.trim();
-        if (!query) return;
-        run(async () => {
-            const generation = ++searchGeneration;
-            searching = true; searchError = ''; searchQuery = query; render();
-            try {
-                const results = await api.search(query);
-                if (generation !== searchGeneration) return;
-                searchResults = results;
-                await refresh();
-            } catch (error) { searchError = error.message; searchResults = []; }
-            finally { if (generation === searchGeneration) { searching = false; if (page === 'search') render(); } }
-        });
-    });
-    container.append(form);
-    if (searching) { const status = node('p', 'muted', 'Mencari di YouTube…'); status.setAttribute('role', 'status'); container.append(status); }
-    else if (searchError) { const error = node('p', 'error', searchError); error.setAttribute('role', 'alert'); container.append(error); }
-    else if (searchResults.length) container.append(trackRows(searchResults));
-    else container.append(empty(searchQuery ? 'Tidak ada hasil' : 'Temukan musik', 'Hasil berasal dari YouTube. Koneksi internet diperlukan; gangguan layanan ditampilkan, bukan diganti data contoh.'));
+container.append(heading('Cari musik'));
+const form = node('form', 'search-form');
+const field = node('div', 'search-field');
+const input = node('input');
+input.id = 'search-field-input';
+input.type = 'search'; input.maxLength = 200; input.placeholder = 'Lagu, artis, atau album'; input.required = true;
+input.value = searchQuery; input.setAttribute('aria-label', 'Cari musik');
+input.setAttribute('role', 'combobox'); input.setAttribute('aria-expanded', 'false');
+input.setAttribute('aria-controls', 'suggestions'); input.setAttribute('aria-autocomplete', 'list');
+const list = node('div', 'suggestions'); list.id = 'suggestions'; list.setAttribute('role', 'listbox'); list.hidden = true;
+field.append(input, list);
+input.addEventListener('input', () => {
+searchQuery = input.value;
+clearTimeout(suggestTimer);
+suggestTimer = setTimeout(() => run(() => updateSuggestions(input.value, list, input)), 250);
+});
+input.addEventListener('keydown', event => {
+if (event.key === 'Escape') { hideSuggestions(); return; }
+if (!suggestItems.length || !['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return;
+if (event.key === 'Enter' && suggestIndex < 0) return;
+event.preventDefault();
+if (event.key === 'Enter') {
+input.value = suggestItems[suggestIndex]; searchQuery = input.value; hideSuggestions();
+form.requestSubmit(); return;
+}
+suggestIndex = (suggestIndex + (event.key === 'ArrowDown' ? 1 : -1) + suggestItems.length) % suggestItems.length;
+renderSuggestions(list, input);
+});
+input.addEventListener('blur', () => setTimeout(hideSuggestions, 150));
+const submit = node('button', 'primary', searching ? 'Mencari…' : 'Cari');
+submit.type = 'submit'; submit.disabled = searching;
+form.append(field, submit);
+form.addEventListener('submit', event => {
+event.preventDefault();
+const query = input.value.trim();
+if (!query) return;
+hideSuggestions();
+run(async () => {
+const generation = ++searchGeneration;
+searching = true; searchError = ''; searchQuery = query; render();
+try {
+const results = await api.search(query);
+if (generation !== searchGeneration) return;
+searchResults = results;
+await refresh();
+} catch (error) { searchError = error.message; searchResults = []; }
+finally { if (generation === searchGeneration) { searching = false; if (page === 'search') render(); } }
+});
+});
+container.append(form);
+if (searching) { const status = node('p', 'muted', 'Mencari di YouTube…'); status.setAttribute('role', 'status'); container.append(status); }
+else if (searchError) { const error = node('p', 'error', searchError); error.setAttribute('role', 'alert'); container.append(error); }
+else if (searchResults.length) container.append(trackRows(searchResults));
+else container.append(empty(searchQuery ? 'Tidak ada hasil' : 'Temukan musik', 'Hasil berasal dari YouTube. Koneksi internet diperlukan; gangguan layanan ditampilkan, bukan diganti data contoh.'));
 }
 function library(container) {
     const title = heading('Koleksi');
@@ -349,12 +412,17 @@ async function init() {
         await refresh();
         if (page !== 'search' && page !== 'settings') render();
         if (!$('#queue-panel').hidden) panel('queue');
+        if ($('#player-dialog').open) run(loadLyrics);
     }));
     document.querySelectorAll('[data-page]').forEach(tab => tab.addEventListener('click', () => navigate(tab.dataset.page)));
     $('.brand').addEventListener('click', event => { event.preventDefault(); navigate('home'); });
     $('#import').addEventListener('click', () => run(importFiles));
     document.querySelectorAll('[data-action]').forEach(control => control.addEventListener('click', () => run(() => control.dataset.action === 'toggle' ? playback.toggle() : playback.move(control.dataset.action === 'next' ? 1 : -1))));
-    $('#now-playing').addEventListener('click', () => { $('#player-dialog').showModal(); renderTransport(); });
+    $('#now-playing').addEventListener('click', () => {
+        $('#player-dialog').showModal();
+        renderTransport();
+        if (playback.track && lyricsTrack !== playback.track.id) run(loadLyrics);
+    });
     $('#close-player').addEventListener('click', () => $('#player-dialog').close());
     document.querySelectorAll('[data-close]').forEach(control => control.addEventListener('click', () => $(`#${control.dataset.close}`).close()));
     $('#seek').addEventListener('input', event => playback.seek(Number(event.target.value)));

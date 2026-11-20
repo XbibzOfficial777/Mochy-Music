@@ -77,6 +77,10 @@ test('real local audio, seek, transport, equalizer and persistent library', asyn
     try {
         const { page, app } = instance;
         await screenshot(page, info, 'home-desktop');
+        await selectTab(page, 'Cari');
+        await page.getByRole('combobox', { name: 'Cari musik', exact: true }).fill('Lagu');
+        await expect(page.getByRole('option', { name: 'Lagu pertama', exact: true })).toBeVisible();
+        await page.keyboard.press('Escape');
         await selectTab(page, 'Koleksi');
         await expect(page.getByRole('button', { name: 'Putar Lagu pertama', exact: true })).toBeVisible();
         await page.getByRole('button', { name: 'Playlist baru', exact: true }).click();

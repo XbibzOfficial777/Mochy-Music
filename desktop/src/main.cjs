@@ -59,6 +59,21 @@ function registerHandlers() {
         const result = await dialog.showOpenDialog(window, { title: 'Tambah musik', properties: ['openFile', 'multiSelections'], filters: [{ name: 'Audio', extensions: ['mp3', 'flac', 'wav', 'ogg', 'opus', 'm4a', 'aac', 'webm'] }] });
         return result.canceled ? { data: library.data, errors: [] } : importPaths(result.filePaths);
     });
+    handle('suggest', async query => {
+        if (typeof query !== 'string' || !query.trim() || query.length > 200) return [];
+        const local = library.data.tracks
+            .filter(track => track.title.toLowerCase().includes(query.trim().toLowerCase()))
+            .map(track => track.title)
+            .slice(0, 4);
+        const url = `https://suggestqueries.google.com/complete/search?client=firefox&hl=id&q=${encodeURIComponent(query.trim())}`;
+        try {
+            const response = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { 'User-Agent': 'MochiBibz/0.1.0' } });
+            if (!response.ok) return local;
+            const body = await response.json();
+            const remote = Array.isArray(body?.[1]) ? body[1].filter(item => typeof item === 'string').slice(0, 6) : [];
+            return [...new Set([...local, ...remote])].slice(0, 8);
+        } catch { return local; }
+    });
     handle('search', async query => {
         const tracks = await engine.search(query);
         tracks.forEach(t => library.add(t));
@@ -116,7 +131,10 @@ function registerHandlers() {
         const response = await fetch(`https://lrclib.net/api/search?${params}`, { signal: AbortSignal.timeout(15000), headers: { 'User-Agent': 'MochiBibz/0.1.0 (https://github.com/XbibzOfficial777/Mochy-Music)' } });
         if (!response.ok) throw new Error(`Layanan lirik: HTTP ${response.status}`);
         const results = await response.json();
-        return results.sort((a, b) => Math.abs(a.duration - t.duration) - Math.abs(b.duration - t.duration))[0] || null;
+        const usable = (Array.isArray(results) ? results : [])
+            .filter(item => item && (item.syncedLyrics || item.plainLyrics) && Math.abs((item.duration || 0) - t.duration) < 15)
+            .sort((a, b) => Math.abs(a.duration - t.duration) - Math.abs(b.duration - t.duration));
+        return usable[0] || null;
     });
     handle('download', async id => {
         const t = library.get(id);

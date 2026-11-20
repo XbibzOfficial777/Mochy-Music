@@ -48,25 +48,41 @@ export class Playback extends EventTarget {
     }
     get track() { return this.queue[this.index] || null; }
     changed() { this.dispatchEvent(new Event('change')); }
-    fail(error) { this.error = error.message; this.loading = false; this.changed(); }
+    fail(error) {
+        this.error = error.name === 'NotAllowedError'
+            ? 'Audio diblokir browser. Ketuk Putar sekali lagi.'
+            : error.message || 'Audio gagal diputar.';
+        this.loading = false;
+        this.changed();
+    }
+    // The equalizer is optional. If WebAudio cannot own the media element, play straight
+    // through the audio element instead of losing sound entirely.
     ensureGraph() {
-        if (this.context) return;
-        this.context = new AudioContext();
-        this.source = this.context.createMediaElementSource(this.audio);
-        this.filters = frequencies.map((frequency, index) => {
-            const filter = this.context.createBiquadFilter();
-            filter.type = index === 0 ? 'lowshelf' : index === frequencies.length - 1 ? 'highshelf' : 'peaking';
-            filter.frequency.value = frequency;
-            filter.Q.value = 1;
-            filter.gain.value = this.settings.eq[index];
-            return filter;
-        });
-        this.analyser = this.context.createAnalyser();
-        this.analyser.fftSize = 2048;
-        let output = this.source;
-        for (const filter of this.filters) { output.connect(filter); output = filter; }
-        output.connect(this.analyser);
-        this.analyser.connect(this.context.destination);
+        if (this.context || this.audioGraphFailed) return;
+        try {
+            this.context = new AudioContext();
+            this.source = this.context.createMediaElementSource(this.audio);
+            this.filters = frequencies.map((frequency, index) => {
+                const filter = this.context.createBiquadFilter();
+                filter.type = index === 0 ? 'lowshelf' : index === frequencies.length - 1 ? 'highshelf' : 'peaking';
+                filter.frequency.value = frequency;
+                filter.Q.value = 1;
+                filter.gain.value = this.settings.eq[index];
+                return filter;
+            });
+            this.analyser = this.context.createAnalyser();
+            this.analyser.fftSize = 2048;
+            let output = this.source;
+            for (const filter of this.filters) { output.connect(filter); output = filter; }
+            output.connect(this.analyser);
+            this.analyser.connect(this.context.destination);
+        } catch (error) {
+            this.graphError = error.message;
+            if (this.source && this.context) {
+                try { this.source.disconnect(); this.source.connect(this.context.destination); } catch {}
+            } else this.audioGraphFailed = true;
+            this.filters = null;
+        }
     }
     signalLevel() {
         if (!this.analyser) return 0;
@@ -88,7 +104,7 @@ export class Playback extends EventTarget {
         this.changed();
         try {
             this.ensureGraph();
-            await this.context.resume();
+            if (this.context) await this.context.resume();
             const url = await this.api.resolve(this.track.id);
             if (generation !== this.generation) return;
             this.audio.src = url;
@@ -104,7 +120,7 @@ export class Playback extends EventTarget {
     }
     async resume() {
         this.ensureGraph();
-        await this.context.resume();
+        if (this.context) await this.context.resume();
         await this.audio.play();
     }
     async toggle() {
