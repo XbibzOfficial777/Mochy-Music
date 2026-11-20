@@ -24,8 +24,9 @@ async function launch(profile, files = []) {
         timeout: 60000,
     });
     const page = await app.firstWindow();
-    if (!MOCHI_ONLINE) await page.route('**://*', route => {
-        if (route.request().url().startsWith('file://')) return route.continue();
+    if (!MOCHI_ONLINE) await page.route('**/*', route => {
+        const url = route.request().url();
+        if (/^(file|mochi|data|blob):/.test(url)) return route.continue();
         return route.abort();
     });
     await expect(page.getByRole('heading', { name: 'Dengarkan sekarang' })).toBeVisible();
