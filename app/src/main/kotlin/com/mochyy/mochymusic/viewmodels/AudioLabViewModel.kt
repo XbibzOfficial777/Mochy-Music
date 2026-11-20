@@ -17,7 +17,12 @@ import com.mochyy.mochymusic.eq.autoeq.AutoEqRepository
 import com.mochyy.mochymusic.eq.autoeq.AutoEqTuning
 import com.mochyy.mochymusic.eq.data.FilterType
 import com.mochyy.mochymusic.eq.data.ParametricEQBand
-import com.mochyy.mochymusic.utils.UiNumberFormat
+import com.mochyy.mochymusic.eq.stage.StageListener
+import com.mochyy.mochymusic.eq.stage.StageNative
+import com.mochyy.mochymusic.eq.stage.StageObject
+import com.mochyy.mochymusic.eq.stage.StagePresets
+import com.mochyy.mochymusic.eq.stage.StageSettings
+import com.mochyy.mochymusic.eq.stage.StageSource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -57,9 +62,12 @@ class AudioLabViewModel @Inject constructor(
     val reverb = store.reverb
     val loudness = store.loudness
     val spatial = store.spatial
+    val eightD = store.eightD
     val playback = store.playback
     val volume = store.volume
     val normalize = store.normalize
+    val stage = store.stage
+    val stageOutput = store.stageOutput
 
     // ---- the user's curve -------------------------------------------------------------------
 
@@ -227,6 +235,9 @@ class AudioLabViewModel @Inject constructor(
     fun updateSpatial(transform: (com.mochyy.mochymusic.eq.SpatialSettings) -> com.mochyy.mochymusic.eq.SpatialSettings) =
         store.updateSpatial(transform)
 
+    fun updateEightD(transform: (com.mochyy.mochymusic.eq.EightDSettings) -> com.mochyy.mochymusic.eq.EightDSettings) =
+        store.updateEightD(transform)
+
     fun updatePlayback(transform: (com.mochyy.mochymusic.eq.PlaybackSettings) -> com.mochyy.mochymusic.eq.PlaybackSettings) =
         store.updatePlayback(transform)
 
@@ -235,6 +246,52 @@ class AudioLabViewModel @Inject constructor(
 
     fun updateNormalize(transform: (com.mochyy.mochymusic.eq.NormalizeSettings) -> com.mochyy.mochymusic.eq.NormalizeSettings) =
         store.updateNormalize(transform)
+
+    // ---- 3D Sims ----------------------------------------------------------------------------
+
+    fun updateStage(transform: (StageSettings) -> StageSettings) = store.updateStage(transform)
+
+    /** moves or changes one thing in the room; the preset it came from no longer matches */
+    fun updateStageObject(id: Int, transform: (StageObject) -> StageObject) = store.updateStage { s ->
+        s.copy(objects = s.objects.map { if (it.id == id) transform(it) else it }, presetId = null)
+    }
+
+    fun updateListener(transform: (StageListener) -> StageListener) = store.updateStage { s ->
+        s.copy(listener = transform(s.listener), presetId = null)
+    }
+
+    /** another copy of a part, a little to the side of the last one; null when all four of that kind are in the room */
+    fun addStageObject(source: StageSource): Int? {
+        var added: Int? = null
+        store.updateStage { s ->
+            val same = s.objects.filter { it.source == source }
+            if (same.size >= StageNative.Copies) return@updateStage s
+            val last = same.lastOrNull()
+            val id = (s.objects.maxOfOrNull { it.id } ?: -1) + 1
+            val x = last?.let { if (it.x > 0.5f) it.x - 0.4f else it.x + 0.4f } ?: 0f
+            added = id
+            val copy = last?.copy(id = id, x = x, solo = false) ?: StageObject(id, source, x, if (source == StageSource.Sub) 0.05f else 0.4f, 0.5f)
+            s.copy(objects = s.objects + copy, presetId = null)
+        }
+        return added
+    }
+
+    /** a copy can go; the last one of each part always keeps its place */
+    fun removeStageObject(id: Int) = store.updateStage { s ->
+        val target = s.objects.firstOrNull { it.id == id } ?: return@updateStage s
+        if (s.objects.count { it.source == target.source } <= 1) s
+        else s.copy(objects = s.objects - target, presetId = null)
+    }
+
+    fun applyStagePreset(id: String) {
+        val preset = StagePresets.All.firstOrNull { it.id == id } ?: return
+        store.updateStage { StagePresets.apply(it, preset) }
+    }
+
+    /** null goes back to guessing */
+    fun setOutputKind(key: String, speaker: Boolean?) = store.updateStage { s ->
+        s.copy(outputKinds = if (speaker == null) s.outputKinds - key else s.outputKinds + (key to speaker))
+    }
 
     companion object {
         const val MaxNodes = 16
@@ -246,11 +303,11 @@ private fun AutoEqCorrection.toEntry() = AutoEqEntry(model, source, rig, path, f
 /** how a node's frequency reads on a chip: 31Hz, 120Hz, 1.0k, 16k */
 fun frequencyLabel(hz: Double): String = when {
     hz >= 10_000 -> "${(hz / 1000).toInt()}k"
-    hz >= 1000 -> UiNumberFormat.decimal("%.1fk", hz / 1000)
+    hz >= 1000 -> String.format("%.1fk", hz / 1000)
     else -> "${hz.toInt()}Hz"
 }
 
-fun gainLabel(db: Double): String = (if (db > 0.04) "+" else if (db < -0.04) "−" else "") + UiNumberFormat.decimal("%.1f dB", abs(db))
+fun gainLabel(db: Double): String = (if (db > 0.04) "+" else if (db < -0.04) "−" else "") + String.format("%.1f dB", abs(db))
 
 fun filterTypeLabel(type: FilterType): String = when (type) {
     FilterType.PK -> "Peak"

@@ -5755,3 +5755,5 @@ private const val AudioFocusNone = AudioManager.AUDIOFOCUS_NONE
 
 @android.annotation.SuppressLint("InlinedApi")
 private const val PrimitiveLowTick = VibrationEffect.Composition.PRIMITIVE_LOW_TICK
+
+private const val WidgetProgressIntervalMs = 1_000L

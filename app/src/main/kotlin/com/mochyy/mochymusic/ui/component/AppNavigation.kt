@@ -2,14 +2,9 @@
 
 package com.mochyy.mochymusic.ui.component
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Size
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -29,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
@@ -50,7 +46,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.size
 import com.mochyy.mochymusic.LocalGlassState
-import kotlinx.coroutines.launch
 
 @Immutable
 private data class NavItemState(
@@ -250,7 +245,14 @@ fun AppNavigationBar(
     val glassState = LocalGlassState.current ?: remember { GlassState() }
     val accentWash = rememberChromeAccentWash()
     val selectedIndex = navigationItems.indexOfFirst { it.route == selectedTabRoute }
-    val liquid = rememberLiquidTabState(selectedIndex)
+    val tabCount = navigationItems.size
+    val pill = rememberNavPill(selectedIndex)
+    // a look's glass can draw its own edge and its own pill, and then mochy leaves its hairline, shadow or highlight out
+    val moduleGlass = rememberChromeModuleGlass()
+    val density = LocalDensity.current
+    val glassPill = remember(pill, tabCount, density) {
+        { bar: Size -> pill.forGlass(bar, with(density) { NavRowPadding.toPx() }, tabCount, density) }
+    }
 
     Box(modifier = modifier) {
         Box(
@@ -260,13 +262,8 @@ fun AppNavigationBar(
                 .padding(horizontal = 24.dp, vertical = 8.dp)
                 .align(Alignment.TopCenter)
                 .height(NavBarHeight)
-                // squishes a hair under a press, swells a hair while the glass drop is picked up
-                .graphicsLayer {
-                    val scale = liquid.barScale
-                    scaleX = scale
-                    scaleY = scale
-                }
-                .dropShadow(NavBarShape, ChromeShadow)
+                .press3D(maxTilt = 4f, pressedScale = 0.985f)
+                .then(if (moduleGlass?.shadow == false) Modifier else Modifier.dropShadow(NavBarShape, ChromeShadow))
                 .clip(NavBarShape)
                 .drawWithContent {
                     drawContent()
@@ -284,21 +281,14 @@ fun AppNavigationBar(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = NavHighlightInset - NavHighlightGap / 2)
-                    // the lit tab's pill is a drop of liquid glass: it flows to a tapped tab, and
-                    // a press slid along the bar carries it to another (see LiquidTabIndicator.kt)
-                    .liquidTabIndicator(liquid, navigationItems.size)
-                    .liquidTabSlide(
-                        state = liquid,
-                        tabCount = navigationItems.size,
-                        selectedIndex = selectedIndex,
-                        onSlideTo = { index ->
-                            navigationItems.getOrNull(index)?.let { onItemClick(it, false) }
-                        },
-                    ),
+                    .padding(horizontal = NavRowPadding)
+                    .navHighlight(pill, tabCount) { moduleGlass?.drawsPill != true }
+                    .navPillDrag(pill, tabCount, selectedIndex) { index ->
+                        navigationItems.getOrNull(index)?.let { onItemClick(it, index == selectedIndex) }
+                    },
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                navigationItems.forEachIndexed { index, screen ->
+                navigationItems.forEach { screen ->
                     // lit = the tab this page belongs to. what a tap on it does (scroll to the top
                     // on the tab's own page, back to that page from deeper in) is the caller's call
                     NavTab(
@@ -306,65 +296,10 @@ fun AppNavigationBar(
                         isSelected = screen.route == selectedTabRoute,
                         onItemClick = onItemClick,
                         onDoubleTap = onSearchDoubleTap.takeIf { screen == Screens.Search },
-                        lit = { liquid.litOf(index) },
-                        iconZoom = { liquid.iconZoomOf(index) },
                     )
                 }
             }
         }
-    }
-}
-
-/**
- * One highlight behind the lit tab that slides to the next one, instead of each tab fading its own
- * in and out. Only read while drawing, so the slide never recomposes the bar.
- */
-/**
- * The highlight's front edge springs to the new tab faster than its back edge, so it stretches
- * toward the tab and settles into it instead of sliding over as a rigid block.
- */
-private val NavHighlightLead = spring<Float>(dampingRatio = 0.82f, stiffness = 700f)
-private val NavHighlightTrail = spring<Float>(dampingRatio = 0.82f, stiffness = 320f)
-
-@Composable
-internal fun Modifier.navHighlight(selectedIndex: Int, tabCount: Int): Modifier {
-    val start = remember { Animatable(selectedIndex.coerceAtLeast(0).toFloat()) }
-    val end = remember { Animatable(selectedIndex.coerceAtLeast(0).toFloat()) }
-    val shown = remember { Animatable(if (selectedIndex >= 0) 1f else 0f) }
-
-    LaunchedEffect(selectedIndex) {
-        if (selectedIndex < 0) {
-            shown.animateTo(0f, tween(200))
-            return@LaunchedEffect
-        }
-        val target = selectedIndex.toFloat()
-        // back from no lit tab, it fades in where it belongs rather than sliding over from the old one
-        if (shown.value == 0f) {
-            start.snapTo(target)
-            end.snapTo(target)
-        }
-        launch { shown.animateTo(1f, tween(200)) }
-        val movingRight = target > (start.value + end.value) / 2f
-        launch { start.animateTo(target, if (movingRight) NavHighlightTrail else NavHighlightLead) }
-        end.animateTo(target, if (movingRight) NavHighlightLead else NavHighlightTrail)
-    }
-
-    return drawBehind {
-        val alpha = shown.value
-        if (alpha <= 0f || tabCount == 0) return@drawBehind
-        val slot = size.width / tabCount
-        val halfGap = NavHighlightGap.toPx() / 2f
-        val inset = NavHighlightInset.toPx()
-        val left = start.value * slot + halfGap
-        val right = (end.value + 1f) * slot - halfGap
-        val height = size.height - inset * 2f
-        drawRoundRect(
-            color = ChromeHighlightColor,
-            topLeft = Offset(left, inset),
-            size = Size(right - left, height),
-            cornerRadius = CornerRadius(height / 2f),
-            alpha = alpha,
-        )
     }
 }
 
@@ -394,14 +329,15 @@ internal fun RowScope.NavTab(
     isSelected: Boolean,
     onItemClick: (Screens, Boolean) -> Unit,
     onDoubleTap: (() -> Unit)?,
-    /** 0..1, how close the glass drop is: the filled icon fades in as it passes over */
-    lit: () -> Float,
-    /** older phones' stand-in for the drop's magnifying glass */
-    iconZoom: () -> Float,
 ) {
     val viewConfiguration = LocalViewConfiguration.current
     val interactionSource = remember { MutableInteractionSource() }
     val lastTap = remember { longArrayOf(0L) }
+    val lit = animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0f,
+        animationSpec = tween(200),
+        label = "nav_tab_lit"
+    )
 
     // Both icons stay loaded, so lighting a tab never shows an empty frame while its filled icon loads.
     val unlitIcon = coil3.compose.rememberAsyncImagePainter(model = screen.iconIdInactive)
@@ -424,19 +360,10 @@ internal fun RowScope.NavTab(
             ),
         contentAlignment = Alignment.Center
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.graphicsLayer {
-                val zoom = iconZoom()
-                scaleX = zoom
-                scaleY = zoom
-            },
-        ) {
-            if (screen == Screens.Library) {
-                LibraryDownloadIcon { TabIcons(screen, unlitIcon, litIcon, iconSize, lit) }
-            } else {
-                TabIcons(screen, unlitIcon, litIcon, iconSize, lit)
-            }
+        if (screen == Screens.Library) {
+            LibraryDownloadIcon { TabIcons(screen, unlitIcon, litIcon, iconSize) { lit.value } }
+        } else {
+            TabIcons(screen, unlitIcon, litIcon, iconSize) { lit.value }
         }
     }
 }
