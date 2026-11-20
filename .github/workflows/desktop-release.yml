@@ -118,7 +118,7 @@ jobs:
           echo "PULSE_SERVER=unix:/run/user/$(id -u)/pulse/native" >> "$GITHUB_ENV"
       - name: Verify real local playback, persistence and UI (Linux)
         working-directory: desktop
-        run: xvfb-run -a npm run test:desktop
+        run: xvfb-run -a -s "-screen 0 1920x1080x24" npm run test:desktop
         if: matrix.platform == 'linux'
         env:
           CI: 'true'
@@ -138,7 +138,7 @@ jobs:
       - name: Verify installer metadata
         shell: bash
         working-directory: desktop
-        run: bash ../../.github/scripts/verify-desktop-artifacts.sh dist "${{ matrix.platform }}" "${{ matrix.arch }}"
+        run: bash ../.github/scripts/verify-desktop-artifacts.sh dist "${{ matrix.platform }}" "${{ matrix.arch }}"
       - uses: actions/upload-artifact@v6
         if: always()
         with:
