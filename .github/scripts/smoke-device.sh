@@ -17,7 +17,7 @@ adb() {
       esac
       ;;
   esac
-  timeout --signal=TERM --kill-after=5s "${limit}s" "$ADB_BIN" "$@"
+  timeout --foreground --signal=TERM --kill-after=5s "${limit}s" "$ADB_BIN" "$@"
 }
 
 # Wait until adb reports a booted emulator. Used by smoke scripts; does not skip tests.
