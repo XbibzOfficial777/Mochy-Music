@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/search-motion-release
+      - sync/upstream-8.4.3-bibz
       - optimize/bibz-uiux-fixes
   workflow_dispatch:
 

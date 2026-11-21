@@ -70,6 +70,7 @@ import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
 import com.mochyy.mochymusic.ui.component.RemoteFocus
+import com.mochyy.mochymusic.ui.component.sheetHandleRoom
 
 @Immutable
 private data class LeadDevEntry(
@@ -333,32 +334,38 @@ private fun ColumnScope.AboutSheetContent(
         contributors = fetchContributors()
     }
 
+    // the page starts under the sheet's handle now, so the ring and the first row sit that much lower
+    val room = sheetHandleRoom()
     Box(Modifier.fillMaxWidth()) {
         // zero-size layout places the spinning ring behind the top icon without pushing the column down
         VersionRing(
             text = "MOCHY $installed",
             scrollProgress = { scrollState.value / ringScrollRangePx },
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .layout { measurable, constraints ->
-                    val placeable = measurable.measure(
-                        constraints.copy(
-                            minWidth = 0,
-                            minHeight = 0,
-                            maxWidth = Constraints.Infinity,
-                            maxHeight = Constraints.Infinity,
-                        ),
-                    )
-                    layout(0, 0) {
-                        placeable.place(x = -placeable.width / 2, y = (-166).dp.roundToPx())
-                    }
-                },
+            modifier =
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .layout { measurable, constraints ->
+                        val placeable =
+                            measurable.measure(
+                                constraints.copy(
+                                    minWidth = 0,
+                                    minHeight = 0,
+                                    maxWidth = Constraints.Infinity,
+                                    maxHeight = Constraints.Infinity,
+                                ),
+                            )
+                        layout(0, 0) {
+                            placeable.place(x = -placeable.width / 2, y = (room - 166.dp).roundToPx())
+                        }
+                    },
         )
 
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(scrollState),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState)
+                    .padding(top = room),
         ) {
             Spacer(Modifier.height(18.dp))
             Column(
@@ -593,9 +600,11 @@ private fun ColumnScope.AboutSheetContent(
 private fun ColumnScope.CreditsSheetContent() {
     val context = LocalContext.current
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState()),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(top = sheetHandleRoom()),
     ) {
         Spacer(Modifier.height(8.dp))
         Text(
@@ -631,9 +640,11 @@ private fun ColumnScope.CreditsSheetContent() {
 private fun ColumnScope.LicenseSheetContent() {
     val context = LocalContext.current
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState()),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(top = sheetHandleRoom()),
     ) {
         Spacer(Modifier.height(8.dp))
         Text(

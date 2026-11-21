@@ -89,9 +89,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// a route's "{name}" placeholders, filled with the entry's own arguments
-private val RouteArgument = Regex("\\{(\\w+)\\}")
-
 // the tv app once a profile is picked: its pages, the chrome around them, and the player over everything
 @OptIn(
     ExperimentalMaterial3Api::class,
@@ -109,14 +106,7 @@ internal fun TvShell(
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
-    // with its arguments filled in, so the playlists grid lights its own stop on the rail instead of the library's
-    val currentRoute = remember(backStackEntry) {
-        backStackEntry?.let { entry ->
-            entry.destination.route?.let { pattern ->
-                RouteArgument.replace(pattern) { arg -> entry.arguments?.getString(arg.groupValues[1]).orEmpty() }
-            }
-        }
-    }
+    val currentRoute = backStackEntry?.destination?.route
     val scope = rememberCoroutineScope()
     // a tv shell only ever runs inside TvActivity, so the window's activity is always there;
     // LocalActivity says that without casting a context to an Activity
@@ -233,7 +223,7 @@ internal fun TvShell(
                                 navController.navigate(tab.route) {
                                     popUpTo(navController.graph.findStartDestination().id) { saveState = !sameTab }
                                     launchSingleTop = true
-                                    restoreState = !sameTab && tab != TvTab.Playlists
+                                    restoreState = !sameTab
                                 }
                             },
                         )

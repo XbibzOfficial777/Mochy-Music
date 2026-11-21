@@ -57,7 +57,10 @@ private fun SkinBackgroundFill(background: SkinBackground, context: SkinContext,
         is SkinBackground.Player -> if (background.style == PlayerBackgroundStyle.AMBIENT) {
             AmbientSkinBackdrop(context, modifier)
         } else {
-            PlayerBackgroundContent(style = background.style, thumbnailUrl = context.track.artwork, pureBlack = false, modifier = modifier)
+            val showing = rememberStyleShowing()
+            val obscured = LocalAppContentObscured.current
+            val running by remember { derivedStateOf { !context.preview && showing() && !obscured.value } }
+            PlayerBackgroundContent(style = background.style, thumbnailUrl = context.track.artwork, pureBlack = false, modifier = modifier, animate = running)
         }
         is SkinBackground.Fill -> {
             val colors = background.colors.map(context::color)
@@ -67,6 +70,11 @@ private fun SkinBackgroundFill(background: SkinBackground, context: SkinContext,
         is SkinBackground.Shader -> SkinShaderSurface(background.program, context, modifier) {
             SkinBackgroundFill(background.fallback, context, modifier)
         }
+        // the fallback stays under the video, so it's there until the first frame and for songs with nothing moving
+        is SkinBackground.Live -> {
+            SkinBackgroundFill(background.fallback, context, modifier)
+            SkinCoverMedia(background.media, context, fit = false, rides = false, modifier = modifier)
+        }
         SkinBackground.Tones -> Unit
     }
 }
@@ -75,8 +83,9 @@ private fun SkinBackgroundFill(background: SkinBackground, context: SkinContext,
 @Composable
 private fun SkinPictureBackdrop(background: SkinBackground.Picture, context: SkinContext, modifier: Modifier) {
     val blurred = background.blur > 0.5f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val model = context.skin.resolve(background.image)
     AsyncImage(
-        model = context.skin.resolve(background.image),
+        model = model,
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = modifier.then(
@@ -88,6 +97,8 @@ private fun SkinPictureBackdrop(background: SkinBackground.Picture, context: Ski
                 .blur(background.blur.dp),
         ),
     )
+    // a gif or webp moves unless it's blurred, since a blur over a moving picture is worked out again on every frame
+    if (!blurred && model != null && isMovingPicture(model)) MovingPictureOverlay(model, context, ContentScale.Crop, null, modifier)
 }
 
 // the flagship's drifting colours, whose clock rests while the style can't be seen instead of running under the mini player

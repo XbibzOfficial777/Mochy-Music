@@ -94,6 +94,8 @@ data class ModuleEntry(
     val values: Map<String, String> = emptyMap(),
     /** when it was added, null for built-in ones and ones added before mochy kept the date */
     val addedAt: Long? = null,
+    /** when this copy went in: every update moves it, unlike [addedAt], so the store can tell a newer zip from this one */
+    val installedAt: Long? = null,
     /** the github project or link it can update from, null for one added from a file */
     val source: ModuleSource? = null,
     /** a newer copy waiting at [source] */
@@ -232,6 +234,8 @@ class ModuleRegistry @Inject constructor(
                 fields = runCatching { (module as? ModuleFields)?.fields }.getOrNull().orEmpty(),
                 values = valuesFor(module),
                 addedAt = prefs.getLong("added_$id", 0L).takeIf { it > 0L },
+                // copies from before this was kept count from when they were first added
+                installedAt = prefs.getLong("installed_$id", 0L).takeIf { it > 0L } ?: prefs.getLong("added_$id", 0L).takeIf { it > 0L },
                 source = updates.source(id),
                 update = updates.update(id),
                 checkedAt = updates.checkedAt(id),
@@ -250,6 +254,7 @@ class ModuleRegistry @Inject constructor(
                 glassSkin = glass?.skin,
                 glass = glass?.glass,
                 bar = looks.firstOrNull { it.skin?.bar != null }?.let { entry -> entry.skin?.let { LookValues(it, entry.values) } },
+                mini = looks.firstOrNull { it.skin?.mini != null }?.let { entry -> entry.skin?.let { LookValues(it, entry.values) } },
                 // a page can take one of mochy's over from any module that's on, not only a look
                 pages = list.filter { it.active }.mapNotNull { entry -> entry.skin?.takeIf { it.takeovers.isNotEmpty() }?.let { LookValues(it, entry.values) } },
             ),
@@ -267,12 +272,13 @@ class ModuleRegistry @Inject constructor(
 
     private val ModuleEntry.glass: SkinGlass? get() = (module as? SkinSource)?.glass
 
-    // what a look brings that another could also bring: its settings by name, and its font, glass and nav bar; players all stay pickable, so they don't count
+    // what a look brings that another could also bring: its settings by name, and its font, glass, nav bar and mini player; players all stay pickable, so they don't count
     private fun partsOf(entry: ModuleEntry): Set<String> = buildSet {
         (entry.module as? LookModule)?.look?.keys?.let(::addAll)
         if (entry.skin?.font?.wholeApp == true) add("font")
         if (entry.glass != null) add("glass")
         if (entry.skin?.bar != null) add("bar")
+        if (entry.skin?.mini != null) add("mini")
     }
 
     // the first look above [entry] that takes something [entry] also brings, for its page to say so
@@ -460,6 +466,7 @@ class ModuleRegistry @Inject constructor(
                 prefs.edit { putString(LocalModulesKey, JSONArray(saved + entry).toString()) }
             }
             if (!prefs.contains("added_$id")) prefs.edit { putLong("added_$id", System.currentTimeMillis()) }
+            prefs.edit { putLong("installed_$id", System.currentTimeMillis()) }
             module.attach(hostFor(module))
             handValues(module)
             loaded = modules.filter { it.first.info.id != id } + (module to origin)
@@ -482,6 +489,7 @@ class ModuleRegistry @Inject constructor(
             // the old copy's folder goes on the next start, its code may still be finishing a call
             (module(id) as? BridgedModule)?.close()
             if (!prefs.contains("added_$id")) prefs.edit { putLong("added_$id", System.currentTimeMillis()) }
+            prefs.edit { putLong("installed_$id", System.currentTimeMillis()) }
             fresh.attach(hostFor(fresh))
             handValues(fresh)
             loaded = modules.filter { it.first.info.id != id } + (fresh to ModuleOrigin.Code(ready.from))
@@ -540,6 +548,7 @@ class ModuleRegistry @Inject constructor(
                 }
                 remove("enabled_$id")
                 remove("added_$id")
+                remove("installed_$id")
                 module.choices.forEach { remove("pick_${id}_${it.id}") }
                 runCatching { (module as? ModuleFields)?.fields }.getOrNull().orEmpty().forEach { remove("field_${id}_${it.id}") }
             }

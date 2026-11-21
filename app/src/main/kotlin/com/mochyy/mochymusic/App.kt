@@ -42,7 +42,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
@@ -214,6 +213,9 @@ class App : Application(), SingletonImageLoader.Factory {
             com.mochyy.mochymusic.ui.launch.LaunchGate.awaitIntro()
             runCatching { com.mochyy.mochymusic.importer.LocalArtwork.repair(this@App, musicDatabase) }
                 .onFailure { Timber.w(it, "Repairing local covers failed") }
+            // once: the cover every song of an album saved for itself becomes one shared file, and huge ones shrink
+            runCatching { com.mochyy.mochymusic.importer.LocalArtwork.compact(this@App) }
+                .onFailure { Timber.w(it, "Sharing out local covers failed") }
         }
 
         applicationScope.launch(Dispatchers.Default) {
@@ -391,9 +393,8 @@ class App : Application(), SingletonImageLoader.Factory {
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
-        val cacheSize = runBlocking {
-            dataStore.data.map { it[MaxImageCacheSizeKey] ?: 512 }.first()
-        }
+        // read from the already-warmed preferences cache so the first image never blocks the main thread
+        val cacheSize = com.mochyy.mochymusic.utils.PreferencesCache.current(dataStore)[MaxImageCacheSizeKey] ?: 512
         val ramPercent = com.mochyy.mochymusic.utils.DeviceHealth.coilMaxSizePercent()
         return ImageLoader.Builder(this).apply {
             components {

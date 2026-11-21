@@ -425,6 +425,8 @@ class MusicService :
     val streamFailure = MutableStateFlow<StreamFailure?>(null)
     private var failureJob: Job? = null
     private val isNetworkConnected = MutableStateFlow(false)
+    // tracks live playback so background timers rest completely while paused
+    private val isPlayingFlow = MutableStateFlow(false)
 
     private lateinit var audioQuality: com.mochyy.mochymusic.constants.AudioQuality
     private lateinit var ipVersion: IpVersion
@@ -834,6 +836,7 @@ class MusicService :
             audioLab.eightD.collect(::updateEightDReverb)
         }
         observeOutputSettings()
+        dropLocalSongCopies()
         sleepTimer = SleepTimer(scope, player)
         player.addListener(sleepTimer)
 
@@ -1388,19 +1391,11 @@ class MusicService :
             }
         }
 
-        // the timed saves only write what changed: a queue edit (they're the only thing that saves one), or the place in the song
+        // save playback position only while playing, so a paused service causes zero background wakeups
         scope.launch {
             while (isActive) {
+                isPlayingFlow.first { it }
                 delay(30.seconds)
-                if (dataStore.get(PersistentQueueKey, true)) {
-                    saveQueueToDisk(onlyChanges = true)
-                }
-            }
-        }
-
-        scope.launch {
-            while (isActive) {
-                delay(10.seconds)
                 if (dataStore.get(PersistentQueueKey, true) && player.isPlaying) {
                     saveQueueToDisk(onlyChanges = true)
                 }
@@ -1489,7 +1484,8 @@ class MusicService :
             .setMediaSourceFactory(createMediaSourceFactory())
             .setRenderersFactory(createRenderersFactory(eqProcessor, fxProcessors, silenceProcessor, hapticAudioProcessor, crossmixProcessor, replayGain, spectrum, inspector))
             .setHandleAudioBecomingNoisy(true)
-            .setWakeMode(C.WAKE_MODE_NETWORK)
+            // local wake lock keeps background audio smooth without locking the wifi radio out of power-save mode
+            .setWakeMode(C.WAKE_MODE_LOCAL)
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -1942,8 +1938,16 @@ class MusicService :
 
     private var lastPlaybackError: PlaybackException? = null
 
+    // set when a song on the phone failed for a reason worth saying plainly (the file's gone, its access was lost), for the next failure toast
+    private var localFileProblem: LocalFileProblem? = null
+
     /** The top toast for a stream that couldn't be played, with a plain reason. */
     private fun announceStreamFailure() {
+        localFileProblem?.let { problem ->
+            localFileProblem = null
+            com.mochyy.mochymusic.ui.component.TopToaster.error(getString(problem.message))
+            return
+        }
         val e = lastPlaybackError
         // no decoder for it here, and nowhere else had it: that's the whole reason
         val notice = player.currentMediaItem?.mediaId?.let { decoderNotices.remove(it) }
@@ -2283,7 +2287,7 @@ class MusicService :
      */
     private fun scheduleRunwayRetry(generation: Int) {
         if (runwayRetries >= MAX_RUNWAY_RETRIES || com.mochyy.mochymusic.utils.OfflineMode.isOn) return
-        val canGrow = (dataStore.get(AutoLoadMoreKey, true) && currentQueue.hasNextPage()) ||
+        val canGrow = currentQueue.hasOwnNextPage() ||
             (isInfiniteQueueEnabled() && player.repeatMode == REPEAT_MODE_OFF)
         if (!canGrow) return
         val delayMs = RUNWAY_RETRY_BASE_MS shl runwayRetries
@@ -2361,9 +2365,13 @@ class MusicService :
     private fun wantsAutoplayPreview(): Boolean {
         if (!isInfiniteQueueEnabled() || player.repeatMode != REPEAT_MODE_OFF) return false
         if (android.os.SystemClock.elapsedRealtime() < autoplayPreviewRetryAt) return false
-        if (dataStore.get(AutoLoadMoreKey, true) && currentQueue.hasNextPage()) return false
+        if (currentQueue.hasOwnNextPage()) return false
         return upcomingAutoplayStart() == player.mediaItemCount
     }
+
+    // more of what you picked, not an album's radio, which is autoplay and waits for its switch
+    private fun Queue.hasOwnNextPage(): Boolean =
+        !continuesAsRadio && hasNextPage() && dataStore.get(AutoLoadMoreKey, true)
 
     /** Drops the Autoplay songs still to come, e.g. when infinite queue is switched off. */
     private fun removeUpcomingAutoplay() {
@@ -2490,7 +2498,7 @@ class MusicService :
         val hideVideos = dataStore.get(HideVideoSongsKey, false)
 
         val queue = currentQueue
-        if (dataStore.get(AutoLoadMoreKey, true) && queue.hasNextPage()) {
+        if (queue.hasOwnNextPage()) {
             val rawPage = runCatching { withContext(Dispatchers.IO) { queue.nextPage() } }
                 .onFailure { Timber.tag(TAG).w(it, "Failed to load next queue page") }
                 .getOrDefault(emptyList())
@@ -2516,7 +2524,8 @@ class MusicService :
         val hidden = NotRecommended.songs
         fun List<MediaItem>.fresh() = filter { it.mediaId !in queued && it.mediaId !in hidden }
 
-        infiniteSource?.takeIf { it.hasNextPage() }?.let { source ->
+        // an album's own radio goes first, it follows the whole album better than a radio of its last song
+        (infiniteSource ?: currentQueue.takeIf { it.continuesAsRadio })?.takeIf { it.hasNextPage() }?.let { source ->
             runCatching { withContext(Dispatchers.IO) { source.nextPage() } }
                 .onFailure { Timber.tag(TAG).w(it, "Failed to load next infinite queue page") }
                 .getOrNull()
@@ -3093,6 +3102,19 @@ class MusicService :
         )
     }
 
+    // system equalizers (dolby, the phone's own sound settings) follow one audio session: after a crossfade or mix the song plays from another player, so the new one is announced and the one let go is closed
+    private fun announceEffectSession(sessionId: Int, open: Boolean) {
+        if (!isAudioEffectSessionOpened || sessionId <= 0) return
+        val action = if (open) AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION else AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION
+        sendBroadcast(
+            Intent(action).apply {
+                putExtra(AudioEffect.EXTRA_AUDIO_SESSION, sessionId)
+                putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
+                if (open) putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
+            },
+        )
+    }
+
     private var previousMediaItemIndex = C.INDEX_UNSET
 
     override fun onMediaItemTransition(
@@ -3251,6 +3273,7 @@ class MusicService :
         }
 
         if (events.containsAny(Player.EVENT_IS_PLAYING_CHANGED)) {
+            isPlayingFlow.value = player.isPlaying
             updateWidgetUI(player.isPlaying)
             if (player.isPlaying) {
                 startWidgetUpdates()
@@ -3520,6 +3543,13 @@ class MusicService :
             failStream()
             return
         }
+        // a file on the phone that's gone, lost its access or isn't a kind the player reads: clearing the cache and retrying never changed that, so it says why and moves on
+        LocalFileProblem.of(this, player.currentMediaItem, error)?.let { problem ->
+            Timber.tag(TAG).w(error, "Couldn't play ${player.currentMediaItem?.mediaId} from the phone: $problem")
+            localFileProblem = problem
+            failStream()
+            return
+        }
         val mediaId = player.currentMediaItem?.mediaId
         Timber.tag(TAG).w(error, "Player error occurred for $mediaId: errorCode=${error.errorCode}, message=${error.message}, causes=${generateSequence<Throwable>(error) { it.cause }.joinToString(" <- ") { it.javaClass.simpleName + ":" + it.message }}")
         reportException(error)
@@ -3599,6 +3629,8 @@ class MusicService :
 
         try {
             playerCache.removeResource(mediaId)
+            // custom module streams live under module|<id>|<mediaId>, so a bad cached stream stayed corrupt without this
+            dropModuleCache(mediaId)
             Timber.tag(TAG).d("Cleared player cache for $mediaId")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Failed to clear player cache for $mediaId")
@@ -3617,6 +3649,14 @@ class MusicService :
     private fun isContainerParseError(error: PlaybackException) =
         error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED ||
             error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED
+
+    // imported files used to be copied into the song cache as they played; they're read straight from the phone now, so the old copies only take up room
+    private fun dropLocalSongCopies() {
+        scope.launch(Dispatchers.IO) {
+            playerCache.keys.filter { it.startsWith("LOCAL_") }
+                .forEach { key -> runCatching { playerCache.removeResource(key) } }
+        }
+    }
 
     /** Every source module's cached copy of [mediaId], which lives under its own key. */
     private fun dropModuleCache(mediaId: String) {
@@ -3669,6 +3709,8 @@ class MusicService :
             try {
 
                 player.pause()
+                // a stuck usb dac mixer setting would make the retry fail with the same audiotrack error
+                audioOutputs.releaseMixer()
                 Timber.tag(TAG).d("Paused playback due to AudioTrack error")
 
                 delay(RETRY_DELAY_MS * 3)
@@ -4058,7 +4100,9 @@ class MusicService :
     fun shareDataSourceFactory(): DataSource.Factory = createDataSourceFactory()
 
     private fun createDataSourceFactory(): DataSource.Factory {
-        return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
+        // songs already on the phone are read straight from their file; only what comes over the network goes through the caches
+        val upstream = LocalBypassDataSource.Factory(DefaultDataSource.Factory(this), createCacheDataSource())
+        return ResolvingDataSource.Factory(upstream) { dataSpec ->
             // a stream a source module or backend resolved to a real URL (an HLS playlist, given
             // as a data: URI when the module rewrote it, and its segments) carries no media id:
             // it's fetched as it is
@@ -4294,6 +4338,7 @@ class MusicService :
         Timber.tag("SourceModules").i("Force playback: ${sourceModules.nameOf(failed)} failed on $mediaId, trying ${sourceModules.nameOf(next)}")
         resolvedStreamSources.remove(mediaId)
         songUrlCache.remove(mediaId)
+        dropModuleCache(mediaId)
         val index = player.currentMediaItemIndex
         val position = player.currentPosition
         val wasPlaying = player.playWhenReady
@@ -4708,6 +4753,7 @@ class MusicService :
                 )
                 // a lyric widget was just placed, so draw once more now that its lines get looked up
                 if (!lyricsShown && widgetManager.hasLyricWidgets) updateWidgetUI(isPlaying)
+                if (isPlaying && widgetManager.hasTickingWidgets && widgetUpdateJob == null) startWidgetUpdates()
             } catch (e: Exception) {
 
             }
@@ -4718,8 +4764,14 @@ class MusicService :
 
     private fun startWidgetUpdates() {
         widgetUpdateJob?.cancel()
+        // skip the once-a-second tick completely when no ticking widget is placed on the home screen
+        if (!widgetManager.hasTickingWidgets) {
+            widgetUpdateJob = null
+            return
+        }
         widgetUpdateJob = scope.launch {
             while (isActive) {
+                if (!widgetManager.hasTickingWidgets) break
                 // nobody sees a widget with the screen off, and redrawing it every second there was all cost
                 var wait = WidgetProgressIntervalMs
                 if (player.isPlaying && powerManager?.isInteractive != false) {
@@ -4729,6 +4781,7 @@ class MusicService :
                 }
                 delay(wait)
             }
+            widgetUpdateJob = null
         }
     }
 
@@ -5047,6 +5100,7 @@ class MusicService :
         player = nextPlayer
         _playerFlow.value = player
         secondaryPlayer = null
+        announceEffectSession(nextPlayer.audioSessionId, open = true)
 
         fadingPlayer?.removeListener(this)
         fadingPlayer?.removeListener(sleepTimer)
@@ -5191,6 +5245,7 @@ class MusicService :
     }
 
     private fun cleanupCrossfade() {
+        fadingPlayer?.let { runCatching { announceEffectSession(it.audioSessionId, open = false) } }
         fadingPlayer?.stop()
         fadingPlayer?.clearMediaItems()
         fadingPlayer?.release()
@@ -5548,6 +5603,7 @@ class MusicService :
             // set when it was made, seconds ago: a mute, an unmute or a slider move since then
             // never reached it, and the song carried on at the old volume (0, if it was muted)
             incoming.volume = targetVolume()
+            announceEffectSession(incoming.audioSessionId, open = true)
 
             outgoing.removeListener(this@MusicService)
             outgoing.removeListener(sleepTimer)
@@ -5593,6 +5649,7 @@ class MusicService :
         }
 
         override fun release(outgoing: ExoPlayer) {
+            runCatching { announceEffectSession(outgoing.audioSessionId, open = false) }
             runCatching {
                 outgoing.stop()
                 outgoing.clearMediaItems()

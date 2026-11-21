@@ -912,4 +912,291 @@
     <string name="about_song_nothing_yet">%1$s doesn\'t have anything about this song yet.</string>
     <string name="not_recommended_menu">Don\'t recommend this again</string>
     <string name="not_recommended_done">We won\'t recommend this song again</string>
+
+    <string name="tab_explore">Explorar</string>
+    <string name="tab_Suggestions">Sugestões</string>
+    <string name="tab_album">Álbum</string>
+    <string name="local_history">Local</string>
+    <string name="trending_billboard">Billboard Hot 100</string>
+    <string name="top_artists">Principais artistas</string>
+    <string name="page_indicator">%1$d de %2$d</string>
+    <string name="parsed_from_link">Obtido do link</string>
+    <string name="album_text">Álbum</string>
+    <string name="by_text">Por </string>
+    <string name="artist">Artista </string>
+    <string name="explicit">Explícito</string>
+    <string name="save_album">Salvar</string>
+    <string name="about_album">Sobre</string>
+    <string name="about_playlist">Sobre</string>
+    <string name="show_artist_video">Mostrar vídeo Canvas do artista</string>
+    <string name="show_artist_video_desc">Exibir um vídeo em loop ao lado do nome do artista na página dele</string>
+    <string name="show_artist_background_video">Mostrar vídeo de fundo do artista</string>
+    <string name="show_artist_background_video_desc">Exibir uma animação em vídeo atrás da imagem do artista</string>
+    <string name="thumbnail_corner_radius">Arredondamento dos cantos da miniatura</string>
+    <string name="thumbnail_corner_radius_desc">Alterar o arredondamento dos cantos da miniatura da capa do álbum</string>
+    <string name="mochy_canvas">Canvas</string>
+    <string name="mochy_canvas_desc">Mostrar capas de álbuns animadas quando disponíveis</string>
+    <string name="show_album_canvas">Mostrar Canvas do álbum</string>
+    <string name="show_album_canvas_desc">Exibir Canvas animado no álbum</string>
+    <string name="rotating_thumbnail">Miniatura giratória</string>
+    <string name="rotating_thumbnail_desc">Ativar efeito de animação de rotação na miniatura</string>
+    <string name="continue_playing_next_in_queue">Continuar reproduzindo a próxima música da fila</string>
+    <string name="next_in_queue">Próxima na fila</string>
+    <string name="upcoming_recommendations">Próximas recomendações</string>
+    <string name="continue_playing">Continuar reproduzindo</string>
+    <string name="glow_animated">Brilho animado</string>
+    <string name="live_mesh">Malha dinâmica</string>
+    <string name="display_density">Densidade de exibição</string>
+    <string name="restart">Reiniciar</string>
+    <string name="restart_required">É necessário reiniciar</string>
+    <string name="density_restart_message">A alteração da densidade de exibição terá efeito depois que o aplicativo for reiniciado. Deseja reiniciar agora?</string>
+    <string name="google">Google</string>
+    <string name="discord">Discord</string>
+    <string name="proxy">Proxy</string>
+    <string name="home_most_played">Mais reproduzidas</string>
+    <string name="home_most_played_empty">Ouça músicas para gerar sua lista de mais reproduzidas</string>
+    <string name="lyrics_provider_priority">Prioridade dos provedores de letras</string>
+    <string name="lyrics_provider_priority_desc">Arraste para reordenar a prioridade dos provedores</string>
+    <string name="percentage_format">%d%%</string>
+    <string name="sensitivity_percentage">%1$d%%</string>
+    <string name="logout_dialog_title">Sair</string>
+    <string name="logout_dialog_message">Deseja manter toda a biblioteca e os demais dados?</string>
+    <string name="logout_keep_data">Manter dados</string>
+    <string name="logout_clear_data">Limpar dados</string>
+    <string name="settings_section_ui">Interface</string>
+    <string name="google_cast">Google Cast</string>
+    <string name="miniplayer_background_style">Estilo do plano de fundo do minirreprodutor</string>
+    <string name="karaoke">Karaokê</string>
+    <string name="apple_music_style">Apple Music</string>
+    <string name="apple_music_style_letter">Apple Music V2 (letra por letra)</string>
+    <string name="mochy_1">mochy (Fluido)</string>
+    <string name="apple_music_lyrics_blur">Desfoque das letras no estilo Apple Music</string>
+    <string name="apple_music_lyrics_blur_desc">Aplicar desfoque às linhas de letras inativas para criar um efeito de foco premium</string>
+    <string name="lyrics_v2_fluid">Letras V2 (Fluido)</string>
+    <string name="lyrics_animation_metro">MetroLyrics</string>
+    <string name="wrapped_intro_title">mochy</string>
+    <string name="wrapped_logo_content_description">Logotipo do Mochy</string>
+    <string name="wrapped_year">2025</string>
+    <string name="mochy_equalizer">mochyEqualizer</string>
+    <string name="mochy_equalizer_desc">Ajuste acústico e efeitos em nível profissional</string>
+    <string name="eq_simple">Simples</string>
+    <string name="eq_advanced">Avançado</string>
+    <string name="eq_label_bass">Graves</string>
+    <string name="eq_label_mid">Médios</string>
+    <string name="eq_label_treble">Agudos</string>
+    <string name="eq_preset_flat">Plano</string>
+    <string name="eq_preset_mochy_signature">Assinatura Mochy</string>
+    <string name="eq_preset_acoustic">Acústico</string>
+    <string name="eq_preset_spatial">Palco 3D</string>
+    <string name="eq_preset_bass_boost">Reforço de graves</string>
+    <string name="eq_preset_pure_clarity">Clareza pura</string>
+    <string name="eq_preset_soft_bass">Graves suaves</string>
+    <string name="eq_preset_electronic">Eletrônico</string>
+    <string name="eq_preset_rock">Rock</string>
+    <string name="eq_preset_pop">Pop</string>
+    <string name="eq_preset_jazz">Jazz</string>
+    <string name="eq_preset_voice">Voz</string>
+    <string name="eq_preset_dolby_open">Dolby Open</string>
+    <string name="eq_preset_dolby_rich">Dolby Rich</string>
+    <string name="eq_preset_dolby_focused">Dolby Focused</string>
+    <string name="eq_preset_dirac_music">Dirac Music</string>
+    <string name="eq_preset_dirac_movie">Dirac Movie</string>
+    <string name="eq_preset_dirac_game">Dirac Game</string>
+    <string name="eq_enable_title">mochyEqualizer</string>
+    <string name="eq_enable_summary">Ativar/desativar processamento de áudio profissional</string>
+    <string name="eq_label_mochy">Assinatura Mochy</string>
+    <string name="eq_label_dolby">Dolby Atmos</string>
+    <string name="eq_label_dirac">Dirac Audio</string>
+    <string name="eq_reset">Redefinir</string>
+    <string name="eq_label_custom">Personalizado</string>
+    <string name="eq_save">Salvar</string>
+    <string name="eq_save_dialog_title">Salvar predefinição</string>
+    <string name="eq_save_name_hint">Nome da predefinição</string>
+    <string name="eq_profile_saved">Predefinição salva</string>
+    <string name="eq_manage_presets">Gerenciar predefinições</string>
+    <string name="eq_delete_selected">Excluir</string>
+    <string name="eq_no_custom_presets">Nenhuma predefinição personalizada encontrada</string>
+    <string name="found_in_settings_content">Encontrado em Configurações &gt; Conteúdo</string>
+    <string name="plays">reproduções</string>
+    <string name="ai_provider_mistral_help">Acesse console.mistral.ai/api-keys</string>
+    <string name="copy_logs">Copiar registros</string>
+    <string name="column_label">Coluna %d</string>
+    <string name="discord_status">Status</string>
+    <string name="discord_status_online">On-line</string>
+    <string name="discord_behaviour">Comportamento</string>
+    <string name="discord_clear_on_pause">Limpar status ao pausar</string>
+    <string name="discord_clear_on_pause_desc">Remove a música do seu perfil assim que você pausa e a exibe novamente quando retoma a reprodução.</string>
+    <string name="discord_login_note">Abre a própria página de login do Discord no navegador. Sua senha permanece com o Discord.</string>
+    <string name="discord_permissions_note">A página do Discord também lista seus amigos e convites, pois essas permissões vêm agrupadas com o compartilhamento de status. O Mochy lê apenas seu nome e sua foto e mostra o que você está ouvindo.</string>
+    <string name="speed_dial_label">Acesso rápido</string>
+    <string name="speed_dial_summon_title">Abrir
+acesso rápido</string>
+    <string name="speed_dial_summon">Abrir</string>
+    <string name="speed_dial_owner">De %1$s</string>
+    <string name="speed_dial_owner_you">Seu</string>
+    <string name="speed_dial_random">Aleatório</string>
+    <string name="speed_dial_picking">Escolhendo…</string>
+    <string name="welcome_lets_listen">Vamos começar a ouvir!</string>
+    <string name="welcome_tap_anywhere">Toque em qualquer lugar para continuar</string>
+    <string-array name="welcome_words" translatable="false">
+        <item>WELCOME</item>
+        <item>SELAMAT DATANG</item>
+        <item>ようこそ</item>
+        <item>欢迎</item>
+        <item>환영합니다</item>
+        <item>BIENVENIDO</item>
+        <item>BIENVENUE</item>
+        <item>WILLKOMMEN</item>
+        <item>BENVENUTO</item>
+        <item>BEM-VINDO</item>
+        <item>ДОБРО ПОЖАЛОВАТЬ</item>
+        <item>أهلاً وسهلاً</item>
+        <item>स्वागत है</item>
+        <item>ยินดีต้อนรับ</item>
+        <item>CHÀO MỪNG</item>
+        <item>HOŞ GELDİNİZ</item>
+        <item>WELKOM</item>
+        <item>SUGENG RAWUH</item>
+        <item>MABUHAY</item>
+        <item>ΚΑΛΩΣ ΗΡΘΑΤΕ</item>
+    </string-array>
+    <string name="video_mode_exit_full_screen">Sair da tela cheia</string>
+    <string name="video_quality_4k">4K</string>
+    <string name="video_quality_sharp_desc">Se o vídeo e seu celular forem compatíveis, usa muito mais dados</string>
+    <string name="canvas_quality">Qualidade da capa animada</string>
+    <string name="canvas_quality_now">%1$s · %2$s</string>
+    <string name="canvas_quality_best">Melhor</string>
+    <string name="canvas_quality_best_desc">A versão mais nítida, até 4K se seu celular for compatível. Usa mais dados.</string>
+    <string name="canvas_quality_light">Mais leve</string>
+    <string name="canvas_quality_light_desc">Uma versão menor que carrega mais rápido e economiza dados</string>
+    <string name="canvas_best_quality">Capas animadas mais nítidas</string>
+    <string name="canvas_best_quality_desc">Reproduz a melhor versão disponível, até 4K. A economia de dados desativa esse recurso.</string>
+    <string name="recap_tap_hint">toque aqui para ver sua retrospectiva!!</string>
+    <string name="experimental_unlock_landscape">Ativar modo paisagem</string>
+    <string name="experimental_unlock_landscape_desc">Permitir que o aplicativo gire para a orientação horizontal</string>
+    <string name="experimental_unlock_landscape_detail">Desativado: o aplicativo permanece na vertical, independentemente de como você segurar o celular. Ativado: a tela gira junto com o celular e organiza as páginas lado a lado. Este recurso ainda está em desenvolvimento, então algumas telas podem apresentar problemas.</string>
+    <string name="player_rotate">Girar</string>
+    <string name="player_turn_upright">Girar para a vertical</string>
+    <string name="experimental_stream_backend">Mecanismo de transmissão</string>
+    <string name="experimental_stream_backend_innertubex">InnerTubeX e, depois, o clássico</string>
+    <string name="experimental_stream_backend_classic">Somente o clássico</string>
+    <string name="experimental_stream_backend_detail">Define como o YouTube encontra a transmissão das músicas. O InnerTubeX é tentado primeiro; as músicas que ele não consegue reproduzir são encaminhadas ao método clássico, para que a reprodução continue. A opção \"Somente o clássico\" ignora o InnerTubeX. Toque para alternar.</string>
+    <string name="player_menu_equalizer">Equalizador</string>
+    <string name="cast_couldnt_connect">Não foi possível conectar a %1$s. Verifique se está ligado e na mesma rede Wi-Fi.</string>
+    <string name="cast_song_failed">%1$s não conseguiu reproduzir esta música.</string>
+    <string name="cast_lost">A conexão com %1$s foi perdida. Reproduzindo neste dispositivo.</string>
+    <string name="cast_connecting">Conectando…</string>
+    <string name="song_share_quality_best">Melhor</string>
+    <string name="song_share_quality_standard">Padrão</string>
+    <string name="song_share_failed_retry">Não foi possível criar desta vez. Tente novamente.</string>
+    <string name="song_share_romanisation_hint">Como as palavras são pronunciadas, abaixo de cada linha</string>
+    <string name="song_share_romanisation_none">Estas letras já podem ser lidas normalmente</string>
+    <string name="song_share_romanisation_main_hint">O cartão exibe a romanização; o texto original aparece abaixo</string>
+    <string name="song_share_translation_hint">Cada linha no seu idioma, logo abaixo</string>
+    <string name="meta_app_id" translatable="false"/>
+    <string name="yt_sync_lost_likes_title">Restaurar curtidas perdidas</string>
+    <string name="yt_sync_lost_likes_desc">Restaurar músicas curtidas que foram removidas por engano durante uma sincronização</string>
+    <plurals name="yt_sync_lost_likes_dialog_title">
+        <item quantity="one">Restaurar 1 curtida?</item>
+        <item quantity="other">Restaurar %1$d curtidas?</item>
+    </plurals>
+    <string name="yt_sync_lost_likes_dialog_body">Estas são músicas que uma sincronização descurtiu, músicas curtidas por suas importações e curtidas anteriores à última sincronização. Uma música que você mesmo descurtiu também será restaurada, então talvez seja necessário descurtir algumas novamente. Nada será alterado no YouTube.</string>
+    <string name="yt_sync_lost_likes_none_title">Nenhuma curtida perdida</string>
+    <string name="yt_sync_lost_likes_none_body">Todas as curtidas registradas pelo aplicativo já estão em Músicas curtidas. As curtidas que ainda estão no YouTube voltarão na próxima sincronização.</string>
+    <string name="yt_sync_lost_likes_confirm">Restaurar</string>
+    <string name="yt_sync_lost_likes_running">Restaurando suas curtidas…</string>
+    <plurals name="yt_sync_lost_likes_done">
+        <item quantity="one">1 curtida foi restaurada em Músicas curtidas.</item>
+        <item quantity="other">%1$d curtidas foram restauradas em Músicas curtidas.</item>
+    </plurals>
+    <string name="atmos_streaming_note">A Apple codifica o Atmos apenas para FairPlay, e o Monochrome transmite FLAC estéreo. Portanto, o Atmos vem de um módulo adicionado por link: defina a opção Dolby Atmos desse módulo como Atmos. Seus próprios arquivos de som surround também são renderizados.</string>
+    <string name="settings_blend_skips">Misturar ao pular</string>
+    <string name="settings_blend_skips_desc">Carrega antecipadamente as músicas anterior e seguinte para que pulos, gestos e músicas escolhidas sejam integrados à reprodução com a duração da transição e os efeitos selecionados</string>
+    <string name="settings_blend_ahead">Músicas carregadas antecipadamente</string>
+    <plurals name="settings_blend_ahead_value">
+        <item quantity="one">%d música</item>
+        <item quantity="other">%d músicas</item>
+    </plurals>
+    <string name="settings_blend_ahead_desc">Carregar mais músicas antecipadamente mantém a transição suave quando você pula várias faixas seguidas. Isso consome um pouco mais de dados.</string>
+    <string name="settings_blend_ahead_saver">A economia de dados está ativada; por isso, apenas a próxima música será carregada antecipadamente.</string>
+    <string name="crossmix_desc">No estilo de um DJ: analisa o ritmo, as batidas, o tom, a energia e a posição dos vocais de cada música. Depois escolhe a transição ideal e sincroniza as duas batidas, evitando que dois vocais se sobreponham.</string>
+    <string name="crossmix_style_title">Transição</string>
+    <string name="crossmix_style_desc">Deixe o Mochy escolher a transição ideal para cada par de músicas ou use sempre a mesma.</string>
+    <string name="crossmix_style_auto">Deixar o Mochy escolher</string>
+    <string name="crossmix_style_choose">Escolher uma transição</string>
+    <string name="crossmix_length_title">Duração</string>
+    <string name="crossmix_length_desc">Por quanto tempo as duas músicas serão reproduzidas juntas. Transições longas exigem músicas com batidas sincronizáveis.</string>
+    <string name="crossmix_length_short">Curta</string>
+    <string name="crossmix_length_medium">Média</string>
+    <string name="crossmix_length_long">Longa</string>
+    <string name="crossmix_tempo_title">Sincronização do ritmo</string>
+    <string name="crossmix_tempo_desc">Define o quanto a música mais lenta pode ser acelerada para sincronizar suas batidas com a outra. Desativado, apenas músicas com o mesmo ritmo serão sincronizadas.</string>
+    <string name="crossmix_tempo_off">Desativada</string>
+    <string name="crossmix_tempo_gentle">Leve</string>
+    <string name="crossmix_tempo_full">Total</string>
+    <string name="crossmix_stunts_title">Efeitos especiais</string>
+    <string name="crossmix_stunts_desc">Giros reversos, paradas de fita, subidas e quedas quando a energia muda entre as músicas</string>
+    <string name="crossmix_always_mix_title">Sempre misturar</string>
+    <string name="crossmix_always_mix_desc">As duas músicas serão reproduzidas juntas em todas as transições, mesmo quando as batidas não estiverem alinhadas. Desativado, o CrossMix poderá iniciar a próxima música apenas no final ou fazer uma transição gradual.</string>
+    <string name="crossmix_mixing_note">Mixando…</string>
+    <string name="transition_title">Transição</string>
+    <string name="transition_music_heading">Transições musicais</string>
+    <string name="transition_off">Desativada (não gosto de diversão)</string>
+    <string name="transition_off_desc">Cada música termina antes de a próxima começar</string>
+    <string name="transition_selected">Selecionada</string>
+    <string name="transition_auto">Transição automática</string>
+    <string name="transition_auto_desc">Uma transição suave de %1$d segundos entre cada música e a próxima</string>
+    <string name="transition_manual">Transição manual</string>
+    <string name="transition_manual_desc">Escolha por quanto tempo cada música se mistura à próxima</string>
+    <string name="transition_manual_length">Duração</string>
+    <string name="transition_seconds">%1$ds</string>
+    <string name="transition_crossmix">CrossMix</string>
+    <string name="transition_transport_heading">Transições ao pausar, reproduzir, avançar e retroceder</string>
+    <string name="transition_fade_title">Ativar transição gradual</string>
+    <string name="transition_fade_desc">Reduz o volume suavemente ao pausar, pular ou escolher outra música e aumenta novamente ao reproduzir</string>
+    <string name="settings_persistent_shuffle">Manter modo aleatório ativado</string>
+    <string name="settings_persistent_shuffle_desc">A reprodução aleatória permanece ativada ao iniciar outra playlist ou álbum, até que você a desative</string>
+    <string name="auto_download_new_songs">Baixar novas músicas</string>
+    <string name="speed_only_this_song">Salvar apenas para esta música</string>
+    <string name="speed_only_this_song_detail">%1$s mantém esta velocidade e este tom. As outras músicas serão reproduzidas normalmente.</string>
+    <string name="discord_custom_pick">Escolher uma imagem</string>
+    <string name="discord_custom_change">Alterar imagem</string>
+    <string name="discord_custom_note">O Discord só exibe imagens da Web, então o Mochy envia a sua para um serviço gratuito de hospedagem de arquivos e a exibe por lá.</string>
+    <string name="discord_custom_failed">Não foi possível usar essa imagem. Tente outra.</string>
+    <string name="search_in_playlist">Pesquisar nesta playlist…</string>
+    <string name="search_in_album">Pesquisar neste álbum…</string>
+    <string name="close_search">Fechar pesquisa</string>
+    <string name="search_this_list">Pesquisar</string>
+    <string name="radio_queue_title">Rádio de %1$s</string>
+    <string name="radio_started">Rádio ativada. Músicas semelhantes a %1$s serão reproduzidas em seguida, e a rádio continuará tocando.</string>
+    <string name="radio_failed">Não foi possível iniciar uma rádio para esta música. Verifique sua conexão e tente novamente.</string>
+    <string name="settings_studio_for_videos">Versão de estúdio para vídeos musicais</string>
+    <string name="settings_studio_for_videos_desc">Quando disponível, reproduz a gravação de estúdio da música em vez do vídeo musical, sem esquetes ou efeitos sonoros do vídeo</string>
+    <string name="playing_studio_version">Reproduzindo a versão de estúdio</string>
+    <string name="recent_searches">Pesquisas recentes</string>
+    <string name="recent_searches_clear">Limpar</string>
+    <string name="recent_search_song">Música · %1$s</string>
+    <string name="recent_search_album">Álbum · %1$s</string>
+    <string name="recent_search_playlist">Playlist · %1$s</string>
+    <string name="recent_search_artist">Artista</string>
+    <string name="recent_search_remove">Remover das pesquisas recentes</string>
+    <string name="floating_lyrics_open">Abrir Mochy</string>
+    <string name="floating_lyrics_close">Fechar</string>
+    <string name="floating_lyrics_never">Não mostrar novamente</string>
+    <string name="floating_lyrics_turned_off">As letras flutuantes estão desativadas. Você pode ativá-las novamente nas Configurações.</string>
+    <string name="floating_lyrics_permission">Permita que o Mochy apareça sobre outros aplicativos para exibir letras flutuantes</string>
+    <string name="swipe_action_library">Adicionar ou remover da biblioteca</string>
+    <string name="swipe_action_details">Ver detalhes</string>
+    <string name="menu_ai_translation">Tradução por IA</string>
+    <string name="menu_change_output">Alterar saída de áudio</string>
+    <string name="menu_add_to_liked">Adicionar às curtidas</string>
+    <string name="menu_remove_from_liked">Remover das curtidas</string>
+    <string name="menu_edit_player">Editar reprodutor</string>
+    <string name="menu_keep_screen_on">Manter tela ligada</string>
+    <string name="menu_sort_by">Ordenar por</string>
+    <string name="menu_resync_title">Ressincronizar com %1$s</string>
+    <string name="menu_resync_desc">Adicionar as músicas novas de %1$s</string>
+    <string name="menu_resync_paste">Colar o link de %1$s</string>
+    <string name="menu_choose_version">Escolher outra versão</string>
+    <string name="menu_choose_version_desc">A gravação está errada? Escolha a versão correta em uma lista</string>
 </resources>

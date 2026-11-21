@@ -106,6 +106,7 @@ import com.mochyy.mochymusic.ui.player.menu.MenuSurface
 import com.mochyy.mochymusic.ui.screens.donate.showSupportSheet
 import kotlinx.coroutines.launch
 import com.mochyy.mochymusic.ui.component.RemoteFocus
+import com.mochyy.mochymusic.ui.component.sheetHandleRoom
 
 @Composable
 fun rememberUpdateState(): androidx.compose.runtime.State<UpdateState> {
@@ -219,6 +220,8 @@ private fun ColumnScope.UpdateSheetContent(
     }
 
     val installed = installedVersionName(BuildConfig.VERSION_NAME)
+    // the page starts under the sheet's handle now, so the ring and the first row sit that much lower
+    val room = sheetHandleRoom()
     Box(Modifier.fillMaxWidth()) {
         // centred just inside the sheet's top-right corner so its edge cuts the ring off, no size of its own so it never pushes content around
         VersionRing(
@@ -228,12 +231,12 @@ private fun ColumnScope.UpdateSheetContent(
                 .layout { measurable, constraints ->
                     val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0, maxWidth = Constraints.Infinity, maxHeight = Constraints.Infinity))
                     layout(0, 0) {
-                        placeable.place(x = (-195).dp.roundToPx(), y = (-134).dp.roundToPx())
+                        placeable.place(x = (-195).dp.roundToPx(), y = (room - 134.dp).roundToPx())
                     }
                 },
         )
 
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = room)) {
             Spacer(Modifier.height(6.dp))
             Box(
                 modifier = Modifier
@@ -564,7 +567,7 @@ private fun ColumnScope.UpdateDetailContent(
         }
     }
 
-    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = sheetHandleRoom())) {
 
     Row(
         verticalAlignment = Alignment.CenterVertically,

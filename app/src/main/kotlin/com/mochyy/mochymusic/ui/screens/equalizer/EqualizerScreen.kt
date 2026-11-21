@@ -6,17 +6,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Text
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -25,9 +24,9 @@ import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.eq.EqPreset
 import com.mochyy.mochymusic.eq.EqPresets
 import com.mochyy.mochymusic.eq.EqSettings
-import com.mochyy.mochymusic.ui.component.ActionPromptDialog
+import com.mochyy.mochymusic.ui.component.LocalZoomOutOverlayState
 import com.mochyy.mochymusic.ui.component.SubSettingsScaffold
-import com.mochyy.mochymusic.ui.component.TextFieldDialog
+import com.mochyy.mochymusic.ui.screens.audiolab.EqPresetPlace
 import com.mochyy.mochymusic.ui.screens.audiolab.LabCard
 import com.mochyy.mochymusic.ui.screens.audiolab.LabChip
 import com.mochyy.mochymusic.ui.screens.audiolab.LabChips
@@ -41,6 +40,8 @@ import com.mochyy.mochymusic.ui.screens.audiolab.ListenToAudio
 import com.mochyy.mochymusic.ui.screens.audiolab.animatedDim
 import com.mochyy.mochymusic.ui.screens.audiolab.rememberLabSlide
 import com.mochyy.mochymusic.utils.UiNumberFormat
+import com.mochyy.mochymusic.ui.screens.audiolab.showEditPresetSheet
+import com.mochyy.mochymusic.ui.screens.audiolab.showNewPresetSheet
 import com.mochyy.mochymusic.viewmodels.AudioLabViewModel
 import com.mochyy.mochymusic.viewmodels.isFlat
 import kotlin.math.roundToInt
@@ -60,8 +61,25 @@ fun EqualizerScreen(
     var tab by rememberSaveable { mutableIntStateOf(0) }
     val slide = rememberLabSlide(selectedIndex = tab, lastIndex = tabs.lastIndex, onSelect = { tab = it })
     var selectedNode by rememberSaveable { mutableIntStateOf(0) }
-    var savingPreset by remember { mutableStateOf(false) }
-    var deleting by remember { mutableStateOf<EqPreset?>(null) }
+    val sheets = LocalZoomOutOverlayState.current
+    val context = LocalContext.current
+
+    // worked out on a tap, not on every frame a node is dragged: your names, the built in ones and custom
+    fun takenNames(): List<String> = presets.map { it.name } + context.getString(R.string.eqx_custom) +
+        EqPresets.BuiltIn.map { preset -> builtInPresetNameRes(preset.id)?.let { res -> context.getString(res) } ?: preset.name }
+
+    fun savePreset() = sheets.showNewPresetSheet(EqPresetPlace, takenNames(), viewModel::savePreset)
+
+    fun editPreset(id: String) {
+        val preset = presets.firstOrNull { it.id == id } ?: return
+        sheets.showEditPresetSheet(
+            place = EqPresetPlace,
+            name = preset.name,
+            takenNames = takenNames(),
+            onRename = { viewModel.renamePreset(id, it) },
+            onDelete = { viewModel.deletePreset(id) },
+        )
+    }
 
     // the graph's spectrum listens while this page is open
     ListenToAudio()
@@ -102,8 +120,8 @@ fun EqualizerScreen(
                                 presets = presets,
                                 onPick = viewModel::applyPreset,
                                 onReset = viewModel::reset,
-                                onSave = { savingPreset = true },
-                                onLongPress = { id -> deleting = presets.firstOrNull { it.id == id } },
+                                onSave = ::savePreset,
+                                onEdit = ::editPreset,
                             )
                             Spacer(Modifier.height(18.dp))
                             if (page == 0) {
@@ -136,26 +154,6 @@ fun EqualizerScreen(
         }
         Spacer(Modifier.height(120.dp))
     }
-
-    if (savingPreset) {
-        TextFieldDialog(
-            title = { Text(stringResource(R.string.eq_save_dialog_title)) },
-            placeholder = { Text(stringResource(R.string.eq_save_name_hint)) },
-            onDone = viewModel::savePreset,
-            onDismiss = { savingPreset = false },
-        )
-    }
-    deleting?.let { preset ->
-        ActionPromptDialog(
-            title = stringResource(R.string.eq_delete_preset_title, preset.name),
-            onDismiss = { deleting = null },
-            onCancel = { deleting = null },
-            onConfirm = {
-                viewModel.deletePreset(preset.id)
-                deleting = null
-            },
-        )
-    }
 }
 
 @Composable
@@ -163,7 +161,8 @@ private fun statusLine(eq: EqSettings, presets: List<EqPreset>): String {
     if (!eq.enabled) return stringResource(R.string.eq_status_off)
     val custom = stringResource(R.string.eq_label_custom)
     val curve = eq.presetId?.let { id ->
-        EqPresets.BuiltIn.firstOrNull { it.id == id }?.name ?: presets.firstOrNull { it.id == id }?.name
+        EqPresets.BuiltIn.firstOrNull { it.id == id }?.let { builtInPresetName(it) }
+            ?: presets.firstOrNull { it.id == id }?.name
     } ?: custom
     val correction = eq.correction?.takeIf { eq.correctionEnabled }?.model
     val flat = stringResource(R.string.eq_preset_flat)
@@ -182,23 +181,27 @@ private fun Presets(
     onPick: (String) -> Unit,
     onReset: () -> Unit,
     onSave: () -> Unit,
-    onLongPress: (String) -> Unit,
+    onEdit: (String) -> Unit,
 ) {
-    LabSectionLabel(stringResource(R.string.eq_presets_section)) {
-        LabTextAction(stringResource(R.string.eq_reset), R.drawable.refresh, onClick = onReset)
-        LabTextAction(stringResource(R.string.eq_save), R.drawable.add, onClick = onSave)
+    // your own picked preset can be renamed or deleted from here, the built in ones can't
+    val ownPicked = eq.presetId?.takeIf { id -> presets.any { it.id == id } }
+    LabSectionLabel(stringResource(R.string.eqx_presets)) {
+        LabTextAction(stringResource(R.string.eqx_reset), R.drawable.refresh, onClick = onReset)
+        if (ownPicked != null) LabTextAction(stringResource(R.string.edit), R.drawable.edit) { onEdit(ownPicked) }
+        LabTextAction(stringResource(R.string.eqx_save), R.drawable.add, onClick = onSave)
     }
-    val custom = stringResource(R.string.eq_label_custom)
+    val custom = stringResource(R.string.eqx_custom)
+    val builtInNames = EqPresets.BuiltIn.associate { preset -> preset.id to builtInPresetName(preset) }
     val chips = buildList {
         if (eq.presetId == null) add(LabChip("custom", custom))
         presets.forEach { add(LabChip(it.id, it.name, dot = androidx.compose.ui.graphics.Color.White)) }
-        EqPresets.BuiltIn.forEach { add(LabChip(it.id, it.name)) }
+        EqPresets.BuiltIn.forEach { add(LabChip(it.id, builtInNames.getValue(it.id))) }
     }
     LabChips(
         chips = chips,
         selectedKey = eq.presetId ?: "custom",
         onSelect = { if (it != "custom") onPick(it) },
-        onLongPress = { id -> if (presets.any { it.id == id }) onLongPress(id) },
+        onLongPress = { id -> if (presets.any { it.id == id }) onEdit(id) },
     )
 }
 
@@ -225,3 +228,36 @@ private fun Output(eq: EqSettings, headroom: Double, viewModel: AudioLabViewMode
         )
     }
 }
+
+@Composable
+private fun builtInPresetName(preset: EqPresets.Preset): String {
+    val res = builtInPresetNameRes(preset.id)
+    return if (res != null) stringResource(res) else preset.name
+}
+
+@StringRes
+private fun builtInPresetNameRes(id: String): Int? =
+    when (id) {
+        "flat" -> R.string.eqx_preset_flat
+        "acoustic" -> R.string.eqx_preset_acoustic
+        "bass_boost" -> R.string.eqx_preset_bass_boost
+        "bass_cut" -> R.string.eqx_preset_bass_cut
+        "classical" -> R.string.eqx_preset_classical
+        "dance" -> R.string.eqx_preset_dance
+        "deep" -> R.string.eqx_preset_deep
+        "electronic" -> R.string.eqx_preset_electronic
+        "hiphop" -> R.string.eqx_preset_hiphop
+        "jazz" -> R.string.eqx_preset_jazz
+        "loudness" -> R.string.eqx_preset_loudness
+        "lounge" -> R.string.eqx_preset_lounge
+        "piano" -> R.string.eqx_preset_piano
+        "pop" -> R.string.eqx_preset_pop
+        "rnb" -> R.string.eqx_preset_rnb
+        "rock" -> R.string.eqx_preset_rock
+        "small_speakers" -> R.string.eqx_preset_small_speakers
+        "spoken" -> R.string.eqx_preset_spoken
+        "treble_boost" -> R.string.eqx_preset_treble_boost
+        "treble_cut" -> R.string.eqx_preset_treble_cut
+        "vocal" -> R.string.eqx_preset_vocal
+        else -> null
+    }

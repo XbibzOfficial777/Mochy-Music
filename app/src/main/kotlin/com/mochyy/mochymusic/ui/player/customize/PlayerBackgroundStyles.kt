@@ -3,23 +3,20 @@
 package com.mochyy.mochymusic.ui.player.customize
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
@@ -27,8 +24,8 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.palette.graphics.Palette
@@ -37,10 +34,12 @@ import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
 import com.mochyy.mochymusic.constants.PlayerBackgroundStyle
-import com.mochyy.mochymusic.ui.utils.resize
+import com.mochyy.mochymusic.ui.player.flagship.downscaledLayer
 import com.mochyy.mochymusic.ui.utils.rememberMotionAllowed
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -57,11 +56,12 @@ fun PlayerBackgroundContent(
         PlayerBackgroundStyle.DARK_GRADIENT -> DarkGradientBackground(modifier = modifier)
         PlayerBackgroundStyle.APPLE_MUSIC -> AppleMusicBackground(
             thumbnailUrl = thumbnailUrl,
-            modifier = modifier,
             animate = animate,
+            modifier = modifier,
         )
         PlayerBackgroundStyle.AMBIENT -> StandaloneAmbientBackground(
             thumbnailUrl = thumbnailUrl,
+            animate = animate,
             modifier = modifier,
         )
     }
@@ -69,12 +69,12 @@ fun PlayerBackgroundContent(
 
 // the ambient backdrop on its own, from the picture's colours and with its own clock, for previews and the other styles' pages
 @Composable
-private fun StandaloneAmbientBackground(thumbnailUrl: String?, modifier: Modifier = Modifier) {
+private fun StandaloneAmbientBackground(thumbnailUrl: String?, animate: Boolean, modifier: Modifier = Modifier) {
     val colors = com.mochyy.mochymusic.ui.player.flagship.rememberAmbientColors()
     com.mochyy.mochymusic.ui.player.flagship.FollowPicture(colors, thumbnailUrl)
     com.mochyy.mochymusic.ui.player.flagship.AmbientBackdrop(
         colors = colors,
-        time = com.mochyy.mochymusic.ui.player.flagship.rememberAmbientClock(running = true),
+        time = com.mochyy.mochymusic.ui.player.flagship.rememberAmbientClock(running = animate),
         modifier = modifier,
     )
 }
@@ -97,8 +97,7 @@ fun PlayerBackgroundPreview(
             style = style,
             thumbnailUrl = thumbnailUrl,
             pureBlack = false,
-            // Blobs can orbit past the canvas edge; a small selector/studio preview must not
-            // paint over its neighbours. The full player already clips its outer sheet.
+            // Blob previews may orbit beyond the canvas; keep them inside their card.
             modifier = modifier.clipToBounds(),
             animate = animate,
         )
@@ -135,11 +134,7 @@ private fun DarkGradientBackground(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun AppleMusicBackground(
-    thumbnailUrl: String?,
-    modifier: Modifier = Modifier,
-    animate: Boolean,
-) {
+private fun AppleMusicBackground(thumbnailUrl: String?, animate: Boolean, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val fallbackColorInt = MaterialTheme.colorScheme.primaryContainer.toArgb()
     val surfaceColor = MaterialTheme.colorScheme.surfaceContainer
@@ -151,8 +146,8 @@ private fun AppleMusicBackground(
             palette = emptyList()
             return@LaunchedEffect
         }
-        // Do image I/O and palette calculation off the UI thread, but publish the result on the
-        // composition's dispatcher. Do not swallow cancellation when a cover changes or disappears.
+        // Keep image I/O and palette extraction off the UI thread; don't turn cancellation into a
+        // failed palette when the cover changes or this preview is removed.
         val colors = try {
             val bitmap = withContext(Dispatchers.IO) {
                 val request = ImageRequest.Builder(context)
@@ -161,7 +156,7 @@ private fun AppleMusicBackground(
                     .allowHardware(false)
                     .build()
                 context.imageLoader.execute(request).image?.toBitmap()
-            } ?: return@LaunchedEffect // keep the previous palette on a failed load, as before
+            } ?: return@LaunchedEffect
             withContext(Dispatchers.Default) {
                 val generated = Palette.from(bitmap)
                     .maximumColorCount(8)
@@ -180,23 +175,24 @@ private fun AppleMusicBackground(
         if (colors != null) palette = colors
     }
 
-    // Removing the transition also removes its frame clock when this is a static preview, hidden
-    // behind video/canvas, or either the app or Android has switched decorative motion off.
-    val drift = if (motionAllowed) {
-        val transition = rememberInfiniteTransition(label = "appleMusicMorph")
-        transition.animateFloat(
-            initialValue = 0f,
-            targetValue = (2f * Math.PI).toFloat(),
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = AppleBlobCycleMs, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart,
-            ),
-            label = "appleMusicDrift",
-        )
-    } else null
+    // A 30 Hz clock pauses when the preview/player is hidden or decorative motion is disabled.
+    val drift = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(motionAllowed) {
+        if (!motionAllowed) return@LaunchedEffect
+        var last = 0L
+        while (isActive) {
+            withInfiniteAnimationFrameNanos { now ->
+                if (last != 0L) {
+                    val dt = ((now - last) / 1_000_000_000f).coerceIn(0f, 0.1f)
+                    drift.floatValue = (drift.floatValue + dt * BlobSpeedRadPerSec) % TwoPi
+                }
+                last = now
+            }
+            delay(BlobWakeMillis)
+        }
+    }
 
-    // Keep colour state reads in drawWithCache. The 800 ms palette change need not recompose the
-    // player on every frame, and the six shaders are reused on ordinary drift frames.
+    // Keep the six palette transitions/shaders cached, and don't animate them in a static preview.
     val blobColors = List(AppleBlobCount) { index ->
         val target = palette.getOrNull(index) ?: surfaceColor
         if (motionAllowed) {
@@ -208,19 +204,26 @@ private fun AppleMusicBackground(
         } else rememberUpdatedState(target)
     }
     val base = palette.firstOrNull() ?: surfaceColor
-    Box(
+
+    Spacer(
         modifier = modifier
-            .background(base)
-            .drawColorBlobs(blobColors) { drift?.value ?: 0f },
+            .downscaledLayer()
+            .drawColorBlobs(base, blobColors) { drift.floatValue },
     )
 }
 
+private const val TwoPi = (2.0 * Math.PI).toFloat()
+private const val BlobSpeedRadPerSec = TwoPi / (AppleBlobCycleMs / 1000f)
+private const val BlobWakeMillis = 32L
+
+// Prebuild radial brushes once per palette change and only translate their origin-centred shaders
+// on each throttled frame. This keeps the full-resolution player from paying 120 Hz for slow drift.
 internal fun Modifier.drawColorBlobs(
+    base: Color,
     colors: List<State<Color>>,
     phase: () -> Float,
 ): Modifier = drawWithCache {
     val radii = FloatArray(colors.size) { index -> size.minDimension * (0.55f + 0.08f * (index % 3)) }
-    // A zero-size layout cannot be seen; radialGradient requires a positive radius.
     if (size.minDimension <= 0f) return@drawWithCache onDrawBehind {}
     val brushes = colors.mapIndexed { index, colorState ->
         val color = colorState.value
@@ -230,22 +233,22 @@ internal fun Modifier.drawColorBlobs(
             radius = radii[index],
         )
     }
-    val scrim = Brush.verticalGradient(
+    val veil = Brush.verticalGradient(
         listOf(Color.Black.copy(alpha = 0.10f), Color.Black.copy(alpha = 0.45f)),
     )
     onDrawBehind {
+        drawRect(base)
         val t = phase()
-        brushes.forEachIndexed { index, brush ->
+        for (index in brushes.indices) {
             val angle = appleBlobAngle(t, index)
             val orbitX = size.width * (0.20f + 0.06f * (index % 3))
             val orbitY = size.height * (0.14f + 0.05f * (index % 4))
             val centerX = size.width * (0.28f + 0.15f * (index % 3)) + orbitX * kotlin.math.cos(angle)
             val centerY = size.height * (0.24f + 0.18f * (index % 4)) + orbitY * kotlin.math.sin(angle)
-            // Translate a cached origin-centred shader instead of allocating a new one each frame.
             translate(centerX, centerY) {
-                drawCircle(brush = brush, radius = radii[index], center = Offset.Zero)
+                drawCircle(brush = brushes[index], radius = radii[index], center = Offset.Zero)
             }
         }
-        drawRect(brush = scrim)
+        drawRect(brush = veil)
     }
 }

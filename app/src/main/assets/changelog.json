@@ -1,8 +1,16 @@
 {
-  "versionName": "8.4.2-xbibz.24",
-  "versionCode": 98,
-  "description": "Mochy Xbibz **8.4.2-xbibz.24**: slider beranda liquid glass seperti sebelum 8.4.2.",
+  "versionName": "8.4.3-xbibz.25",
+  "versionCode": 99,
+  "description": "Mochy Xbibz **8.4.3-xbibz.25**: integrasi manual Mochy Music 8.4.3, dengan identitas fork dan Liquid Glass tetap.",
   "changelog": [
+    {
+      "title": "8.4.3-xbibz.25",
+      "items": [
+        "Integrasi manual Mochy resmi 8.4.3: cloud backup, penyimpanan modul terenkripsi, dan pembaruan fitur modul / Android TV.",
+        "Identitas Xbibz, paket **mochi.bibz.app**, bar navigasi Liquid Glass, efek audio Bibz, serta patch khusus fork tetap dipertahankan.",
+        "Kode versi **99**. Peningkatan dari .24; tag rilis sebelumnya tidak ditimpa."
+      ]
+    },
     {
       "title": "8.4.2-xbibz.24",
       "items": [

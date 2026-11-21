@@ -70,6 +70,7 @@ import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
 import com.mochyy.mochymusic.ui.screens.update.VersionRing
 import com.mochyy.mochymusic.ui.screens.update.openUrl
 import com.mochyy.mochymusic.ui.utils.AppMotion
+import com.mochyy.mochymusic.ui.component.sheetHandleRoom
 
 private val TitleOverlap = 18.dp
 
@@ -104,24 +105,35 @@ private fun DonateSheetContent() {
 
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val characterWidth = characterWidth(maxWidth, maxHeight)
+        // the page starts under the sheet's handle now, so the ring and the first row sit that much lower
+        val room = sheetHandleRoom()
 
         VersionRing(
             text = "MOCHY MUSIC",
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .layout { measurable, constraints ->
-                    val loose = constraints.copy(minWidth = 0, minHeight = 0, maxWidth = Constraints.Infinity, maxHeight = Constraints.Infinity)
-                    val placeable = measurable.measure(loose)
-                    layout(0, 0) { placeable.place(x = (-198).dp.roundToPx(), y = (-109).dp.roundToPx()) }
-                }
-                .graphicsLayer { translationY = -scroll.value.toFloat() },
+            modifier =
+                Modifier
+                    .align(Alignment.TopEnd)
+                    // centred just in from the top-right corner so the sheet's edge cuts it off, and takes no room of its own
+                    .layout { measurable, constraints ->
+                        val loose =
+                            constraints.copy(
+                                minWidth = 0,
+                                minHeight = 0,
+                                maxWidth = Constraints.Infinity,
+                                maxHeight = Constraints.Infinity,
+                            )
+                        val placeable = measurable.measure(loose)
+                        layout(0, 0) { placeable.place(x = (-198).dp.roundToPx(), y = (room - 109.dp).roundToPx()) }
+                    }.graphicsLayer { translationY = -scroll.value.toFloat() },
         )
 
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(scroll)
-                .padding(horizontal = 26.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(scroll)
+                    .padding(top = room)
+                    .padding(horizontal = 26.dp),
         ) {
             Spacer(Modifier.height(CharacterTop))
             DonateCharacter(

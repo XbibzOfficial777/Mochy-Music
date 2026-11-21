@@ -103,6 +103,7 @@ import com.mochyy.mochymusic.constants.AiProviderKey
 import com.mochyy.mochymusic.constants.DeeplApiKey
 import com.mochyy.mochymusic.constants.DeeplFormalityKey
 import com.mochyy.mochymusic.constants.LyricsHighBloomKey
+import com.mochyy.mochymusic.constants.LyricsSoftLightKey
 import com.mochyy.mochymusic.constants.OpenRouterApiKey
 import com.mochyy.mochymusic.constants.OpenRouterBaseUrlKey
 import com.mochyy.mochymusic.constants.OpenRouterModelKey
@@ -234,6 +235,9 @@ fun LyricsScreen(
     // off where the lyrics sit in a panel beside the cover, with no header of their own (the landscape flagship)
     showHeader: Boolean = true,
 
+    // the page sits right on a cover-coloured background, so resting lines can soft-light onto it
+    onCoverBackdrop: Boolean = false,
+
     modifier: Modifier = Modifier,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -242,7 +246,8 @@ fun LyricsScreen(
 
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val lyricsEntity by playerConnection.currentLyrics.collectAsState(initial = null)
-    val progress by playerConnection.progressState.collectAsState()
+    // kept as state rather than read here, so 15 hz position ticks only recalculate the derived line indices
+    val progress = playerConnection.progressState.collectAsState()
     val lyricsOffsetMs by playerConnection.lyricsOffsetMs.collectAsState()
 
     // frame-accurate, so the sweep, the gap dots and backing vocals glide at the display's rate instead of stepping with the 66ms poller
@@ -311,11 +316,11 @@ fun LyricsScreen(
     LyricsReadings(lines, mediaMetadata?.id, viewModel.database, lyricsEntity)
 
     val currentIndex by remember(lines, unsynced) {
-        derivedStateOf { if (unsynced) -1 else LyricsUtils.findCurrentLineIndex(lines, progress.position + lyricsOffsetMs) }
+        derivedStateOf { if (unsynced) -1 else LyricsUtils.findCurrentLineIndex(lines, progress.value.position + lyricsOffsetMs) }
     }
 
     val anchorIndex by remember(lines, unsynced) {
-        derivedStateOf { if (unsynced) -1 else lyricAnchorIndex(lines, progress.position + lyricsOffsetMs) }
+        derivedStateOf { if (unsynced) -1 else lyricAnchorIndex(lines, progress.value.position + lyricsOffsetMs) }
     }
 
     // Every instrumental gap in the song, as its own list row. Building these up front — rather
@@ -347,7 +352,7 @@ fun LyricsScreen(
     var followPlayback by remember { mutableStateOf(true) }
 
     // What the card is showing: the page's copy of it (a line, or the dots of a gap) is what the card grows into.
-    val cardSlot by remember(lines) { derivedStateOf { tickerSlot(lines, progress.position + lyricsOffsetMs) } }
+    val cardSlot by remember(lines) { derivedStateOf { tickerSlot(lines, progress.value.position + lyricsOffsetMs) } }
     val cardLine by remember { derivedStateOf { if (cardSlot.kind == TickerSlot.LINE) cardSlot.index else -1 } }
     val cardGap by remember { derivedStateOf { if (cardSlot.kind == TickerSlot.GAP) cardSlot.index else NoCardGap } }
     // its row, read only inside layers so the card moving on doesn't recompose every row
@@ -486,7 +491,7 @@ fun LyricsScreen(
 
     /** Which gap, if any, is happening right now. [NoInterlude] when a line is being sung. */
     val activeInterlude by remember(lines, rows) {
-        derivedStateOf { activeInterludeOf(rows, progress.position + lyricsOffsetMs) }
+        derivedStateOf { activeInterludeOf(rows, progress.value.position + lyricsOffsetMs) }
     }
 
     // Only honour {agent:v1}/{agent:v2} when the song actually has more than one voice. A solo
@@ -505,6 +510,19 @@ fun LyricsScreen(
     // the lines' blur by their distance from the sung one is an element blur, the glass blur switch doesn't touch it
     val (lineBlurAllowed) = rememberPreference(com.mochyy.mochymusic.constants.ElementBlurKey, defaultValue = true)
     val (lyricsHighBloom) = rememberPreference(LyricsHighBloomKey, defaultValue = true)
+    val (softLightLyrics) = rememberPreference(LyricsSoftLightKey, defaultValue = true)
+    val currentEnterProgress by rememberUpdatedState(enterProgressProvider)
+    val blend = remember(onCoverBackdrop, softLightLyrics, listState, stagger) {
+        if (onCoverBackdrop && softLightLyrics && SoftLightSupported) {
+            LyricsBackdropBlend(TopFadeFraction, BottomFadeStart) {
+                listState.layoutInfo
+                stagger.observe()
+                currentEnterProgress()
+            }
+        } else {
+            null
+        }
+    }
 
     // Drives the per-line loading dots and lifts the readings out of the way. The button that
     // starts a translation lives in the translation sheet, not here.
@@ -619,21 +637,27 @@ fun LyricsScreen(
                     userScrollEnabled = true,
                     modifier = Modifier
                         .fillMaxSize()
-
-                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-
-                        .drawWithCache {
-                            val fade = Brush.verticalGradient(
-                                0f to Color.Transparent,
-                                TopFadeFraction to Color.Black,
-                                BottomFadeStart to Color.Black,
-                                1f to Color.Transparent,
-                            )
-                            onDrawWithContent {
-                                drawContent()
-                                drawRect(brush = fade, blendMode = BlendMode.DstIn)
+                        .then(
+                            if (blend != null) {
+                                // no buffer of its own here, it would cut the soft-lit lines off from the background; the rows fade themselves
+                                Modifier.onPlaced { blend.list = it }
+                            } else {
+                                Modifier
+                                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                                    .drawWithCache {
+                                        val fade = Brush.verticalGradient(
+                                            0f to Color.Transparent,
+                                            TopFadeFraction to Color.Black,
+                                            BottomFadeStart to Color.Black,
+                                            1f to Color.Transparent,
+                                        )
+                                        onDrawWithContent {
+                                            drawContent()
+                                            drawRect(brush = fade, blendMode = BlendMode.DstIn)
+                                        }
+                                    }
                             }
-                        },
+                        ),
                 ) {
                     itemsIndexed(
                         items = rows,
@@ -676,7 +700,8 @@ fun LyricsScreen(
                                                 cardToPage = CardToPageLyricScale,
                                             )
                                             if (!flew) applyPageRowEnter(e, listIndex - cardLineRow.coerceAtLeast(0))
-                                        },
+                                        }
+                                        .lyricsEdgeFade(blend),
                                     onDotsStart = if (growsFromCard) {
                                         { at -> dotsStart[0] = at.x; dotsStart[1] = at.y }
                                     } else {
@@ -762,6 +787,8 @@ fun LyricsScreen(
                                             if (!flew) applyPageRowEnter(e, rowIndex - cardLineRow.coerceAtLeast(0))
                                             // the line held for sharing is out flying; no copy stays behind
                                             shareSession?.let { alpha *= it.lyricsLineAlpha(index) }
+                                            // a buffer here would cut the soft light off from the background while the row fades in
+                                            if (blend != null) compositingStrategy = CompositingStrategy.ModulateAlpha
                                         }
                                         .onPlaced { lineCoords[index] = it },
                                     entry = shown.entry,
@@ -790,6 +817,7 @@ fun LyricsScreen(
                                     waveEnabled = lyricsWaveAnimation && !suppressEffects,
                                     motionStyle = motionStyle,
                                     highBloom = lyricsHighBloom,
+                                    blend = blend,
                                     onClick = {
                                         // Untimed lines have nowhere to seek to.
                                         if (!unsynced) {
@@ -813,11 +841,13 @@ fun LyricsScreen(
                             LyricsSourceFooter(
                                 provider = provider,
                                 onSwitchSource = onSwitchSource,
+                                rawLyrics = lyricsEntity?.lyrics,
                                 modifier = Modifier
                                     .graphicsLayer {
                                         translationY = stagger.lagOf(rows.size)
                                         applyPageRowEnter(enterProgressProvider(), rows.size - cardLineRow.coerceAtLeast(0))
                                     }
+                                    .lyricsEdgeFade(blend)
                                     .padding(horizontal = LyricsHeaderArtX)
                                     .padding(top = 36.dp),
                             )

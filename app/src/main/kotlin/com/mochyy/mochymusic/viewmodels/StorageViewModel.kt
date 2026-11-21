@@ -60,13 +60,15 @@ data class StorageUsage(
     val drives: List<DriveUsage>,
     /** songs streamed and kept for next time, cover pictures, and other throwaway files */
     val cache: Long,
-    /** downloaded songs and the covers saved for local files */
+    /** downloaded songs only: covers saved for local files count as app data, so importing a folder never looks like a download */
     val downloads: Long,
     val database: Long,
+    /** cover pictures saved out of local audio files, the only thing local imports leave on the phone besides the library rows */
+    val localCovers: Long,
     /** the app itself and its settings, everything not counted above */
     val appData: Long,
 ) {
-    val mochy: Long get() = cache + downloads + database + appData
+    val mochy: Long get() = cache + downloads + database + localCovers + appData
     val phone: DriveUsage get() = drives.first()
 }
 
@@ -135,6 +137,11 @@ class StorageViewModel @Inject constructor(
         }
     }
 
+    /** Deletes the cover pictures saved for local songs. The songs and their files stay. */
+    fun clearLocalCovers() = runBusy {
+        com.mochyy.mochymusic.importer.LocalArtwork.clearAll(context, database)
+    }
+
     fun removeAllDownloads() = runBusy {
         DownloadService.sendRemoveAllDownloads(context, ExoDownloadService::class.java, false)
         // the service deletes in the background; give it a moment before measuring again
@@ -179,26 +186,26 @@ class StorageViewModel @Inject constructor(
         }
     }
 
-    private fun readUsage(): StorageUsage {
+    private suspend fun readUsage(): StorageUsage {
         val stat = StatFs(Environment.getDataDirectory().path)
         val dataDir = context.dataDir
         val songCacheDir = StoragePlaces.dir(context, StoredKind.SongCache)
         val downloadDir = StoragePlaces.dir(context, StoredKind.Downloads)
-        val localArtwork = context.filesDir.resolve("local_artwork")
         val databases = context.getDatabasePath("x").parentFile
 
         val songCache = sizeOf(songCacheDir)
         val downloadedSongs = sizeOf(downloadDir)
         val cache = songCache + sizeOf(context.cacheDir) + sizeOf(context.codeCacheDir)
-        val downloads = downloadedSongs + sizeOf(localArtwork)
+        val downloads = downloadedSongs
         val db = sizeOf(databases)
+        val localCovers = com.mochyy.mochymusic.importer.LocalArtwork.sizeOnDisk(context)
         // only what sits in the data folder comes off it before the rest is counted, a folder on a card was never in it
         val onCards = listOf(songCacheDir to songCache, downloadDir to downloadedSongs).filter { (dir, _) -> dir.parentFile != context.filesDir }
-        val rest = (sizeOf(dataDir) - (cache + downloads - onCards.sumOf { it.second }) - db).coerceAtLeast(0L)
+        val rest = (sizeOf(dataDir) - (cache + downloads - onCards.sumOf { it.second }) - db - localCovers).coerceAtLeast(0L)
         val apk = context.applicationInfo.run {
             (listOf(sourceDir) + splitSourceDirs.orEmpty()).sumOf { File(it).length() }
         }
-        val total = cache + downloads + db + rest + apk
+        val total = cache + downloads + db + localCovers + rest + apk
         val phone = DriveUsage(
             label = context.getString(R.string.storage_place_phone),
             isPhone = true,
@@ -225,12 +232,24 @@ class StorageViewModel @Inject constructor(
             cache = cache,
             downloads = downloads,
             database = db,
+            localCovers = localCovers,
             appData = rest + apk,
         )
     }
 
     private fun sizeOf(file: File?): Long {
         if (file == null || !file.exists()) return 0L
-        return runCatching { file.walkTopDown().filter { it.isFile }.sumOf { it.length() } }.getOrDefault(0L)
+        // a cover shared by a whole album is one file under several names, and only takes its room once
+        val counted = HashSet<Long>()
+        return runCatching {
+            file.walkTopDown().filter { it.isFile }.sumOf { entry ->
+                val stat = runCatching { android.system.Os.lstat(entry.path) }.getOrNull()
+                when {
+                    stat == null -> entry.length()
+                    stat.st_nlink > 1 && !counted.add(stat.st_ino) -> 0L
+                    else -> stat.st_size
+                }
+            }
+        }.getOrDefault(0L)
     }
 }

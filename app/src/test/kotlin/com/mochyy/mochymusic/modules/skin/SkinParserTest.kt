@@ -17,7 +17,7 @@ class SkinParserTest {
 
     private fun skin(text: String, files: File? = null, base: String? = null): ModuleSkin? {
         val m = manifest(text)
-        return SkinParser.parse("local.test", "Test", m.player, m.font, m.pages, files, base, m.actions, m.glass, m.players, m.bar)
+        return SkinParser.parse("local.test", "Test", m.player, m.font, m.pages, files, base, m.actions, m.glass, m.players, m.bar, m.mini)
     }
 
     private val vinyl = """
@@ -424,5 +424,131 @@ class SkinParserTest {
         assertEquals("0.8", size.toField().default)
         // ends the wrong way round get a sensible top
         assertEquals(4f, m.setting("x")!!.range!!.end)
+    }
+
+    @Test
+    fun `a cover takes its own size, ratio and moving media, and a live cover background sits on the blurred cover`() {
+        val text = """
+            { "id": "p", "name": "P",
+              "player": {
+                "background": { "type": "liveCover", "media": ["video", "loops/rain.mp4"] },
+                "blocks": [
+                  { "type": "cover", "aspect": "16:9", "width": 9000, "fit": "fit", "media": ["video", "Animated", "loops/idle.webp", "notes.txt", "auto"] },
+                  { "type": "cover", "height": 200, "aspect": 0.01 },
+                  { "type": "cover" }
+                ] } }
+        """
+        val player = skin(text)!!.player!!
+        val wide = player.blocks[0] as SkinBlock.Cover
+        assertEquals(16f / 9f, wide.aspect)
+        assertEquals(600.dp, wide.width)
+        assertTrue(wide.fit)
+        // a text file isn't something a cover can play, so it's dropped and the rest keep their order
+        assertEquals(listOf(CoverMedia.Video, CoverMedia.Animated, CoverMedia.Loop("loops/idle.webp"), CoverMedia.Auto), wide.media)
+        val tall = player.blocks[1] as SkinBlock.Cover
+        assertEquals(200.dp, tall.height)
+        assertEquals(0.25f, tall.aspect)
+        val plain = player.blocks[2] as SkinBlock.Cover
+        assertEquals(1f, plain.aspect)
+        assertTrue(plain.media.isEmpty())
+        val live = SkinBackground.Live(listOf(CoverMedia.Video, CoverMedia.Loop("loops/rain.mp4")), SkinBackground.Player(PlayerBackgroundStyle.APPLE_MUSIC))
+        assertEquals(live, player.background)
+    }
+
+    @Test
+    fun `editor parts, the bottom bar and a mini player`() {
+        val text = """
+            { "id": "p", "name": "P",
+              "player": {
+                "edit": [ { "part": "cover", "title": "Cover", "choose": "shape", "settings": ["spin"], "hold": "size" }, { "part": "bad id!" }, { "part": "bg" } ],
+                "blocks": [ { "type": "cover", "part": "cover" }, { "type": "bottomBar", "style": "pills", "glass": true, "height": 999 } ] },
+              "mini": { "blocks": [ { "type": "title" }, { "type": "button", "action": "playPause" } ] } }
+        """
+        val skin = skin(text)!!
+        val player = skin.player!!
+        assertEquals(listOf("cover", "bg"), player.edit.map { it.id })
+        assertEquals(SkinEditPart("cover", "Cover", "shape", listOf("spin"), "size"), player.edit[0])
+        assertEquals("Bg", player.edit[1].title)
+        assertEquals(setOf("cover"), player.partIds)
+        val bar = player.blocks[1] as SkinBlock.BottomBar
+        assertEquals(BottomBarKind.Pills, bar.kind)
+        assertEquals(160.dp, bar.height)
+        assertTrue(player.frosted)
+        val mini = skin.mini!!
+        assertEquals("mini", mini.id)
+        // a mini player that names no background keeps mochy's glass
+        assertEquals(SkinBackground.Tones, mini.background)
+        assertTrue(skin.restyles)
+    }
+
+    @Test
+    fun `custom queue cards, dynamic covers, tappable boxes, volume and extra controls`() {
+        val text = """
+            { "id": "p", "name": "P",
+              "player": {
+                "keyframes": { "pop": { "from": { "scale": 0.9 }, "to": { "scale": 1 } } },
+                "blocks": [
+                  { "type": "box", "glass": true, "direction": "row", "action": "queue", "when": "@hasNext", "on": { "queue": "pop" },
+                    "blocks": [
+                      { "type": "image", "image": "{nextCover}", "fallback": "fallback.png", "width": 44, "height": 44 },
+                      { "type": "image", "image": "{next3Cover}", "width": 32, "height": 32 },
+                      { "type": "image", "image": "{prevCover}", "width": 32, "height": 32 },
+                      { "type": "image", "image": "{cover}", "width": 32, "height": 32 },
+                      { "type": "text", "text": "{next} · {next2Artist} · {next2Length} · {prev} · {queueLeft} · {queueTitle}" }
+                    ] },
+                  { "type": "queue", "limit": 99, "covers": true, "coverSize": 100, "times": true, "numbers": true, "tap": "queue", "height": 220, "empty": "All done" },
+                  { "type": "volume", "style": "pill", "icons": false },
+                  { "type": "button", "action": "queue" },
+                  { "type": "button", "action": "forward10" },
+                  { "type": "button", "action": "rewind" },
+                  { "type": "button", "action": "more" },
+                  { "type": "button", "action": "artist" },
+                  { "type": "button", "action": "album" },
+                  { "type": "text", "text": "hi-res", "when": "@lossless" },
+                  { "type": "text", "text": "loop one", "when": "@repeatOne" },
+                  { "type": "text", "text": "back", "when": "@prev" }
+                ] } }
+        """
+        val player = skin(text)!!.player!!
+        val card = player.blocks[0] as SkinBlock.Styled
+        val box = card.inner as SkinBlock.Box
+        assertEquals(SkinTarget.Control(ButtonKind.Queue), box.target)
+        assertEquals(SkinPictureSource.QueueCover(1), (box.blocks[0] as SkinBlock.Picture).source)
+        assertEquals("fallback.png", (box.blocks[0] as SkinBlock.Picture).fallback)
+        assertEquals(SkinPictureSource.QueueCover(3), (box.blocks[1] as SkinBlock.Picture).source)
+        assertEquals(SkinPictureSource.QueueCover(-1), (box.blocks[2] as SkinBlock.Picture).source)
+        assertEquals(SkinPictureSource.CurrentCover, (box.blocks[3] as SkinBlock.Picture).source)
+        assertTrue(player.queue)
+        assertTrue(player.audio)
+        assertTrue(player.playerFields)
+        assertEquals(setOf(SkinEvent.Queue), player.events)
+        assertEquals(setOf(SkinFlag.HasNext, SkinFlag.HasPrev, SkinFlag.RepeatOne, SkinFlag.Lossless), player.flags)
+
+        val queue = player.blocks[1] as SkinBlock.QueueList
+        assertEquals(20, queue.limit)
+        assertEquals(72.dp, queue.coverSize)
+        assertTrue(queue.times)
+        assertTrue(queue.numbers)
+        assertEquals(QueueTap.Queue, queue.tap)
+        assertEquals(220.dp, queue.height)
+        assertEquals("All done", queue.empty)
+
+        val volume = player.blocks[2] as SkinBlock.Volume
+        assertEquals(ProgressStyle.Pill, volume.style)
+        assertFalse(volume.icons)
+
+        assertEquals(
+            listOf(ButtonKind.Queue, ButtonKind.Forward, ButtonKind.Rewind, ButtonKind.OtherMenu, ButtonKind.Artist, ButtonKind.Album),
+            (3..8).map { ((player.blocks[it] as SkinBlock.Button).target as SkinTarget.Control).kind },
+        )
+    }
+
+    @Test
+    fun `a plain layout without queue or lossless fields doesn't subscribe to them`() {
+        val player = skin("""{ "id": "p", "name": "P", "player": { "blocks": [ { "type": "title" }, { "type": "image", "image": "pic.png" } ] } }""")!!.player!!
+        assertFalse(player.queue)
+        assertFalse(player.audio)
+        assertFalse(player.playerFields)
+        assertEquals(SkinPictureSource.Asset("pic.png"), (player.blocks[1] as SkinBlock.Picture).source)
     }
 }

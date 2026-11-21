@@ -1,5 +1,5 @@
 > [!IMPORTANT]
-> **Mochy Xbibz** is an independent fork of [Mochy Music](https://github.com/realidkroo/Mochy-Music). This branch builds **Mochy Xbibz**, including Liquid Glass and the other Bibz additions. The fork's `main` branch mirrors official Mochy; Bibz changes live on `mochy-xbibz`. [Bibz releases](https://github.com/XbibzOfficial777/Mochy-Music/releases) are signed with a different key from official Mochy. Both use the same Android package ID, so they cannot be installed side by side or upgraded over one another; back up your data before switching.
+> **Mochy Xbibz** is an independent fork of [Mochy Music](https://github.com/realidkroo/Mochy-Music). This branch builds **Mochy Xbibz**, including Liquid Glass and the other Bibz additions. The fork's `main` branch mirrors official Mochy; Bibz changes live on `mochy-xbibz`. Current Xbibz releases use package ID `mochi.bibz.app`, separate from upstream's `com.mochyy.mochymusic`, so both current apps can be installed side by side. Xbibz is signed with its own release key. Older Bibz releases before `.19` used the previous package ID; back up your data before migrating from one of those builds.
 
 > Some upstream regional resource folders currently contain only English template strings. The Bibz branch omits those templates so existing translations can fall back to their base language instead of being masked; real regional translations can be restored when available.
 
@@ -54,7 +54,7 @@
 3. Open the downloaded file. Android will ask you to allow installs from your browser or file manager, say yes (you can turn it off again after).
 4. Open Mochy Xbibz. You are done; no account is needed to start listening.
 
-To update an existing Bibz install, install the newer Bibz APK over it. Official Mochy and Bibz use different signing keys and cannot update one another; back up data before switching.
+To update a current Bibz install, install the newer Bibz APK over it. Current Mochy Xbibz (`mochi.bibz.app`) and official Mochy (`com.mochyy.mochymusic`) are separate apps and do not update one another. Older Bibz installs from before `.19` used the previous package ID; back up data before migrating.
 
 > [!TIP]
 > Only download Mochy from the releases page of this repo. A random mediafire or telegram link could be a modified app, and then your logins would not be safe, pls avoid those

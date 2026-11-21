@@ -119,6 +119,7 @@ import com.mochyy.mochymusic.ui.component.SongSwipeBox
 import com.mochyy.mochymusic.ui.component.TextFieldDialog
 import com.mochyy.mochymusic.ui.component.librarySwipeAction
 import com.mochyy.mochymusic.ui.component.queueSwipeAction
+import com.mochyy.mochymusic.ui.utils.resize
 import com.mochyy.mochymusic.ui.component.removeFromPlaylistSwipeAction
 import com.mochyy.mochymusic.ui.component.detail.CreatorUi
 import com.mochyy.mochymusic.ui.component.detail.rememberFeaturedArtists
@@ -462,7 +463,8 @@ fun LocalPlaylistScreen(
                                 }
                             }
                             else -> {
-                                songs.forEach { song ->
+                                // imported files are already on the phone, with nothing online to download
+                                songs.filterNot { it.song.song.isLocal }.forEach { song ->
                                     val downloadRequest = DownloadRequest
                                         .Builder(song.song.id, song.song.id.toUri())
                                         .setCustomCacheKey(song.song.id)
@@ -853,7 +855,7 @@ fun LocalPlaylistScreen(
                                         val thumbUrl = related.playlist.thumbnailUrl ?: related.thumbnails.firstOrNull()
                                         if (thumbUrl != null) {
                                             AsyncImage(
-                                                model = thumbUrl,
+                                                model = thumbUrl.resize(320, 320),
                                                 contentDescription = null,
                                                 modifier = Modifier.fillMaxSize(),
                                                 contentScale = ContentScale.Crop

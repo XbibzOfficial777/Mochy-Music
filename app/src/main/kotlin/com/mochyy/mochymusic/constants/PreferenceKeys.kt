@@ -129,6 +129,7 @@ val EnableNetEaseKey = booleanPreferencesKey("enableNetEase")
 val EnableQQMusicKey = booleanPreferencesKey("enableQQMusic")
 val EnableDeezerKey = booleanPreferencesKey("enableDeezer")
 val EnableLrcRedKey = booleanPreferencesKey("enableLrcRed")
+val EnableUnisonKey = booleanPreferencesKey("enableUnison")
 val HideExplicitKey = booleanPreferencesKey("hideExplicit")
 val HideVideoSongsKey = booleanPreferencesKey("hideVideoSongs")
 // no switch for it in settings, so every reader defaults it to on and shorts stay out
@@ -414,6 +415,11 @@ val ScrobbleDelayPercentKey = floatPreferencesKey("scrobbleDelayPercent")
 val ScrobbleMinSongDurationKey = intPreferencesKey("scrobbleMinSongDuration")
 val ScrobbleDelaySecondsKey = intPreferencesKey("scrobbleDelaySeconds")
 
+// cloud backup: only the schedule lives here, the account itself sits in no_backup so it never travels in a zip
+val CloudBackupAutoKey = booleanPreferencesKey("cloudBackupAuto")
+val CloudBackupEveryMinutesKey = intPreferencesKey("cloudBackupEveryMinutes")
+val CloudBackupKeepKey = intPreferencesKey("cloudBackupKeep")
+
 val ChipSortTypeKey = stringPreferencesKey("chipSortType")
 val SongSortTypeKey = stringPreferencesKey("songSortType")
 val SongSortDescendingKey = booleanPreferencesKey("songSortDescending")
@@ -459,6 +465,8 @@ val PlaylistEditLockKey = booleanPreferencesKey("playlistEditLock")
 val QuickPicksKey = stringPreferencesKey("discover")
 val PreferredLyricsProviderKey = stringPreferencesKey("lyricsProvider")
 val LyricsProviderOrderKey = stringPreferencesKey("lyricsProviderOrder")
+// on: the provider order above decides, off: the lyrics with the most features win and the order only breaks ties
+val LyricsOrderOverrideKey = booleanPreferencesKey("lyricsOrderOverride")
 val QueueEditLockKey = booleanPreferencesKey("queueEditLock")
 val ShowWrappedCardKey = booleanPreferencesKey("show_wrapped_card")
 val WrappedSeenKey = booleanPreferencesKey("wrapped_seen")
@@ -954,6 +962,8 @@ val LyricsClickKey = booleanPreferencesKey("lyricsClick")
 val LyricsWaveAnimationKey = booleanPreferencesKey("lyricsWaveAnimation")
 
 val LyricsHighBloomKey = booleanPreferencesKey("lyricsHighBloom")
+// resting lyric lines soft-lit onto the cover background instead of plain grey, on until turned off
+val LyricsSoftLightKey = booleanPreferencesKey("lyricsSoftLight")
 val LyricsScrollKey = booleanPreferencesKey("lyricsScrollKey")
 val LyricsRomanizeJapaneseKey = booleanPreferencesKey("lyricsRomanizeJapanese")
 val LyricsRomanizeKoreanKey = booleanPreferencesKey("lyricsRomanizeKorean")
@@ -1429,3 +1439,9 @@ val LyricsCacheWipeKey = intPreferencesKey("lyricsCacheWipe")
 const val LyricsCacheWipeGeneration = 1
 val DiscordCanvasFpsKey = intPreferencesKey("discordPresenceCanvasFps")
 val DiscordCanvasSizeKey = intPreferencesKey("discordPresenceCanvasSize")
+
+// which version of the module store's terms was agreed to; 0 means never, and a newer version asks again
+val ModuleStoreTermsKey = intPreferencesKey("moduleStoreTerms")
+
+// experimental: the module store answers as it would a fork, to see that page without building one
+val SimulateForkKey = booleanPreferencesKey("simulateFork")
