@@ -1,4 +1,25 @@
 #!/usr/bin/env bash
+# Bound adb calls: adb shell can otherwise wait forever if an emulator drops offline.
+ADB_BIN="$(type -P adb)"
+adb() {
+  local limit=60
+  case "${1:-}" in
+    get-state|devices|reconnect) limit=5 ;;
+    install) limit=180 ;;
+    exec-out) limit=45 ;;
+    shell)
+      limit=30
+      case "${2:-}" in
+        getprop) limit=10 ;;
+        input) limit=20 ;;
+        am) limit=90 ;;
+        uiautomator|dumpsys) limit=60 ;;
+      esac
+      ;;
+  esac
+  timeout --signal=TERM --kill-after=5s "${limit}s" "$ADB_BIN" "$@"
+}
+
 # Wait until adb reports a booted emulator. Used by smoke scripts; does not skip tests.
 wait_for_emulator() {
   local tries="${1:-45}"

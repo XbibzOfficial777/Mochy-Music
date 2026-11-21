@@ -6,14 +6,17 @@ here="$(cd "$(dirname "$0")" && pwd)"
 source "$here/smoke-device.sh"
 
 run_smoke() {
-  bash "$here/smoke-launch.sh"
-  bash "$here/smoke-fixtures.sh"
-  bash "$here/smoke-latest.sh"
+  # `set -e` is suppressed inside a function used as an if condition, so propagate
+  # each child failure explicitly instead of accidentally masking it with a later pass.
+  bash "$here/smoke-launch.sh" || return $?
+  bash "$here/smoke-fixtures.sh" || return $?
+  bash "$here/smoke-latest.sh" || return $?
 }
 
 if run_smoke; then
   exit 0
 fi
-echo 'Smoke failed; waiting for the emulator and running the same tests once more.'
+echo 'Smoke failed; reconnecting and waiting for the emulator before one retry.'
+adb reconnect || true
 wait_for_emulator 45 || true
 run_smoke

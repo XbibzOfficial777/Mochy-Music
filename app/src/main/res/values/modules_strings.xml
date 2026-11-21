@@ -165,6 +165,11 @@
     <string name="module_browser_subtitle">This is an unofficial feature.</string>
     <string name="module_browser_search">Search</string>
     <string name="module_browser_all">All</string>
+    <string name="module_browser_looks">Looks</string>
+    <string name="module_browser_players">Players</string>
+    <string name="module_browser_sources">Sources</string>
+    <string name="module_browser_paid">Paid module</string>
+    <string name="module_browser_others">Other</string>
     <string name="module_browser_add">ADD</string>
     <string name="module_browser_update">UPDATE</string>
     <string name="module_browser_added">ADDED</string>

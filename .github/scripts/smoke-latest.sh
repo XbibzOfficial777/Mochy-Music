@@ -129,8 +129,7 @@ adb shell input swipe "$sx" "$sy" "$sx" "$ey" 400
 sleep 1
 dump_ui
 cp smoke-latest-ui.xml smoke-latest-player-compact-after-first.xml
-adb shell input swipe "$sx" "$sy" "$sx" "$ey" 400
-sleep 1
+# The lowest quality option is already visible after one scroll at this compact size.
 tap_node text '144p'
 assert_text 'Player selected: Q144'
 adb shell wm size reset
