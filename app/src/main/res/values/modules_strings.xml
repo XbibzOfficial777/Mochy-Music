@@ -6,6 +6,7 @@
     <string name="module_adds_look">Look</string>
     <string name="module_adds_metadata">Song info</string>
     <string name="modules_beta">BETA</string>
+    <string name="modules_bar">Find more modules at Mochy\'s Bar &lt;3</string>
     <string name="module_status_signed_out">Not signed in</string>
     <string name="module_status_expired">Sign in again · %1$s</string>
     <string name="module_status_on">On · %1$s</string>
@@ -160,6 +161,8 @@
     <string name="module_updated">%1$s is up to date now.</string>
     <string name="module_update_failed">Couldn\'t update %1$s. %2$s</string>
     <string name="module_page_shader_problem">This page\'s shader didn\'t load, so it shows its fallback: %1$s</string>
+    <string name="module_browser_title">Module browser</string>
+    <string name="module_browser_subtitle">This is an unofficial feature.</string>
     <string name="module_browser_search">Search</string>
     <string name="module_browser_all">All</string>
     <string name="module_browser_add">ADD</string>
