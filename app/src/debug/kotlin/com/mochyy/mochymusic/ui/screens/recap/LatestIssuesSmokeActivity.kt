@@ -316,7 +316,7 @@ private fun BackdropMotionFixture() {
         // phase/size/colours. Pixel comparison checks the optimisation does not change the art.
         Row {
             Box(Modifier.size(145.dp).clipToBounds().semantics { contentDescription = "Cached shader specimen" }
-                .background(Color(0xFF9C3341)).drawColorBlobs(colors) { 2.1f })
+                .background(Color(0xFF9C3341)).drawColorBlobs(Color(0xFF9C3341), colors) { 2.1f })
             Box(Modifier.size(145.dp).clipToBounds().semantics { contentDescription = "Original shader specimen" }
                 .background(Color(0xFF9C3341)).originalColorBlobs(colors.map { it.value }, 2.1f))
         }

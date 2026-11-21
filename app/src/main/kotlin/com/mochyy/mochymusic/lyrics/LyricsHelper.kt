@@ -4,6 +4,7 @@ package com.mochyy.mochymusic.lyrics
 
 import android.content.Context
 import android.util.LruCache
+import androidx.core.net.toUri
 import com.mochyy.mochymusic.constants.LyricsOrderOverrideKey
 import com.mochyy.mochymusic.constants.LyricsProviderOrderKey
 import com.mochyy.mochymusic.constants.PreferredLyricsProvider
