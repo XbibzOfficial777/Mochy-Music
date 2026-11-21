@@ -23,7 +23,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.navigation.NavController
@@ -173,8 +173,8 @@ private fun CloudGroup(
             descriptionText = when {
                 login is CloudLogin.InBrowser && login.kind == kind -> stringResource(R.string.backup_waiting_browser)
                 login is CloudLogin.Finishing && login.kind == kind -> stringResource(R.string.backup_finishing_sign_in)
-                connected && kind == CloudKind.WebDav -> stringResource(R.string.backup_webdav_connected, account?.name.orEmpty())
-                connected -> stringResource(R.string.backup_signed_in_as, account?.name.orEmpty())
+                connected && kind == CloudKind.WebDav -> stringResource(R.string.backup_webdav_connected, account.name)
+                connected -> stringResource(R.string.backup_signed_in_as, account.name)
                 !configured -> stringResource(R.string.backup_not_set_up)
                 else -> stringResource(
                     when (kind) {

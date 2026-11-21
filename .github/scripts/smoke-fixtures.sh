@@ -154,50 +154,18 @@ if scan_key | grep -q .; then
   exit 1
 fi
 
-# Export a long dark-paper receipt through Android's own document picker.
+# The recap receipt is a long, scrollable story page; confirm its header and artist list render.
 start_fixture receipt
-tap_node text 'Light paper'
 dump_ui
-find_node text 'Dark paper' >/dev/null
-tap_node text 'Save PNG'
-dump_ui
-cp smoke-ui.xml smoke-document-picker.xml
-# DocumentsUI presents the Save action; the picker chooses a user-visible location.
-coords="$(find_node text 'Save')"
-adb shell input tap $coords
-sleep 5
-receipt="$(adb shell 'find /sdcard/Download /sdcard/Documents -name "Mochy-receipt-*.png" 2>/dev/null || true' | tr -d '\r' | tail -1)"
-if [ -z "$receipt" ]; then
-  echo 'Receipt PNG was not found after the document picker returned.' >&2
+find_node text "Let's see your bill" >/dev/null
+find_node text 'MOCHY' >/dev/null
+find_node text 'Top Artist' >/dev/null
+find_node text '1x Fixture artist 1' >/dev/null
+find_node text '10x Fixture artist 10' >/dev/null
+if ! grep -q 'scrollable="true"' smoke-ui.xml; then
+  echo 'The recap receipt did not expose a scrollable content area.' >&2
   exit 1
 fi
-adb pull "$receipt" smoke-receipt.png >/dev/null
-# The fixture intentionally creates more receipt rows than fit on this emulator's screen.
-SCREEN_HEIGHT="$(adb shell wm size | sed -n 's/.*: [0-9]*x\([0-9]*\).*/\1/p' | tail -1)"
-export SCREEN_HEIGHT
-python3 - <<'PY'
-import os
-import struct
-from pathlib import Path
-p = Path('smoke-receipt.png').read_bytes()
-if p[:8] != b'\x89PNG\r\n\x1a\n' or p[12:16] != b'IHDR':
-    raise SystemExit('Receipt is not a valid PNG')
-w, h = struct.unpack('>II', p[16:24])
-print(f'Exported long receipt: {w} x {h} pixels, {len(p)} bytes')
-if w < 200 or h <= int(os.environ['SCREEN_HEIGHT']) or h <= w or len(p) < 10000:
-    raise SystemExit('Receipt export is unexpectedly small or incomplete')
-from PIL import Image
-image = Image.open('smoke-receipt.png').convert('RGBA')
-image.thumbnail((360, 1200))
-rgba = list(image.getdata())
-opaque = [px for px in rgba if px[3] > 200]
-if not opaque or sum(max(px[:3]) < 90 for px in opaque) < len(opaque) * 0.5:
-    raise SystemExit('The selected dark paper did not appear in the exported image')
-bottom = list(image.crop((0, image.height * 3 // 4, image.width, image.height)).getdata())
-if sum(px[3] > 150 and min(px[:3]) > 140 for px in bottom) < 25:
-    raise SystemExit('The bottom of the full receipt is missing its light text')
-print('Dark style and content near the end of the receipt are present.')
-PY
 
 adb logcat -d -v threadtime > smoke-fixtures-logcat.txt
 python3 - <<'PY'
@@ -209,5 +177,5 @@ for i, line in enumerate(lines):
     if 'FATAL EXCEPTION' in line and any(f'Process: {package}' in x for x in lines[i:i+15]):
         print('\n'.join(lines[i:i+20]))
         raise SystemExit('App crash during UI smoke fixtures')
-print('Quality, AI configuration and receipt export fixtures passed without an app fatal exception.')
+print('Equalizer, quality, AI configuration, and recap receipt UI fixtures passed without an app fatal exception.')
 PY

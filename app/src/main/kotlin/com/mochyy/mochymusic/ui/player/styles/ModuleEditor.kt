@@ -182,7 +182,7 @@ internal fun ModuleEditTiles(context: SkinContext, editor: ModuleEditorState?) {
                         }
                         when {
                             early == Tapped -> editor.open = part?.id?.takeIf { it != editor.open }
-                            early == null && hold != null && part != null ->
+                            early == null && hold != null ->
                                 dragHold(editor, haptics, part, hold.first, hold.second, moduleId, values, down.position.y)
                         }
                     }
