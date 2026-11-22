@@ -7,20 +7,24 @@
     <plurals name="import_notice_added_missing">
         <item quantity="one">%1$d música nova adicionada a “%2$s”. Não foi possível encontrar mais %3$d no YouTube Music</item>
         <item quantity="other">%1$d músicas novas adicionadas a “%2$s”. Não foi possível encontrar mais %3$d no YouTube Music</item>
+        <item quantity="many">%1$d músicas novas adicionadas a “%2$s”. Não foi possível encontrar mais %3$d no YouTube Music</item>
     </plurals>
     <plurals name="import_notice_added">
         <item quantity="one">%1$d música nova adicionada a “%2$s”</item>
         <item quantity="other">%1$d músicas novas adicionadas a “%2$s”</item>
+        <item quantity="many">%1$d músicas novas adicionadas a “%2$s”</item>
     </plurals>
     <plurals name="import_notice_missing">
         <item quantity="one">Não foi possível encontrar %1$d música nova no YouTube Music</item>
         <item quantity="other">Não foi possível encontrar %1$d músicas novas no YouTube Music</item>
+        <item quantity="many">Não foi possível encontrar %1$d músicas novas no YouTube Music</item>
     </plurals>
     <string name="import_notice_up_to_date">“%1$s” está atualizado</string>
     <string name="import_notice_many_added">Novas músicas adicionadas: %1$d; playlists atualizadas: %2$d</string>
     <plurals name="import_notice_many_current">
         <item quantity="one">Sua %1$d playlist importada está atualizada</item>
         <item quantity="other">Suas %1$d playlists importadas estão atualizadas</item>
+        <item quantity="many">Suas %1$d playlists importadas estão atualizadas</item>
     </plurals>
     <string name="import_notice_many_failed">Não foi possível sincronizar %1$s novamente</string>
     <string name="import_notice_preview_failed">Falha ao visualizar o arquivo CSV</string>

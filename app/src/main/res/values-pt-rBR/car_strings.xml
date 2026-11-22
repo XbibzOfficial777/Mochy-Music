@@ -38,6 +38,7 @@
     <plurals name="car_pair_connected_more">
         <item quantity="one">Conectado a %1$s e a mais %2$d celular</item>
         <item quantity="other">Conectado a %1$s e a mais %2$d celulares</item>
+        <item quantity="many">Conectado a %1$s e a mais %2$d celulares</item>
     </plurals>
     <string name="car_pair_getting_code">Preparando um código…</string>
 </resources>

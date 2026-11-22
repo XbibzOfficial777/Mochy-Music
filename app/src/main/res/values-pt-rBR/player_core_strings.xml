@@ -247,21 +247,26 @@
     <plurals name="pc_detail_songs">
         <item quantity="one">%1$d música</item>
         <item quantity="other">%1$d músicas</item>
+        <item quantity="many">%1$d músicas</item>
     </plurals>
     <plurals name="pc_detail_minutes">
         <item quantity="one">%1$d minuto</item>
         <item quantity="other">%1$d minutos</item>
+        <item quantity="many">%1$d minutos</item>
     </plurals>
     <plurals name="pc_artist_songs_in_library">
         <item quantity="one">%1$d música na sua biblioteca</item>
         <item quantity="other">%1$d músicas na sua biblioteca</item>
+        <item quantity="many">%1$d músicas na sua biblioteca</item>
     </plurals>
     <plurals name="pc_resync_looking_playlists">
         <item quantity="one">Procurando músicas novas em %1$d playlist…</item>
         <item quantity="other">Procurando músicas novas em %1$d playlists…</item>
+        <item quantity="many">Procurando músicas novas em %1$d playlists…</item>
     </plurals>
     <plurals name="pc_resync_need_link">
         <item quantity="one">%1$d importação antiga precisa do link. Sincronize-a novamente pelo próprio menu.</item>
         <item quantity="other">%1$d importações antigas precisam do link. Sincronize-as novamente pelos próprios menus.</item>
+        <item quantity="many">%1$d importações antigas precisam do link. Sincronize-as novamente pelos próprios menus.</item>
     </plurals>
 </resources>

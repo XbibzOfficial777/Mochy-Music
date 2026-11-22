@@ -340,5 +340,6 @@ de fim</string>
     <plurals name="ps_share_lines_selected">
         <item quantity="one">%1$d linha selecionada</item>
         <item quantity="other">%1$d linhas selecionadas</item>
+        <item quantity="many">%1$d linhas selecionadas</item>
     </plurals>
 </resources>

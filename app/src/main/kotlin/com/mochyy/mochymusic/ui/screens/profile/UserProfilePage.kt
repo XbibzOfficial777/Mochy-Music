@@ -332,7 +332,14 @@ private fun ListensCard(total: ListenTotal, width: Dp, onClick: () -> Unit, modi
         }
         Spacer(Modifier.height(4.dp))
         Row {
-            ListensFigure(total.songs.toString(), pluralStringResource(R.plurals.profile_unit_songs, total.songs), Modifier.weight(1f))
+            ListensFigure(
+                total.songs.toString(),
+                pluralStringResource(
+                    R.plurals.profile_unit_songs,
+                    unitLabelPluralQuantity(total.songs),
+                ),
+                Modifier.weight(1f),
+            )
             ListensFigure(timeValue, timeUnit, Modifier.weight(1f))
         }
     }
@@ -365,13 +372,24 @@ private fun ListensFigure(value: String, unit: String, modifier: Modifier = Modi
     }
 }
 
+/** Portuguese treats zero as "one"; use the plural unit beside a displayed zero. */
+private fun unitLabelPluralQuantity(count: Int): Int = if (count == 0) 2 else count
+
 /** "26 Hours", or "42 Mins" while it's still under an hour. */
 @Composable
 private fun ListenTotal.timeFigure(): Pair<String, String> {
     val minutes = playTimeMs / 60_000L
-    if (minutes < 60) return minutes.toString() to pluralStringResource(R.plurals.profile_unit_minutes, minutes.toInt())
+    if (minutes < 60) {
+        return minutes.toString() to pluralStringResource(
+            R.plurals.profile_unit_minutes,
+            unitLabelPluralQuantity(minutes.toInt()),
+        )
+    }
     val hours = minutes / 60
-    return hours.toString() to pluralStringResource(R.plurals.profile_unit_hours, hours.toInt())
+    return hours.toString() to pluralStringResource(
+        R.plurals.profile_unit_hours,
+        unitLabelPluralQuantity(hours.toInt()),
+    )
 }
 
 // ---- Rows of covers ---------------------------------------------------------------------------

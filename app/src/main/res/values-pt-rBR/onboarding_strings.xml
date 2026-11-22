@@ -41,14 +41,17 @@
     <plurals name="onb_songs">
         <item quantity="one">%1$,d música</item>
         <item quantity="other">%1$,d músicas</item>
+        <item quantity="many">%1$,d músicas</item>
     </plurals>
     <plurals name="onb_playlists">
         <item quantity="one">%1$,d playlist</item>
         <item quantity="other">%1$,d playlists</item>
+        <item quantity="many">%1$,d playlists</item>
     </plurals>
     <plurals name="onb_plays">
         <item quantity="one">%1$,d reprodução</item>
         <item quantity="other">%1$,d reproduções</item>
+        <item quantity="many">%1$,d reproduções</item>
     </plurals>
 
     <!-- provider -->
@@ -74,6 +77,7 @@
     <plurals name="onb_link_import_songs">
         <item quantity="one">Importar %d música</item>
         <item quantity="other">Importar %d músicas</item>
+        <item quantity="many">Importar %d músicas</item>
     </plurals>
     <string name="onb_provider_setup_title">Configuração de %1$s</string>
     <string name="onb_provider_setup_subtitle">Você entrará na sua conta. Nunca vemos sua senha. Uma página da web será aberta.</string>

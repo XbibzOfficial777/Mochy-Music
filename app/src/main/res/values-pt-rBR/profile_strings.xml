@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Greetings -->
     <string name="profile_greeting_hello_again">Olá novamente</string>
     <string name="profile_greeting_hey">Oi</string>
@@ -48,17 +48,21 @@
     <string name="profile_tag">PERFIL USR#%1$s</string>
     <string name="profile_edit_button">Editar perfil</string>
     <string name="profile_total_listens">Total de reproduções</string>
-    <plurals name="profile_unit_songs">
+    <!-- The count is rendered separately; zero is mapped to the plural form in code. -->
+    <plurals name="profile_unit_songs" tools:ignore="ImpliedQuantity">
         <item quantity="one">Música</item>
         <item quantity="other">Músicas</item>
+        <item quantity="many">Músicas</item>
     </plurals>
-    <plurals name="profile_unit_minutes">
+    <plurals name="profile_unit_minutes" tools:ignore="ImpliedQuantity">
         <item quantity="one">Min</item>
         <item quantity="other">Min</item>
+        <item quantity="many">Min</item>
     </plurals>
-    <plurals name="profile_unit_hours">
+    <plurals name="profile_unit_hours" tools:ignore="ImpliedQuantity">
         <item quantity="one">Hora</item>
         <item quantity="other">Horas</item>
+        <item quantity="many">Horas</item>
     </plurals>
     <string name="profile_listening_to">Ouvindo</string>
     <string name="profile_recent_empty">As músicas que você reproduzir aparecerão aqui.</string>

@@ -1093,12 +1093,12 @@ acesso rápido</string>
     <string name="song_share_romanisation_none">Estas letras já podem ser lidas normalmente</string>
     <string name="song_share_romanisation_main_hint">O cartão exibe a romanização; o texto original aparece abaixo</string>
     <string name="song_share_translation_hint">Cada linha no seu idioma, logo abaixo</string>
-    <string name="meta_app_id" translatable="false"/>
     <string name="yt_sync_lost_likes_title">Restaurar curtidas perdidas</string>
     <string name="yt_sync_lost_likes_desc">Restaurar músicas curtidas que foram removidas por engano durante uma sincronização</string>
     <plurals name="yt_sync_lost_likes_dialog_title">
-        <item quantity="one">Restaurar 1 curtida?</item>
+        <item quantity="one">Restaurar %1$d curtida?</item>
         <item quantity="other">Restaurar %1$d curtidas?</item>
+        <item quantity="many">Restaurar %1$d curtidas?</item>
     </plurals>
     <string name="yt_sync_lost_likes_dialog_body">Estas são músicas que uma sincronização descurtiu, músicas curtidas por suas importações e curtidas anteriores à última sincronização. Uma música que você mesmo descurtiu também será restaurada, então talvez seja necessário descurtir algumas novamente. Nada será alterado no YouTube.</string>
     <string name="yt_sync_lost_likes_none_title">Nenhuma curtida perdida</string>
@@ -1106,8 +1106,9 @@ acesso rápido</string>
     <string name="yt_sync_lost_likes_confirm">Restaurar</string>
     <string name="yt_sync_lost_likes_running">Restaurando suas curtidas…</string>
     <plurals name="yt_sync_lost_likes_done">
-        <item quantity="one">1 curtida foi restaurada em Músicas curtidas.</item>
+        <item quantity="one">%1$d curtida foi restaurada em Músicas curtidas.</item>
         <item quantity="other">%1$d curtidas foram restauradas em Músicas curtidas.</item>
+        <item quantity="many">%1$d curtidas foram restauradas em Músicas curtidas.</item>
     </plurals>
     <string name="atmos_streaming_note">A Apple codifica o Atmos apenas para FairPlay, e o Monochrome transmite FLAC estéreo. Portanto, o Atmos vem de um módulo adicionado por link: defina a opção Dolby Atmos desse módulo como Atmos. Seus próprios arquivos de som surround também são renderizados.</string>
     <string name="settings_blend_skips">Misturar ao pular</string>
@@ -1116,6 +1117,7 @@ acesso rápido</string>
     <plurals name="settings_blend_ahead_value">
         <item quantity="one">%d música</item>
         <item quantity="other">%d músicas</item>
+        <item quantity="many">%d músicas</item>
     </plurals>
     <string name="settings_blend_ahead_desc">Carregar mais músicas antecipadamente mantém a transição suave quando você pula várias faixas seguidas. Isso consome um pouco mais de dados.</string>
     <string name="settings_blend_ahead_saver">A economia de dados está ativada; por isso, apenas a próxima música será carregada antecipadamente.</string>

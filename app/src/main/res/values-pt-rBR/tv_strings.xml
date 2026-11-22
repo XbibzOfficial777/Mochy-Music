@@ -44,14 +44,17 @@
     <plurals name="tv_ledger_songs">
         <item quantity="one">%d música</item>
         <item quantity="other">%d músicas</item>
+        <item quantity="many">%d músicas</item>
     </plurals>
     <plurals name="tv_ledger_minutes">
         <item quantity="one">%d minuto</item>
         <item quantity="other">%d minutos</item>
+        <item quantity="many">%d minutos</item>
     </plurals>
     <plurals name="tv_song_count">
         <item quantity="one">%d música</item>
         <item quantity="other">%d músicas</item>
+        <item quantity="many">%d músicas</item>
     </plurals>
 
     <string name="tv_follow">Seguir</string>
@@ -87,12 +90,14 @@
     <string name="tv_sync_no_phone">Nenhum celular conectado</string>
     <string name="tv_sync_just_now">Sincronizado agora mesmo</string>
     <plurals name="tv_sync_minutes_ago">
-        <item quantity="one">Sincronizado há um minuto</item>
+        <item quantity="one">Sincronizado há %d minuto</item>
         <item quantity="other">Sincronizado há %d minutos</item>
+        <item quantity="many">Sincronizado há %d minutos</item>
     </plurals>
     <plurals name="tv_sync_copying">
-        <item quantity="one">Copiando uma música para esta TV…</item>
+        <item quantity="one">Copiando %d música para esta TV…</item>
         <item quantity="other">Copiando %d músicas para esta TV…</item>
+        <item quantity="many">Copiando %d músicas para esta TV…</item>
     </plurals>
 
     <!-- the phone side of the tv link -->

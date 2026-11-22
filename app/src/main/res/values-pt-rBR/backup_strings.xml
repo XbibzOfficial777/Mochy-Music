@@ -44,24 +44,29 @@
     <string name="backup_keep">Manter na nuvem</string>
     <string name="backup_keep_note">Após cada backup, os mais antigos deste celular são excluídos para manter apenas essa quantidade. Os backups de outros celulares não são alterados.</string>
     <plurals name="backup_every_minutes">
-        <item quantity="one">A cada minuto</item>
+        <item quantity="one">A cada %d minuto</item>
         <item quantity="other">A cada %d minutos</item>
+        <item quantity="many">A cada %d minutos</item>
     </plurals>
     <plurals name="backup_every_hours">
-        <item quantity="one">A cada hora</item>
+        <item quantity="one">A cada %d hora</item>
         <item quantity="other">A cada %d horas</item>
+        <item quantity="many">A cada %d horas</item>
     </plurals>
     <plurals name="backup_every_days">
-        <item quantity="one">A cada dia</item>
+        <item quantity="one">A cada %d dia</item>
         <item quantity="other">A cada %d dias</item>
+        <item quantity="many">A cada %d dias</item>
     </plurals>
     <plurals name="backup_every_weeks">
-        <item quantity="one">A cada semana</item>
+        <item quantity="one">A cada %d semana</item>
         <item quantity="other">A cada %d semanas</item>
+        <item quantity="many">A cada %d semanas</item>
     </plurals>
     <plurals name="backup_keep_count">
         <item quantity="one">%d backup</item>
         <item quantity="other">%d backups</item>
+        <item quantity="many">%d backups</item>
     </plurals>
 
     <!-- the restore sheet -->

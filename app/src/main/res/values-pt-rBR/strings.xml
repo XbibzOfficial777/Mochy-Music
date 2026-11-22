@@ -332,6 +332,7 @@
     <plurals name="sleep_timer_preset_minutes">
         <item quantity="one">%d min</item>
         <item quantity="other">%d min</item>
+        <item quantity="many">%d min</item>
     </plurals>
     <string name="sleep_timer_preset_hour">1 h</string>
     <string name="sleep_timer_custom">Tempo personalizado</string>

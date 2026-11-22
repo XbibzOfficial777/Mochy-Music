@@ -14,6 +14,7 @@
     <plurals name="song_edit_lyrics_lines">
         <item quantity="one">%1$s · %2$d linha</item>
         <item quantity="other">%1$s · %2$d linhas</item>
+        <item quantity="many">%1$s · %2$d linhas</item>
     </plurals>
     <string name="song_edit_lyrics_remove">Remover esta letra</string>
     <string name="lyrics_file_added">Usando seu arquivo de letras agora</string>

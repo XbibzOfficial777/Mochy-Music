@@ -58,6 +58,7 @@
     <plurals name="cipher_manual_refreshes_left">
         <item quantity="one">Resta %1$d atualização manual</item>
         <item quantity="other">Restam %1$d atualizações manuais</item>
+        <item quantity="many">Restam %1$d atualizações manuais</item>
     </plurals>
     <string name="cipher_updated_to_player">Atualizado para o reprodutor %1$s</string>
     <string name="cipher_refresh_failed">Falha na atualização — verifique sua conexão e tente novamente</string>

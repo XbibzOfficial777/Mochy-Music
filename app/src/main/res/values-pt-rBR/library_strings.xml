@@ -9,6 +9,7 @@
     <plurals name="lib_song_count">
         <item quantity="one">%1$d música</item>
         <item quantity="other">%1$d músicas</item>
+        <item quantity="many">%1$d músicas</item>
     </plurals>
     <string name="lib_count_on_device">%1$s neste dispositivo</string>
     <string name="lib_count_cached">%1$s em cache</string>
@@ -36,6 +37,7 @@
     <plurals name="lib_imported_songs_subtitle">
         <item quantity="one">%1$d música importada de %2$s.</item>
         <item quantity="other">%1$d músicas importadas de %2$s.</item>
+        <item quantity="many">%1$d músicas importadas de %2$s.</item>
     </plurals>
     <string name="lib_imported_search">Encontrar uma música importada de %1$s</string>
     <string name="lib_imported_queue_title">Importadas de %1$s</string>
@@ -67,6 +69,7 @@
     <plurals name="lib_local_repaired">
         <item quantity="one">Nome, letra ou capa de %1$d música corrigido</item>
         <item quantity="other">Nomes, letras ou capas de %1$d músicas corrigidos</item>
+        <item quantity="many">Nomes, letras ou capas de %1$d músicas corrigidos</item>
     </plurals>
 
     <!-- Transfer progress -->
@@ -84,10 +87,12 @@
     <plurals name="lib_picker_add_songs">
         <item quantity="one">Adicionar %1$d música</item>
         <item quantity="other">Adicionar %1$d músicas</item>
+        <item quantity="many">Adicionar %1$d músicas</item>
     </plurals>
     <plurals name="lib_picker_remove_songs">
         <item quantity="one">Remover %1$d música</item>
         <item quantity="other">Remover %1$d músicas</item>
+        <item quantity="many">Remover %1$d músicas</item>
     </plurals>
     <string name="lib_picker_add_music">Adicionar músicas</string>
     <string name="lib_picker_looking">Procurando músicas no seu celular…</string>

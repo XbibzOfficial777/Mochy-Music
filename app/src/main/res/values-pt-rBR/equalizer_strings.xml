@@ -46,6 +46,7 @@
     <plurals name="eqx_filters_count">
         <item quantity="one">%1$d filtro</item>
         <item quantity="other">%1$d filtros</item>
+        <item quantity="many">%1$d filtros</item>
     </plurals>
     <string name="eqx_apply_correction">Aplicar correção</string>
     <string name="eqx_apply_correction_desc">Ajusta a resposta destes fones em direção ao alvo, mantendo sua própria curva</string>

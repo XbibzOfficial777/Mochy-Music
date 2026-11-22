@@ -80,15 +80,13 @@
     <plurals name="storage_export_done">
         <item quantity="one">%d música exportada</item>
         <item quantity="other">%d músicas exportadas</item>
+        <item quantity="many">%d músicas exportadas</item>
     </plurals>
     <plurals name="storage_export_skipped">
         <item quantity="one">%d música não foi totalmente baixada e foi ignorada</item>
         <item quantity="other">%d músicas não foram totalmente baixadas e foram ignoradas</item>
+        <item quantity="many">%d músicas não foram totalmente baixadas e foram ignoradas</item>
     </plurals>
-    <string name="storage_export_folder_music" translatable="false">Música</string>
-    <string name="storage_export_folder_playlists" translatable="false">Playlist</string>
-    <string name="storage_export_folder_albums" translatable="false">Álbuns</string>
-    <string name="storage_export_folder_liked" translatable="false">Músicas curtidas</string>
 
     <!-- moving to a new phone -->
     <string name="storage_transfer_title">Vai trocar de celular? Leve tudo com você</string>
